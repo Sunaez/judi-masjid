@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
+/*──────────────────────────────────────────────────────────────────────────
+  1) Light defaults (and html.light)
+──────────────────────────────────────────────────────────────────────────*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Palette */
+  --background-start:     #EDEAE4; /* Almond (top of gradient) */
+  --background-end:       #F9F8F7; /* Ivory (bottom & solid below fold) */
+  --text-color:           #232A2F; /* Noir */
+  --accent-color:         #153147; /* Navy */
+  --secondary-color:      #ADB8BB; /* Mist */
+  --yellow:               #FFD700; /* Sun accent */
+
+  /* Fonts (injected via next/font) */
+  --font-sans:            var(--font-poppins);
+  --font-arabic:          var(--font-zain);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/*──────────────────────────────────────────────────────────────────────────
+  2) Dark-mode overrides (html.dark)
+──────────────────────────────────────────────────────────────────────────*/
+html.dark {
+  --background-start:     #153147; /* Navy */
+  --background-end:       #232A2F; /* Noir */
+  --text-color:           #F9F8F7; /* Ivory */
+  --accent-color:         #EDEAE4; /* Almond */
+  --secondary-color:      #ADB8BB; /* Mist */
+  --yellow:               #FFD700; /* unchanged */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/*──────────────────────────────────────────────────────────────────────────
+  3) Body & typography
+     - Gradient covers first 100vh
+     - Solid background beyond that
+──────────────────────────────────────────────────────────────────────────*/
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Solid fallback below fold */
+  background-color: var(--background-end);
+
+  /* Gradient over the first viewport height */
+  background-image: linear-gradient(
+    to bottom,
+    var(--background-start),
+    var(--background-end)
+  );
+  background-repeat: no-repeat;
+  background-size: auto 100vh;
+  background-attachment: local;
+
+  /* Text & font */
+  color: var(--text-color);
+  font-family: var(--font-sans), sans-serif;
+
+  /* Smooth transition on theme change */
+  transition: background 0.7s, color 0.7s;
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+  4) Arabic / Kurdish RTL & size
+──────────────────────────────────────────────────────────────────────────*/
+.arabic {
+  font-family: var(--font-arabic), serif;
+  direction: rtl;
+  text-align: right;
+  font-size: 2.5rem; /* larger Kurdish */
 }
