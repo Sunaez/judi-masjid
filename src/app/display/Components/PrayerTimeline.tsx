@@ -1,3 +1,4 @@
+// /src/app/display/Components/PrayerTimeline.tsx
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
@@ -156,9 +157,6 @@ export default function PrayerTimeline() {
               evt.type === 'sunrise'  ||
               evt.name === 'Maghrib'  ||
               evt.name === 'ʿIshā'
-            const bgColor = evt.type === 'sunrise'
-              ? (passed ? 'var(--yellow)' : 'var(--secondary-color)')
-              : (passed ? 'var(--accent-color)' : 'var(--secondary-color)')
 
             return (
               <div
@@ -173,16 +171,14 @@ export default function PrayerTimeline() {
                   </div>
                 )}
 
-                {/* Masked icon using --x-text-color */}
+                {/* Icon without background circle */}
                 <div
                   style={{
-                    width:           `${WRAPPER_MOBILE}px`,
-                    height:          `${WRAPPER_MOBILE}px`,
-                    borderRadius:    '50%',
-                    backgroundColor: bgColor,
-                    display:         'flex',
-                    alignItems:      'center',
-                    justifyContent:  'center',
+                    width:          `${WRAPPER_MOBILE}px`,
+                    height:         `${WRAPPER_MOBILE}px`,
+                    display:        'flex',
+                    alignItems:     'center',
+                    justifyContent: 'center',
                   }}
                 >
                   <div

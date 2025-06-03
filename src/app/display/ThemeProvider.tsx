@@ -1,4 +1,5 @@
 // src/app/display/ThemeProvider.tsx
+// TODO: Make sure changes are dynamic, currently needs refresh to update theme
 'use client'
 
 import { useEffect, useRef, useState, ReactNode } from 'react'

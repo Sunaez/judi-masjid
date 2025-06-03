@@ -10,7 +10,7 @@ export default function Display() {
   return (
     <div
       id="app"
-      className="flex flex-col h-screen w-screen font-sans overflow-hidden"
+      className="flex flex-col h-screen w-screen overflow-hidden"
     >
       <Rotator />
       <PrayerTimeline />

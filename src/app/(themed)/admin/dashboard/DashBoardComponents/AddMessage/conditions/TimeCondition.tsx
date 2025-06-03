@@ -1,4 +1,5 @@
 // src/app/(themed)/admin/dashboard/DashBoardComponents/AddMessage/conditions/TimeCondition.tsx
+//TODO: Make sure that time condition works properly
 'use client';
 
 import React from 'react';

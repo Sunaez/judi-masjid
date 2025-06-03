@@ -8,36 +8,73 @@ import {
   usePresence,
 } from 'motion/react'
 import { useEffect, useState, ReactNode } from 'react'
+import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
 
 export default function PrayerOverlay() {
-  const TEST_MODE = true
-  const TEST_TIME = '00:18' // HH:MM
-
-  // ─── Tick “now” ─────────────────────────────────────────────
+  // ─── State: “now” ───────────────────────────────────────────
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
 
-  // ─── Next prayer time ─────────────────────────────────────
-  let prayerTime: Date | null = null
-  if (TEST_MODE) {
-    const [h, m] = TEST_TIME.split(':').map(Number)
-    const d = new Date()
-    prayerTime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m, 0)
-  } else {
+  // ─── State: prayer times as Date objects ────────────────────
+  const [prayerDates, setPrayerDates] = useState<Date[] | null>(null)
+
+  useEffect(() => {
+    async function loadTimes() {
+      try {
+        const t: RawPrayerTimes = await fetchPrayerTimes()
+        // Helper to parse an "HH:MM" string into a Date for today
+        const toDate = (ts: string) => {
+          const [h, m] = ts.split(':').map(Number)
+          const d = new Date()
+          d.setHours(h, m, 0, 0)
+          return d
+        }
+
+        const dates: Date[] = [
+          toDate(t.fajrStart),
+          toDate(t.dhuhrStart),
+          toDate(t.asrStart),
+          toDate(t.maghrib),
+          toDate(t.ishaStart),
+        ].sort((a, b) => a.getTime() - b.getTime())
+
+        setPrayerDates(dates)
+      } catch (e) {
+        console.error('Failed to load prayer times:', e)
+      }
+    }
+
+    loadTimes()
+  }, [])
+
+  if (!prayerDates) return null
+
+  // ─── Determine the “current” prayer time to watch ─────────────
+  // We want the first prayer time for which now < (time + 165s).
+  const WINDOW_MS = 165 * 1000
+  const nextPrayerTime: Date | null =
+    prayerDates.find(pt => now.getTime() < pt.getTime() + WINDOW_MS) || null
+
+  if (!nextPrayerTime) {
+    // No upcoming or in-progress prayer
     return null
   }
 
-  // ─── Compute secsUntil & secsSince ─────────────────────────
-  const secsUntil = Math.ceil((prayerTime.getTime() - now.getTime()) / 1000)
-  const secsSince = Math.floor((now.getTime() - prayerTime.getTime()) / 1000)
+  // ─── Compute secsUntil & secsSince relative to nextPrayerTime ─
+  const deltaMs = nextPrayerTime.getTime() - now.getTime()
+  const secsUntil = Math.ceil(deltaMs / 1000)
+  const secsSince = Math.floor(-deltaMs / 1000) // if deltaMs is negative
 
-  // ─── Phase: countdown 1–60, prayer 165, else idle ───────
+  // ─── Phase logic: countdown 1–60, prayer 0–164s, else idle ──
   let phase: 'idle' | 'countdown' | 'prayer' = 'idle'
-  if (secsUntil >= 1 && secsUntil <= 60) phase = 'countdown'
-  else if (secsSince >= 0 && secsSince < 165) phase = 'prayer'
+  if (secsUntil >= 1 && secsUntil <= 60) {
+    phase = 'countdown'
+  } else if (secsSince >= 0 && secsSince < 165) {
+    phase = 'prayer'
+  }
 
   return (
     <AnimatePresence>

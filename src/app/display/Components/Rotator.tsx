@@ -1,4 +1,5 @@
 // src/app/display/Components/Rotator.tsx
+//TODO: Get to work on the Rotator component
 'use client';
 
 import React, { useEffect, useState, ReactElement } from 'react';

@@ -37,8 +37,6 @@ const rowVariants = {
 type TableTimes = Omit<RawPrayerTimes, 'sunrise'>
 
 export default function PrayerTimesTable() {
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
   const [times, setTimes] = useState<TableTimes>({
     fajrStart:   '', fajrJamaat:  '',
     dhuhrStart:  '', dhuhrJamaat: '',
@@ -46,29 +44,6 @@ export default function PrayerTimesTable() {
     maghrib:     '',
     ishaStart:   '', ishaJamaat:  ''
   })
-
-  // Clock: update date & time every second
-  useEffect(() => {
-    function tick() {
-      const now = new Date()
-      setDate(
-        now.toLocaleDateString('en-US', {
-          month: 'long',
-          day:   'numeric',
-        })
-      )
-      setTime(
-        now.toLocaleTimeString('en-US', {
-          hour:   '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      )
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [])
 
   // Fetch prayer times via shared function
   useEffect(() => {
@@ -105,10 +80,6 @@ export default function PrayerTimesTable() {
       className="flex-1 p-4 min-h-[50vh]"
     >
       <h2 className="text-2xl mb-4 text-center">Prayer Times</h2>
-      <div className="flex justify-center space-x-6 mb-4">
-        <span>{date}</span>
-        <span>{time}</span>
-      </div>
 
       <table
         className="

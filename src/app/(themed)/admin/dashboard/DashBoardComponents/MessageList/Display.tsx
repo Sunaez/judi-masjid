@@ -1,74 +1,30 @@
-// src/app/(themed)/admin/dashboard/DashBoardComponents/MessageList.tsx
+// src/app/(themed)/admin/dashboard/DashBoardComponents/MessageList/Display.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
-import {
-  collection,
-  query,
-  orderBy,
-  getDocs,
-  Timestamp,
-} from 'firebase/firestore';
-import type { MessageData, ConditionData } from './AddMessage/types';
+import React from 'react';
+import type { MessageRecord } from './index';
+import { IoTrash } from 'react-icons/io5';
 
-interface MessageRecord {
-  id: string;
-  data: Omit<MessageData, 'conditions'>;
-  createdAt: Timestamp;
-  conditionsData: ConditionData[];
+interface DisplayProps {
+  messages: MessageRecord[];
+  loading: boolean;
+  error: string | null;
+  onDeleteClick: (id: string) => void;
 }
 
-export default function MessageList() {
-  const [messages, setMessages] = useState<MessageRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchAll() {
-      setLoading(true);
-      setError(null);
-      try {
-        const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
-        const snap = await getDocs(q);
-        const results = await Promise.all(
-          snap.docs.map(async doc => {
-            const raw = doc.data() as any;
-            const condSnap = await getDocs(
-              collection(db, 'messages', doc.id, 'conditions')
-            );
-            const conds = condSnap.docs.map(d => d.data() as ConditionData);
-            return {
-              id: doc.id,
-              data: {
-                sourceType: raw.sourceType,
-                quran: raw.quran,
-                hadith: raw.hadith,
-                other: raw.other,
-              },
-              createdAt: raw.createdAt ?? Timestamp.fromDate(new Date(0)),
-              conditionsData: conds,
-            };
-          })
-        );
-        setMessages(results);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message || 'Failed to load messages');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchAll();
-  }, []);
-
-  if (loading)  return <p className="text-[var(--text-color)]">Loading messages…</p>;
-  if (error)    return <p className="text-red-600">Error: {error}</p>;
+export default function Display({
+  messages,
+  loading,
+  error,
+  onDeleteClick,
+}: DisplayProps) {
+  if (loading) return <p className="text-[var(--text-color)]">Loading messages…</p>;
+  if (error) return <p className="text-red-600">Error: {error}</p>;
   if (!messages.length) return <p className="text-[var(--text-color)]">No messages found.</p>;
 
   return (
     <div className="space-y-6">
-      {messages.map(msg => (
+      {messages.map((msg) => (
         <div
           key={msg.id}
           className="
@@ -85,9 +41,18 @@ export default function MessageList() {
               <h3 className="text-2xl font-semibold text-[var(--accent-color)]">
                 Message #{msg.id}
               </h3>
-              <span className="text-sm text-[var(--secondary-color)]">
-                {msg.createdAt.toDate().toLocaleString()}
-              </span>
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-[var(--secondary-color)]">
+                  {msg.createdAt.toDate().toLocaleString()}
+                </span>
+                <button
+                  onClick={() => onDeleteClick(msg.id)}
+                  className="text-red-600 hover:text-[var(--yellow)] transition-colors duration-200"
+                  aria-label="Delete message"
+                >
+                  <IoTrash size={20} />
+                </button>
+              </div>
             </div>
 
             <span
@@ -178,24 +143,27 @@ export default function MessageList() {
                   </span>
                   <div className="mt-2 text-[var(--text-color)] text-sm space-y-1">
                     {c.type === 'normal' && <p>Always active</p>}
-                    {c.type === 'time' && c.entries.map((e, j) => (
-                      <p key={j}>{e.from} – {e.to}</p>
-                    ))}
-                    {c.type === 'prayer' && c.entries.map((e, j) => (
-                      <p key={j}>{e.when} {e.name} ({e.duration} min)</p>
-                    ))}
-                    {c.type === 'weather' && c.entries.map((e, j) => (
-                      <p key={j}>{e.weather}</p>
-                    ))}
-                    {c.type === 'day' && c.entries.map((d, j) => (
-                      <p key={j}>{d}</p>
-                    ))}
+                    {c.type === 'time' &&
+                      c.entries.map((e, j) => (
+                        <p key={j}>
+                          {e.from} – {e.to}
+                        </p>
+                      ))}
+                    {c.type === 'prayer' &&
+                      c.entries.map((e, j) => (
+                        <p key={j}>
+                          {e.when} {e.name} ({e.duration} min)
+                        </p>
+                      ))}
+                    {c.type === 'weather' &&
+                      c.entries.map((e, j) => <p key={j}>{e.weather}</p>)}
+                    {c.type === 'day' &&
+                      c.entries.map((d, j) => <p key={j}>{d}</p>)}
                   </div>
                 </div>
               ))}
             </div>
           </div>
-
         </div>
       ))}
     </div>
