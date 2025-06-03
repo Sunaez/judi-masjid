@@ -1,7 +1,7 @@
+// src/app/layout.tsx
 import './globals.css'
 import type { Metadata } from 'next'
 import { Poppins, Zain } from 'next/font/google'
-import { ThemeProvider } from 'next-themes'
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -33,15 +33,7 @@ export default function RootLayout({
       className={`${poppins.variable} ${zain.variable}`}
     >
       <body>
-        <ThemeProvider
-          attribute="class"
-          enableSystem
-          defaultTheme="system"
-          // turn off auto color-scheme style injection
-          enableColorScheme={false}
-        >
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   )
