@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/*──────────────────────────────────────────────────────────────────────────
+  1) Light defaults (and html.light)
+──────────────────────────────────────────────────────────────────────────*/
+:root {
+  /* Palette */
+  --background-start:     #f5e4d3; /* Almond (top of gradient) */
+  --background-end:       #F9F8F7; /* Ivory (bottom & solid below fold) */
+  --text-color:           #232A2F; /* Noir */
+  --accent-color:         #153147; /* Navy */
+  --secondary-color:      #ADB8BB; /* Mist */
+  --yellow:               #FFD700; /* Sun accent */
+
+  /* “x-” versions = the dark-mode values */
+  --x-background-start:   #153147;
+  --x-background-end:     #232A2F;
+  --x-text-color:         #F9F8F7;
+  --x-accent-color:       #F2E8DE;
+  --x-secondary-color:    #ADB8BB; /* same in both modes */
+  --x-yellow:             #FFD700; /* same in both modes */
+}
+
+/*──────────────────────────────────────────────────────────────────────────
+  2) Dark-mode overrides (html.dark)
+──────────────────────────────────────────────────────────────────────────*/
+html.dark {
+  /* Override the “normal” vars */
+  --background-start:     #153147; /* Navy */
+  --background-end:       #232A2F; /* Noir */
+  --text-color:           #F9F8F7; /* Ivory */
+  --accent-color:         #F2E8DE; /* Almond */
+  --secondary-color:      #ADB8BB; /* Mist */
+  --yellow:               #FFD700; /* unchanged */
+
+  /* “x-” versions = the light-mode values */
+  --x-background-start:   #f5e4d3;
+  --x-background-end:     #F9F8F7;
+  --x-text-color:         #232A2F;
+  --x-accent-color:       #153147;
+  --x-secondary-color:    #ADB8BB; /* same in both modes */
+  --x-yellow:             #FFD700; /* same in both modes */
+}

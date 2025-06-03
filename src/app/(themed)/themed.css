@@ -1,0 +1,36 @@
+/*──────────────────────────────────────────────────────────────────────────
+  3) Body & typography
+     - Gradient covers first 100vh, solid beyond
+──────────────────────────────────────────────────────────────────────────*/
+body {
+    /* Solid fallback below fold */
+    background-color: var(--background-end);
+  
+    /* Gradient over the first viewport height */
+    background-image: linear-gradient(
+      to bottom,
+      var(--background-start),
+      var(--background-end)
+    );
+    background-repeat: no-repeat;
+    background-size: auto 100vh;
+    background-attachment: local;
+  
+    /* Text & font (font-variables injected via next/font) */
+    color: var(--text-color);
+    font-family: var(--font-sans), sans-serif;
+  
+    /* Smooth transition on theme change */
+    transition: background 0.7s, color 0.7s;
+  }
+  
+  /*──────────────────────────────────────────────────────────────────────────
+    4) Arabic / Kurdish RTL & size
+  ──────────────────────────────────────────────────────────────────────────*/
+  .arabic {
+    font-family: var(--font-arabic), serif;
+    direction: rtl;
+    text-align: right;
+    font-size: 2.5rem; /* larger Kurdish */
+  }
+  
