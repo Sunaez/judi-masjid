@@ -35,7 +35,8 @@ function getBlockedWindows(times: RawPrayerTimes): [Date, Date][] {
  */
 export function usePrayerTimes() {
   const [times, setTimes] = useState<RawPrayerTimes | null>(null)
-  const timer = useRef<number | null>(null)  // ← give an initial value!
+  const timesRef = useRef<RawPrayerTimes | null>(null)
+  const timer = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +45,11 @@ export function usePrayerTimes() {
       try {
         const newTimes = await fetchPrayerTimes()
         // only update if different
-        if (!cancelled && JSON.stringify(newTimes) !== JSON.stringify(times)) {
+        if (
+          !cancelled &&
+          JSON.stringify(newTimes) !== JSON.stringify(timesRef.current)
+        ) {
+          timesRef.current = newTimes
           setTimes(newTimes)
         }
       } catch (err) {
@@ -57,9 +62,10 @@ export function usePrayerTimes() {
       const now = new Date()
       let next = new Date(now.getTime() + 5 * 60_000)
 
-      if (times) {
+      const currentTimes = timesRef.current
+      if (currentTimes) {
         // future/present blocks
-        const blocks = getBlockedWindows(times)
+        const blocks = getBlockedWindows(currentTimes)
           .filter(([, end]) => end > now)
           .sort((a, b) => a[0].getTime() - b[0].getTime())
 
@@ -86,8 +92,8 @@ export function usePrayerTimes() {
       cancelled = true
       if (timer.current) clearTimeout(timer.current)
     }
-    // we intentionally omit `times` in deps so we keep our closures stable
-    // and use the old `times` value inside scheduleFetch
+    // keep deps empty so scheduleFetch remains stable; timesRef always holds
+    // the latest fetched values
   }, [])
 
   return times
