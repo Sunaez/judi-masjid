@@ -33,12 +33,13 @@ export default function PrayerOverlay() {
           return d
         }
 
+        // ── CHANGED HERE: Use the “jamaat” fields (when available) instead of the adhan “start” times
         const dates: Date[] = [
-          toDate(t.fajrStart),
-          toDate(t.dhuhrStart),
-          toDate(t.asrStart),
-          toDate(t.maghrib),
-          toDate(t.ishaStart),
+          toDate(t.fajrJamaat),   // was t.fajrStart
+          toDate(t.dhuhrJamaat),  // was t.dhuhrStart
+          toDate(t.asrJamaat),    // was t.asrStart
+          toDate(t.maghrib),      // no maghribJamaat column; leave as-is
+          toDate(t.ishaJamaat),   // was t.ishaStart
         ].sort((a, b) => a.getTime() - b.getTime())
 
         setPrayerDates(dates)
