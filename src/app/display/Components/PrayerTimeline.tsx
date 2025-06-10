@@ -1,4 +1,4 @@
-// /src/app/display/Components/PrayerTimeline.tsx
+// src/app/display/Components/PrayerTimeline.tsx
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
@@ -14,10 +14,6 @@ const ICON_MAP: Record<string, string> = {
   'Maghrib':     '/icons/icon-maghrib.svg',
   'ʿIshā':       '/icons/icon-isha.svg',
 }
-
-//////////////////////////////////////////
-// Adjustable parameters ↓↓↓
-//////////////////////////////////////////
 
 const PRE_EVENT_HOURS   = 1
 const POST_EVENT_HOURS  = 1
@@ -49,8 +45,8 @@ export default function PrayerTimeline() {
   const [range,  setRange]  = useState<{ start: Date; end: Date } | null>(null)
   const [now,    setNow]    = useState(new Date())
 
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const innerRef  = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const innerRef  = useRef<HTMLDivElement | null>(null)
 
   // update “now” every second
   useEffect(() => {
@@ -111,18 +107,19 @@ export default function PrayerTimeline() {
     transform: 'translateX(-50%)',
   })
 
-  // next upcoming event
   const nextEvt = events.find(e => e.time.getTime() > now.getTime())
 
   return (
-    // Apply the text-color variable to all text
-    <div className="text-[var(--text-color)]">
-      {/* Timeline container */}
+    <div className="flex flex-col h-full w-full text-[var(--text-color)]">
+      {/* Timeline container fills all available space */}
       <div
         ref={scrollRef}
-        className="overflow-x-auto overflow-y-hidden py-20 bg-[var(--background-end)]"
+        className="flex-grow overflow-x-auto overflow-y-hidden py-25 bg-[var(--background-end)]"
       >
-        <div ref={innerRef} className="relative w-full min-w-[900px] py-10">
+        <div
+          ref={innerRef}
+          className="relative w-full min-w-[900px] py-10"
+        >
           {/* background bar */}
           <div
             style={{
