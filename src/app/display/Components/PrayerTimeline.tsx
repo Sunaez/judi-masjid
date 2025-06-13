@@ -114,7 +114,7 @@ export default function PrayerTimeline() {
       {/* Timeline container fills all available space */}
       <div
         ref={scrollRef}
-        className="flex-grow overflow-x-auto overflow-y-hidden py-25 bg-[var(--background-end)]"
+        className="flex-grow overflow-x-hidden overflow-y-hidden py-30 bg-[var(--background-end)]"
       >
         <div
           ref={innerRef}

@@ -1,20 +1,38 @@
+/* 1) Declare the Quranic font-face */
+@font-face {
+  font-family: 'Quranic';
+  src: url('/fonts/Quranic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 2) Define your CSS variable for Arabic text */
+:root {
+  --arabic-font: 'Quranic', sans-serif;
+}
+
 /* (1) Centered container for the GSAP loader */
 .loader-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    display: flex;
-    gap: 0.5rem;
-  }
-  
-  /* (2) The four bouncing dots */
-  .loader-container .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid var(--text-color);
-    opacity: 0;
-  }
-  
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* (2) The four bouncing dots */
+.loader-container .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--text-color);
+  opacity: 0;
+}
+
+/* (3) Any RTL text will now use your Quranic font */
+.rtl {
+  font-family: var(--arabic-font);
+}
