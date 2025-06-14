@@ -13,12 +13,12 @@ export default function Display() {
       className="relative flex flex-col w-full h-screen overflow-hidden"
     >
       {/* Rotator: fixed 65vh height, full width */}
-      <div className="flex-none w-full h-[65vh] overflow-auto">
+      <div className="flex-none w-full h-[65vh] overflow-hidden">
         <Rotator />
       </div>
 
       {/* PrayerTimeline: fixed 35vh height, full width, scroll if overflow */}
-      <div className="flex-none w-full h-[35vh] overflow-auto">
+      <div className="flex-none w-full h-[35vh] overflow-hidden">
         <PrayerTimeline />
       </div>
 
