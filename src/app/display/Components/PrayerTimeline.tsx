@@ -7,12 +7,12 @@ import TimeUntil from './TimeUntil'
 
 // SVG icons in public/icons
 const ICON_MAP: Record<string, string> = {
-  'Fajr Jamʿā':  '/icons/icon-fajr.svg',
-  'Sunrise':     '/icons/icon-sunrise.svg',
-  'Dhuhr Jamʿā': '/icons/icon-dhuhr.svg',
-  'ʿAṣr Jamʿā':  '/icons/icon-asr.svg',
-  'Maghrib':     '/icons/icon-maghrib.svg',
-  'ʿIshā':       '/icons/icon-isha.svg',
+  'Fajr Jamʿā':  '/Icons/icon-fajr.svg',
+  'Sunrise':     '/Icons/icon-sunrise.svg',
+  'Dhuhr Jamʿā': '/Icons/icon-dhuhr.svg',
+  'ʿAṣr Jamʿā':  '/Icons/icon-asr.svg',
+  'Maghrib':     '/Icons/icon-maghrib.svg',
+  'ʿIshā':       '/Icons/icon-isha.svg',
 }
 
 const PRE_EVENT_HOURS   = 1

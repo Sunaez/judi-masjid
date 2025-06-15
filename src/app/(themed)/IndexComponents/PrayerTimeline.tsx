@@ -7,15 +7,15 @@ import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
 
 // SVG icons in public/icons
 const ICON_MAP: Record<string, string> = {
-  'Fajr':           '/icons/icon-fajr.svg',
-  'Fajr Jamʿā':     '/icons/icon-masjid.svg',
-  'Sunrise':        '/icons/icon-sunrise.svg',
-  'Dhuhr Jamʿā':    '/icons/icon-masjid.svg',
-  'Dhuhr':          '/icons/icon-dhuhr.svg',
-  'ʿAṣr Jamʿā':     '/icons/icon-masjid.svg',
-  'ʿAṣr':           '/icons/icon-asr.svg',
-  'Maghrib':        '/icons/icon-maghrib.svg',
-  'ʿIshā':          '/icons/icon-isha.svg',
+  'Fajr':           '/Icons/icon-fajr.svg',
+  'Fajr Jamʿā':     '/Icons/icon-masjid.svg',
+  'Sunrise':        '/Icons/icon-sunrise.svg',
+  'Dhuhr Jamʿā':    '/Icons/icon-masjid.svg',
+  'Dhuhr':          '/Icons/icon-dhuhr.svg',
+  'ʿAṣr Jamʿā':     '/Icons/icon-masjid.svg',
+  'ʿAṣr':           '/Icons/icon-asr.svg',
+  'Maghrib':        '/Icons/icon-maghrib.svg',
+  'ʿIshā':          '/Icons/icon-isha.svg',
 }
 
 //////////////////////////////////////////
