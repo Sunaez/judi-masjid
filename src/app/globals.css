@@ -17,8 +17,8 @@
   --x-background-end:     #232A2F;
   --x-text-color:         #F9F8F7;
   --x-accent-color:       #F2E8DE;
-  --x-secondary-color:    #ADB8BB; /* same in both modes */
-  --x-yellow:             #FFD700; /* same in both modes */
+  --x-secondary-color:    #ADB8BB; 
+  --x-yellow:             #FFD700; 
 }
 
 /*──────────────────────────────────────────────────────────────────────────

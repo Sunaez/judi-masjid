@@ -10,6 +10,11 @@ import {
 import { useEffect, useState, ReactNode } from 'react'
 import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
 
+interface PrayerTime {
+  name: string
+  date: Date
+}
+
 export default function PrayerOverlay() {
   // ─── State: “now” ───────────────────────────────────────────
   const [now, setNow] = useState(() => new Date())
@@ -18,14 +23,13 @@ export default function PrayerOverlay() {
     return () => clearInterval(id)
   }, [])
 
-  // ─── State: prayer times as Date objects ────────────────────
-  const [prayerDates, setPrayerDates] = useState<Date[] | null>(null)
+  // ─── State: prayer times with names ─────────────────────────
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTime[] | null>(null)
 
   useEffect(() => {
     async function loadTimes() {
       try {
         const t: RawPrayerTimes = await fetchPrayerTimes()
-        // Helper to parse an "HH:MM" string into a Date for today
         const toDate = (ts: string) => {
           const [h, m] = ts.split(':').map(Number)
           const d = new Date()
@@ -33,16 +37,15 @@ export default function PrayerOverlay() {
           return d
         }
 
-        // ── CHANGED HERE: Use the “jamaat” fields (when available) instead of the adhan “start” times
-        const dates: Date[] = [
-          toDate(t.fajrJamaat),   // was t.fajrStart
-          toDate(t.dhuhrJamaat),  // was t.dhuhrStart
-          toDate(t.asrJamaat),    // was t.asrStart
-          toDate(t.maghrib),      // no maghribJamaat column; leave as-is
-          toDate(t.ishaJamaat),   // was t.ishaStart
-        ].sort((a, b) => a.getTime() - b.getTime())
+        const times: PrayerTime[] = [
+          { name: 'Fajr',    date: toDate(t.fajrJamaat) },
+          { name: 'Dhuhr',   date: toDate(t.dhuhrJamaat) },
+          { name: 'Asr',     date: toDate(t.asrJamaat) },
+          { name: 'Maghrib', date: toDate(t.maghrib)   },
+          { name: 'Isha',    date: toDate(t.ishaJamaat) },
+        ].sort((a, b) => a.date.getTime() - b.date.getTime())
 
-        setPrayerDates(dates)
+        setPrayerTimes(times)
       } catch (e) {
         console.error('Failed to load prayer times:', e)
       }
@@ -51,23 +54,22 @@ export default function PrayerOverlay() {
     loadTimes()
   }, [])
 
-  if (!prayerDates) return null
+  if (!prayerTimes) return null
 
   // ─── Determine the “current” prayer time to watch ─────────────
-  // We want the first prayer time for which now < (time + 165s).
   const WINDOW_MS = 165 * 1000
-  const nextPrayerTime: Date | null =
-    prayerDates.find(pt => now.getTime() < pt.getTime() + WINDOW_MS) || null
+  const nextPrayer =
+    prayerTimes.find(pt => now.getTime() < pt.date.getTime() + WINDOW_MS) || null
 
-  if (!nextPrayerTime) {
+  if (!nextPrayer) {
     // No upcoming or in-progress prayer
     return null
   }
 
-  // ─── Compute secsUntil & secsSince relative to nextPrayerTime ─
-  const deltaMs = nextPrayerTime.getTime() - now.getTime()
+  // ─── Compute secsUntil & secsSince relative to nextPrayer ─
+  const deltaMs = nextPrayer.date.getTime() - now.getTime()
   const secsUntil = Math.ceil(deltaMs / 1000)
-  const secsSince = Math.floor(-deltaMs / 1000) // if deltaMs is negative
+  const secsSince = Math.floor(-deltaMs / 1000)
 
   // ─── Phase logic: countdown 1–60, prayer 0–164s, else idle ──
   let phase: 'idle' | 'countdown' | 'prayer' = 'idle'
@@ -102,7 +104,7 @@ export default function PrayerOverlay() {
                 animate={{ y: 0, opacity: 1, transition: { duration: 0.4 } }}
                 exit={{ y: 20, opacity: 0, transition: { duration: 0.4 } }}
               >
-                Prayer in progress
+                {`${nextPrayer.name} in progress`}
               </motion.div>
             )}
           </AnimatePresence>
@@ -120,7 +122,7 @@ export default function PrayerOverlay() {
               z-index: 50;
             }
             .countdown-text {
-              font-size: 6vh;
+              font-size: 6vw;
               font-weight: bold;
               color: var(--x-text-color);
               z-index: 10;

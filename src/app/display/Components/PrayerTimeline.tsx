@@ -2,7 +2,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
+import { fetchPrayerTimes, RawPrayerTimes } from '@/app/FetchPrayerTimes'
 import TimeUntil from './TimeUntil'
 
 // SVG icons in public/icons

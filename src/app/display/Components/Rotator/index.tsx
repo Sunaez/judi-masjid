@@ -9,21 +9,31 @@ import Welcome from './Specials/Welcome';
 import DateTimeWeather from './Specials/DateTimeWeather';
 import Donation from './Specials/Donation';
 import Feedback from './Specials/Feedback';
+import PrayerTable from './Specials/PrayerTable'; // New special component
 import Footer from './Footer';
 import { fetchPrayerTimes, RawPrayerTimes } from '@/app/FetchPrayerTimes';
+
+// Firebase import
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Environment variables
 const OPENWEATHER_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY!;
 const OPENWEATHER_LAT = process.env.NEXT_PUBLIC_OPENWEATHER_LAT!;
 const OPENWEATHER_LON = process.env.NEXT_PUBLIC_OPENWEATHER_LON!;
 
-// Display durations
-const DISPLAY_MS = 20_000;
-const CACHE_DURATION = 10 * 60 * 1000;
+// Firestore document reference
+const weatherDocRef = doc(db, 'weather', 'current');
 
-// Slot sequence
+// Timing constants
+const DISPLAY_MS = 20_000;
+const RELOAD_THRESHOLD = 60 * 1000;   // 1 minute
+const CHECK_INTERVAL = 30 * 1000;     // 30 seconds
+
+// Slot sequence, including new PrayerTable special
 const slots = [
   { type: 'special', component: Welcome },
+  { type: 'special', component: PrayerTable },
   { type: 'message' },
   { type: 'special', component: DateTimeWeather },
   { type: 'message' },
@@ -35,9 +45,13 @@ const slots = [
 interface WeatherData {
   temp: number;
   condition: string;
+  iconCode: string;
+  forecastTemp: number;
+  forecastCondition: string;
 }
 
 export default function Rotator() {
+  // State & refs
   const all = useMessages();
   const [prayerTimes, setPrayerTimes] = useState<RawPrayerTimes | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -49,173 +63,133 @@ export default function Rotator() {
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  // Fetch prayer times on mount
+  // Fetch prayer times
   useEffect(() => {
     fetchPrayerTimes()
-      .then(setPrayerTimes)
-      .catch(err => console.error('[prayer] Failed to load:', err));
+      .then(data => setPrayerTimes(data))
+      .catch(err => console.error('[prayer] Error:', err));
   }, []);
 
-  // Fetch & cache weather data
+  // Weather fetch + cache icon code in Firestore
   useEffect(() => {
-    async function loadWeather(force = false) {
+    async function updateWeather(force = false) {
       try {
-        const stored = localStorage.getItem('weatherData');
-        const ts = localStorage.getItem('weatherTimestamp');
-        if (!force && stored && ts && Date.now() - +ts < CACHE_DURATION) {
-          setWeatherData(JSON.parse(stored));
-        } else {
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}`
-          );
-          const data = await res.json();
-          const temp = Math.round((data.main?.temp ?? 273.15) - 273.15);
-          const map: Record<string, string> = {
-            Clouds: 'Cloudy',
-            Rain: 'Rain',
-            Drizzle: 'Drizzle',
-            Snow: 'Snow',
-            Thunderstorm: 'Thunder',
-          };
-          const condition = map[data.weather?.[0]?.main] ?? 'Clear';
-          const wd = { temp, condition };
-          setWeatherData(wd);
-          localStorage.setItem('weatherData', JSON.stringify(wd));
-          localStorage.setItem('weatherTimestamp', Date.now().toString());
+        const snap = await getDoc(weatherDocRef);
+        if (!force && snap.exists()) {
+          const data = snap.data();
+          const age = Date.now() - (data.timestamp as number);
+          if (age < RELOAD_THRESHOLD) {
+            setWeatherData({
+              temp: data.temp,
+              condition: data.condition,
+              iconCode: data.iconCode,
+              forecastTemp: data.forecastTemp,
+              forecastCondition: data.forecastCondition,
+            });
+            return;
+          }
         }
-      } catch (err) {
-        console.error('[weather] Failed to load:', err);
-        setWeatherData(null);
+
+        // Fetch current weather
+        const curRes = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`
+        );
+        console.log('[weather] Current status:', curRes.status);
+        const curJson = await curRes.json();
+
+        // Fetch next forecast
+        const fcRes = await fetch(
+          `https://api.openweathermap.org/data/2.5/forecast?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=1`
+        );
+        console.log('[weather] Forecast status:', fcRes.status);
+        const fcJson = await fcRes.json();
+
+        // Extract values
+        const temp = Math.round(curJson.main.temp);
+        const condition = curJson.weather[0].main;
+        const iconCode = curJson.weather[0].icon;
+        const forecastTemp = Math.round(fcJson.list[0].main.temp);
+        const forecastCondition = fcJson.list[0].weather[0].main;
+
+        const timestamp = Date.now();
+        const docData = { temp, condition, iconCode, forecastTemp, forecastCondition, timestamp };
+        await setDoc(weatherDocRef, docData);
+        setWeatherData({ temp, condition, iconCode, forecastTemp, forecastCondition });
+      } catch (error) {
+        console.error('[weather] Error:', error);
       }
     }
-    loadWeather();
-    const iv = setInterval(() => loadWeather(true), CACHE_DURATION);
-    return () => clearInterval(iv);
+
+    updateWeather();
+    const id = setInterval(() => updateWeather(), CHECK_INTERVAL);
+    return () => clearInterval(id);
   }, []);
 
-  // On message slot: pick a random valid
+  // On message slot: pick random valid
   useEffect(() => {
     if (slots[index].type === 'message') {
-      setCurrentMessage(
-        valid.length ? valid[Math.floor(Math.random() * valid.length)] : null
-      );
+      setCurrentMessage(valid.length ? valid[Math.floor(Math.random() * valid.length)] : null);
     }
   }, [index, valid]);
 
-  // Advance slot on fixed interval
+  // Advance slot
   useEffect(() => {
-    const iv = setInterval(() => {
-      setIndex(i => (i + 1) % slots.length);
-    }, DISPLAY_MS);
-    return () => clearInterval(iv);
+    const id = setInterval(() => setIndex(i => (i + 1) % slots.length), DISPLAY_MS);
+    return () => clearInterval(id);
   }, []);
 
-  // GSAP entry/progress/exit timeline
+  // Animation with GSAP
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline();
-      // entry
-      tl.from(containerRef.current, {
-        autoAlpha: 0,
-        y: 30,
-        duration: 0.6,
-        ease: 'power2.out',
-      });
-      // progress bar
-      tl.set(progressRef.current, {
-        width: '0%',
-        backgroundColor: 'var(--accent-color)',
-      });
-      tl.to(
-        progressRef.current,
-        {
-          width: '100%',
-          backgroundColor: 'var(--x-accent-color)',
-          duration: DISPLAY_MS / 1000,
-          ease: 'none',
-        },
-        '<'
-      );
-      // exit
-      tl.to(
-        containerRef.current,
-        {
-          autoAlpha: 0,
-          y: -30,
-          duration: 0.6,
-          ease: 'power1.in',
-        },
-        `-=${0.6}`
-      );
+      tl.from(containerRef.current, { autoAlpha: 0, y: 30, duration: 0.6, ease: 'power2.out' });
+      tl.set(progressRef.current, { width: '0%' });
+      tl.to(progressRef.current, { width: '100%', duration: DISPLAY_MS / 1000, ease: 'none' }, '<');
+      tl.to(containerRef.current, { autoAlpha: 0, y: -30, duration: 0.6, ease: 'power1.in' }, `-=${0.6}`);
     }, containerRef);
-
     return () => ctx.revert();
   }, [index]);
 
-  // Render logic
-  let content: React.ReactNode;
+  // Render
   const slot = slots[index];
+  let content: React.ReactNode;
 
   if (slot.type === 'message') {
-    if (!currentMessage) {
-      content = (
-        <div className="flex-1 flex items-center justify-center">
-          Loading…
-        </div>
-      );
-    } else {
-      const cm = currentMessage;
-      content = (
-        <>
-          <div className="flex-1 flex items-center justify-between gap-8 overflow-hidden">
-            <div
-              className="flex-1 h-full overflow-hidden arabic-text rtl"
-              style={{
-                color: 'var(--text-color)',
-                fontSize: 'var(--rotator-text-size)',
-              }}
-              dir="rtl"
-            >
-              {cm.sourceType === 'quran'
-                ? cm.quran?.arabicText
-                : cm.sourceType === 'hadith'
-                ? cm.hadith?.arabicText
-                : cm.other?.arabicText}
-            </div>
-            <div
-              className="flex-1 h-full overflow-hidden"
-              style={{
-                color: 'var(--text-color)',
-                fontSize: 'var(--rotator-text-size)',
-              }}
-            >
-              {cm.sourceType === 'quran'
-                ? cm.quran?.englishText
-                : cm.sourceType === 'hadith'
-                ? cm.hadith?.englishText
-                : cm.other?.englishText}
-            </div>
+    content = currentMessage ? (
+      <>
+        <div className="flex-1 flex items-start justify-between gap-8 overflow-hidden">
+          <div className="flex-1 arabic-text rtl" dir="rtl" style={{ fontSize: 'var(--rotator-text-size)' }}>
+            {currentMessage.sourceType === 'quran'
+              ? currentMessage.quran?.arabicText
+              : currentMessage.sourceType === 'hadith'
+              ? currentMessage.hadith?.arabicText
+              : currentMessage.other?.arabicText}
           </div>
-          <Footer message={cm} />
-        </>
-      );
-    }
+          <div className="flex-1" style={{ fontSize: 'var(--rotator-text-size)' }}>
+            {currentMessage.sourceType === 'quran'
+              ? currentMessage.quran?.englishText
+              : currentMessage.sourceType === 'hadith'
+              ? currentMessage.hadith?.englishText
+              : currentMessage.other?.englishText}
+          </div>
+        </div>
+        <Footer message={currentMessage} />
+      </>
+    ) : (
+      <div className="flex-1 flex items-center justify-center">Loading…</div>
+    );
   } else {
-    // special slot
     const Special = slot.component as React.ComponentType<any>;
-
-    // build props for each special
+    // Build props based on special
     const specialProps: Record<string, any> =
       Special === DateTimeWeather
-        ? {
-            temperature: weatherData?.temp ?? 0,
-            condition: weatherData?.condition ?? 'Unknown',
-            displayDuration: DISPLAY_MS,
-          }
+        ? { temperature: weatherData?.temp ?? 0, condition: weatherData?.condition ?? 'Unknown', iconCode: weatherData?.iconCode ?? '01d', displayDuration: DISPLAY_MS }
+        : Special === PrayerTable
+        ? { prayerTimes, displayDuration: DISPLAY_MS }
         : { displayDuration: DISPLAY_MS };
 
     content = (
-      <div className="flex-1 flex items-center justify-center overflow-hidden p-8">
+      <div className="flex-1 flex items-center justify-center p-8">
         <Special {...specialProps} />
       </div>
     );
@@ -224,18 +198,14 @@ export default function Rotator() {
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col h-full w-full overflow-hidden p-8"
+      className="relative flex flex-col h-full w-full p-8"
       style={{
-        backgroundImage:
-          'linear-gradient(var(--background-start), var(--background-end))',
+        backgroundImage: 'linear-gradient(var(--background-start), var(--background-end))',
         '--rotator-text-size': '3.5rem',
       } as React.CSSProperties}
     >
       {content}
-      <div
-        ref={progressRef}
-        className="absolute bottom-0 left-0 h-1 w-0"
-      />
+      <div ref={progressRef} className="absolute bottom-0 left-0 h-1 w-0 bg-accent" />
     </div>
   );
 }
