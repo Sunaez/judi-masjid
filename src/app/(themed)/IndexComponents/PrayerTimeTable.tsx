@@ -1,8 +1,9 @@
-// src/app/IndexComponents/PrayerTimesTable.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useLayoutEffect } from 'react'
 import { motion } from 'motion/react'
+import gsap from 'gsap'
+import { IoDownload } from 'react-icons/io5'
 import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
 
 // 1. Container variants: animate section in, then stagger children
@@ -38,39 +39,59 @@ type TableTimes = Omit<RawPrayerTimes, 'sunrise'>
 
 export default function PrayerTimesTable() {
   const [times, setTimes] = useState<TableTimes>({
-    fajrStart:   '', fajrJamaat:  '',
-    dhuhrStart:  '', dhuhrJamaat: '',
-    asrStart:    '', asrJamaat:   '',
-    maghrib:     '',
-    ishaStart:   '', ishaJamaat:  ''
+    fajrStart: '', fajrJamaat: '',
+    dhuhrStart: '', dhuhrJamaat: '',
+    asrStart: '', asrJamaat: '',
+    maghrib: '',
+    ishaStart: '', ishaJamaat: ''
   })
+
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  // Compute month and year for file naming and display
+  const now = new Date()
+  const monthNum = String(now.getMonth() + 1).padStart(2, '0')
+  const year = now.getFullYear()
+  const monthName = now.toLocaleString('default', { month: 'long' })
+  const fileName = `${monthNum}-${year}.jpg`
+  const filePath = `/Timetables/${fileName}`
 
   // Fetch prayer times via shared function
   useEffect(() => {
     fetchPrayerTimes()
       .then((t: RawPrayerTimes) => {
         setTimes({
-          fajrStart:   t.fajrStart,
-          fajrJamaat:  t.fajrJamaat,
-          dhuhrStart:  t.dhuhrStart,
+          fajrStart: t.fajrStart,
+          fajrJamaat: t.fajrJamaat,
+          dhuhrStart: t.dhuhrStart,
           dhuhrJamaat: t.dhuhrJamaat,
-          asrStart:    t.asrStart,
-          asrJamaat:   t.asrJamaat,
-          maghrib:     t.maghrib,
-          ishaStart:   t.ishaStart,
-          ishaJamaat:  t.ishaJamaat,
+          asrStart: t.asrStart,
+          asrJamaat: t.asrJamaat,
+          maghrib: t.maghrib,
+          ishaStart: t.ishaStart,
+          ishaJamaat: t.ishaJamaat,
         })
       })
       .catch((e) => console.error('Error fetching prayer times', e))
   }, [])
-
+  
   const prayers = [
-    { name: 'Fajr',    start: times.fajrStart,   jamaat: times.fajrJamaat, icon: 'icon-fajr.svg' },
-    { name: 'Dhuhr',   start: times.dhuhrStart,  jamaat: times.dhuhrJamaat, icon: 'icon-dhuhr.svg' },
-    { name: 'Asr',     start: times.asrStart,    jamaat: times.asrJamaat,   icon: 'icon-asr.svg' },
-    { name: 'Maghrib', start: times.maghrib,     jamaat: times.maghrib,     icon: 'icon-maghrib.svg' },
-    { name: 'Isha',    start: times.ishaStart,   jamaat: times.ishaJamaat,  icon: 'icon-isha.svg' },
+    { name: 'Fajr', start: times.fajrStart, jamaat: times.fajrJamaat, icon: 'icon-fajr.svg' },
+    { name: 'Dhuhr', start: times.dhuhrStart, jamaat: times.dhuhrJamaat, icon: 'icon-dhuhr.svg' },
+    { name: 'Asr', start: times.asrStart, jamaat: times.asrJamaat, icon: 'icon-asr.svg' },
+    { name: 'Maghrib', start: times.maghrib, jamaat: times.maghrib, icon: 'icon-maghrib.svg' },
+    { name: 'Isha', start: times.ishaStart, jamaat: times.ishaJamaat, icon: 'icon-isha.svg' },
   ]
+
+  // Download handler: triggers download of the computed file
+  const downloadTimetable = () => {
+    const link = document.createElement('a')
+    link.href = filePath
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   return (
     <motion.section
@@ -123,6 +144,17 @@ export default function PrayerTimesTable() {
           ))}
         </tbody>
       </table>
+
+      <div className="flex justify-center mt-4">
+        <button
+          ref={buttonRef}
+          onClick={downloadTimetable}
+          className="flex items-center px-4 py-2 bg-[var(--x-background-start)] text-[var(--x-text-color)] rounded-lg hover:px-6 hover:py-3 transition-all duration-200"
+        >
+          <IoDownload className="h-5 w-5 mr-2" />
+          <span>Download {monthName} {year} Timetable</span>
+        </button>
+      </div>
     </motion.section>
   )
 }

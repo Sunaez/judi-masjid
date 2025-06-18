@@ -4,6 +4,7 @@
 import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
 import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
+import TimeUntil from './TimeUntil'  // updated import path
 
 // SVG icons in public/icons
 const ICON_MAP: Record<string, string> = {
@@ -32,7 +33,7 @@ const ICON_SIZE_MOBILE  = 20
 const WRAPPER_MOBILE    = 32
 const LABEL_ABOVE_GAP   = 4
 const LABEL_BELOW_GAP   = 4
-const TICK_INTERVAL     = 60_000
+const TICK_INTERVAL     = 60_000  // update every minute; use 1_000 for seconds
 
 //////////////////////////////////////////
 
@@ -57,7 +58,7 @@ export default function PrayerTimeline() {
     return () => clearInterval(id)
   }, [])
 
-  // fetch all times via shared function
+  // fetch all prayer times
   useEffect(() => {
     async function loadTimeline() {
       try {
@@ -100,8 +101,7 @@ export default function PrayerTimeline() {
     const width = innerRef.current.scrollWidth
     const pct = (now.getTime() - range.start.getTime()) / (range.end.getTime() - range.start.getTime())
     const scrollPos = Math.min(Math.max(0, pct), 1) * width
-    const center = container.offsetWidth / 2
-    container.scrollTo({ left: scrollPos - center, behavior: 'auto' })
+    container.scrollTo({ left: scrollPos - container.offsetWidth / 2, behavior: 'auto' })
   }, [now, range])
 
   if (!range) return null
@@ -117,6 +117,17 @@ export default function PrayerTimeline() {
     left:     `${((e.time.getTime() - range.start.getTime()) / totalMs) * 100}%`,
     transform:'translateX(-50%)',
   })
+
+  // next adhān (prayer times)
+  const nextPrayer = events.find(
+    e => e.type === 'prayer' && e.time.getTime() > now.getTime()
+  )
+
+  // next jamʿāh (jamaat events; include Maghrib/Ishā if you wish)
+  const nextJamaat = events.find(e =>
+    (e.type === 'jamaat' || e.name === 'Maghrib' || e.name === 'ʿIshā')
+    && e.time.getTime() > now.getTime()
+  )
 
   return (
     <>
@@ -205,9 +216,26 @@ export default function PrayerTimeline() {
           })}
         </div>
       </div>
-      <p className="text-center text-sm text-gray-600 mt-8">
-        * Maghrib and Isha are marked at the Athaan (no separate jamaʿā time)
+
+      <p className="text-center text-sm text-gray-600 mt-4">
+        • Maghrib and Isha are prayed at the Athaan (no separate jamaʿāh time)
       </p>
+
+      {/* two countdowns */}
+      <div className="flex flex-col items-center space-y-2 mt-6">
+        {nextPrayer && (
+          <TimeUntil
+            eventName={nextPrayer.name}
+            eventTime={nextPrayer.time}
+          />
+        )}
+        {nextJamaat && (
+          <TimeUntil
+            eventName={nextJamaat.name}
+            eventTime={nextJamaat.time}
+          />
+        )}
+      </div>
     </>
   )
 }
