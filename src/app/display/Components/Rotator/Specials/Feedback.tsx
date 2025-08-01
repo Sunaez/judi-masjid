@@ -8,9 +8,11 @@ interface FeedbackProps {
   displayDuration: number;
 }
 
+const FEEDBACK_URL = 'https://your-mosque-website.com/feedback';
+
 export default function Feedback({ displayDuration }: FeedbackProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const qrRef = useRef<HTMLImageElement>(null);
+  const linkRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const entryDur = 0.8;
@@ -29,16 +31,16 @@ export default function Feedback({ displayDuration }: FeedbackProps) {
         ease: 'power2.out',
       });
 
-      // Fade in QR shortly after
+      // Fade in the link text
       tl.from(
-        qrRef.current,
-        { autoAlpha: 0, scale: 0.95, duration: entryDur * 0.8, ease: 'power2.out' },
+        linkRef.current,
+        { autoAlpha: 0, y: 10, duration: entryDur * 0.8, ease: 'power2.out' },
         `-=${entryDur * 0.5}`
       );
 
-      // Idle: gentle pulse on QR
+      // Idle: gentle pulse on the link text
       tl.to(
-        qrRef.current,
+        linkRef.current,
         { scale: 1.02, repeat: 1, yoyo: true, duration: idleDur / 2, ease: 'sine.inOut' },
         `+=${idleDur / 4}`
       );
@@ -62,35 +64,35 @@ export default function Feedback({ displayDuration }: FeedbackProps) {
         backgroundImage: 'linear-gradient(var(--background-start), var(--background-end))',
       }}
     >
-      {/* Left column: heading + subtitle */}
+      {/* Left column: heading + instruction */}
       <div className="flex flex-col justify-center items-center md:items-start space-y-4">
-        <h2
-          className="text-8xl font-bold"
-          style={{ color: 'var(--text-color)' }}
-        >
+        <h2 className="text-8xl font-bold" style={{ color: 'var(--text-color)' }}>
           We Value Your Feedback
         </h2>
         <p
-          className="text-3xl"
+          ref={linkRef}
+          className="text-3xl text-center md:text-left"
           style={{ color: 'var(--text-color)' }}
         >
-          Scan the QR code →
+          Please visit www.aljudi-masjid.co.uk to share any ideas you have.
         </p>
       </div>
 
-      {/* Right column: oversized QR */}
+      {/* Right column: a simple icon or illustration (optional) */}
       <div className="flex items-center justify-center">
-        <img
-          ref={qrRef}
-          src="/FeedbackQR.svg"
-          alt="Feedback QR Code"
-          className="w-96 h-96"
-          style={{
-            backgroundColor: 'var(--secondary-color)',
-            padding: '1rem',
-            borderRadius: '1rem',
-          }}
-        />
+        {/* You can drop in a static “feedback” icon or illustration here */}
+        <svg
+          width="192"
+          height="192"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--accent-color)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z" />
+        </svg>
       </div>
     </div>
   );
