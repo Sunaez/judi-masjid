@@ -1,4 +1,3 @@
-// src/app/display/Components/Rotator/Specials/PrayerTable.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -6,15 +5,17 @@ import { gsap } from 'gsap';
 import { fetchPrayerTimes, RawPrayerTimes } from '@/app/FetchPrayerTimes';
 
 interface PrayerTableProps {
+  /** How long this panel stays on screen (ms) */
   displayDuration: number;
 }
+
+const DARK_PRAYERS = new Set(['Fajr', 'Maghrib', 'Isha']);
 
 export default function PrayerTable({ displayDuration }: PrayerTableProps) {
   const [prayerTimes, setPrayerTimes] = useState<RawPrayerTimes | null>(null);
   const prevRef = useRef<RawPrayerTimes | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch every 5 minutes, update only if changed
   useEffect(() => {
     async function load() {
       try {
@@ -28,29 +29,62 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
       }
     }
     load();
-    const interval = setInterval(load, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    const id = setInterval(load, 5 * 60 * 1000);
+    return () => clearInterval(id);
   }, []);
 
-  // GSAP entry/exit animation
   useEffect(() => {
     if (!containerRef.current) return;
-    const entry = 0.6;
-    const exit = 0.6;
-    const idle = Math.max(0, displayDuration / 1000 - entry - exit);
+
+    const entryDur = 0.6;
+    const exitDur = 0.6;
+    const idleSec = Math.max(0, displayDuration / 1000 - entryDur - exitDur);
+
     const ctx = gsap.context(() => {
+      const items = containerRef.current!.querySelectorAll<HTMLElement>('[data-prayer]');
       const tl = gsap.timeline();
-      tl.from(containerRef.current, { autoAlpha: 0, y: 50, duration: entry, ease: 'power2.out' });
-      tl.to(containerRef.current, { autoAlpha: 0, y: -50, duration: exit, ease: 'power1.in' }, `+=${idle}`);
+
+      // staggered entry: slide up + fade in, with a little overshoot
+      tl.from(
+        items,
+        {
+          y: 50,
+          autoAlpha: 0,
+          duration: entryDur,
+          ease: 'back.out(1.7)',
+          stagger: 0.1,
+        },
+        0
+      );
+
+      // wait…
+      tl.to({}, { duration: idleSec });
+
+      // staggered exit: slide up + fade out
+      tl.to(
+        items,
+        {
+          y: -30,
+          autoAlpha: 0,
+          duration: exitDur,
+          ease: 'power1.in',
+          stagger: 0.1,
+        },
+        `+=0`
+      );
     }, containerRef);
+
     return () => ctx.revert();
   }, [displayDuration, prayerTimes]);
 
   if (!prayerTimes) {
-    return <div className="flex-1 flex items-center justify-center">Loading prayer times…</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        Loading prayer times…
+      </div>
+    );
   }
 
-  // Helpers: current time in minutes
   const now = new Date();
   const currentMin = now.getHours() * 60 + now.getMinutes();
   const toMin = (t: string) => {
@@ -58,77 +92,108 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
     return h * 60 + m;
   };
 
-  const times: [string, string][] = [
-    ['Fajr', prayerTimes.fajrJamaat],
-    ['Dhuhr', prayerTimes.dhuhrJamaat],
-    ['Asr', prayerTimes.asrJamaat],
-    ['Maghrib', prayerTimes.maghrib],
-    ['Isha', prayerTimes.ishaJamaat],
+  const allTimes = [
+    { name: 'Fajr',    time: prayerTimes.fajrJamaat },
+    { name: 'Dhuhr',   time: prayerTimes.dhuhrJamaat },
+    { name: 'Asr',     time: prayerTimes.asrJamaat },
+    { name: 'Maghrib', time: prayerTimes.maghrib      },
+    { name: 'Isha',    time: prayerTimes.ishaJamaat   },
   ];
+  const upcoming = allTimes.filter(({ time }) => toMin(time) > currentMin);
 
-  // CSS vars for customization
-  // --prayer-header-size, --prayer-header-weight
-  // --prayer-time-size,   --prayer-time-weight
-  // --prayer-row-height,  --prayer-blur-amount
+  if (upcoming.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-3xl font-semibold">
+        All prayers for today have passed.
+      </div>
+    );
+  }
+
+  const nextIndex = 0;
+
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex items-center justify-center"
       style={{
-        '--prayer-header-size': '6rem',
-        '--prayer-header-weight': '800',
-        '--prayer-time-size': '8rem',
-        '--prayer-time-weight': '700',
-        '--prayer-row-height': '6rem',
-        '--prayer-blur-amount': '1px',
-      } as React.CSSProperties}
+        display: 'grid',
+        width: '100%',
+        height: '100%',
+        gridTemplateRows: '1fr 2fr',
+        gridTemplateColumns: `repeat(${upcoming.length}, 1fr)`,
+      }}
     >
-      <table className="w-full h-full border border-solid border-gray-300" role="table">
-        <thead className="bg-gray-100">
-          <tr>
-            {times.map(([name, time]) => {
-              const past = currentMin >= toMin(time);
-              const thClass = 'border border-gray-300 text-center';
-              return (
-                <th
-                  key={name}
-                  className={thClass}
-                  style={{
-                    fontSize: 'var(--prayer-header-size)',
-                    fontWeight: 'var(--prayer-header-weight)',
-                    height: 'var(--prayer-row-height)',
-                    filter: past ? 'blur(var(--prayer-blur-amount))' : 'none',
-                  }}
-                >
-                  {name}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            {times.map(([name, time]) => {
-              const past = currentMin >= toMin(time);
-              const tdClass = 'border border-gray-300 text-center';
-              return (
-                <td
-                  key={name}
-                  className={tdClass}
-                  style={{
-                    fontSize: 'var(--prayer-time-size)',
-                    fontWeight: 'var(--prayer-time-weight)',
-                    height: 'var(--prayer-row-height)',
-                    filter: past ? 'blur(var(--prayer-blur-amount))' : 'none',
-                  }}
-                >
-                  {time}
-                </td>
-              );
-            })}
-          </tr>
-        </tbody>
-      </table>
+      {upcoming.map(({ name, time }, i) => {
+        const wasDark = DARK_PRAYERS.has(name);
+        const isNext = i === nextIndex;
+
+        const nameBg = wasDark
+          ? 'var(--static-light-accent-color)'
+          : 'var(--static-dark-accent-color)';
+        const timeBg = wasDark
+          ? 'var(--static-dark-background-end)'
+          : 'var(--static-light-background-end)';
+        const textColor = nameBg.includes('light')
+          ? 'var(--static-dark-text-color)'
+          : 'var(--static-light-text-color)';
+        const borderStyle = isNext
+          ? `4px solid var(--secondary-color)`
+          : `1px solid var(--secondary-color)`;
+
+        return (
+          <div
+            key={name}
+            data-prayer
+            style={{
+              gridRow: '1 / span 2',
+              gridColumn: i + 1,
+              display: 'flex',
+              flexDirection: 'column',
+              border: borderStyle,
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                backgroundColor: nameBg,
+                color: textColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '6vmin',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {name}
+              </span>
+            </div>
+            <div
+              style={{
+                flex: 2,
+                backgroundColor: timeBg,
+                color: textColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '10vmin',
+                  fontWeight: 800,
+                }}
+              >
+                {time}
+              </span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

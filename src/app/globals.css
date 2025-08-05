@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 /*──────────────────────────────────────────────────────────────────────────
-  1) Light defaults (and html.light)
+  1) Light-mode defaults  (html.light or default)
 ──────────────────────────────────────────────────────────────────────────*/
 :root {
-  /* Palette */
+  /*──────────────────────── Dynamic Palette (light values) ────────────────*/
   --background-start:     #f5e4d3; /* Almond (top of gradient) */
   --background-end:       #F9F8F7; /* Ivory (bottom & solid below fold) */
   --text-color:           #232A2F; /* Noir */
@@ -12,32 +12,54 @@
   --secondary-color:      #ADB8BB; /* Mist */
   --yellow:               #FFD700; /* Sun accent */
 
-  /* “x-” versions = the dark-mode values */
-  --x-background-start:   #153147;
-  --x-background-end:     #232A2F;
-  --x-text-color:         #F9F8F7;
-  --x-accent-color:       #eedecf;
-  --x-secondary-color:    #ADB8BB; 
-  --x-yellow:             #FFD700; 
+  /*──────────────────────── “x-” Palette (pre-declared dark values) ────────*/
+  --x-background-start:   #153147; /* Navy */
+  --x-background-end:     #232A2F; /* Noir */
+  --x-text-color:         #F9F8F7; /* Ivory */
+  --x-accent-color:       #eedecf; /* Almond */
+  --x-secondary-color:    #ADB8BB; /* Mist (same) */
+  --x-yellow:             #FFD700; /* Sun accent (same) */
+
+  /*────────────────────────── Static Light-mode Vars ───────────────────────
+     These never change—even when html.dark overrides the dynamic vars.
+     Use these when you want the “day-palette” hard-locked.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --static-light-background-start: #f5e4d3;
+  --static-light-background-end:   #F9F8F7;
+  --static-light-text-color:       #232A2F;
+  --static-light-accent-color:     #153147;
+  --static-light-secondary-color:  #ADB8BB;
+  --static-light-yellow:           #FFD700;
+
+  /*────────────────────────── Static Dark-mode Vars ────────────────────────
+     These never change—even in html.light. Use when you want the
+     “night-palette” hard-locked.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --static-dark-background-start:  #153147;
+  --static-dark-background-end:    #232A2F;
+  --static-dark-text-color:        #F9F8F7;
+  --static-dark-accent-color:      #eedecf;
+  --static-dark-secondary-color:   #ADB8BB;
+  --static-dark-yellow:            #FFD700;
 }
 
 /*──────────────────────────────────────────────────────────────────────────
   2) Dark-mode overrides (html.dark)
 ──────────────────────────────────────────────────────────────────────────*/
 html.dark {
-  /* Override the “normal” vars */
+  /*──────────────────────── Override dynamic vars for real dark-mode ──────*/
   --background-start:     #153147; /* Navy */
   --background-end:       #232A2F; /* Noir */
   --text-color:           #F9F8F7; /* Ivory */
   --accent-color:         #F2E8DE; /* Almond */
   --secondary-color:      #ADB8BB; /* Mist */
-  --yellow:               #FFD700; /* unchanged */
+  --yellow:               #FFD700; /* Sun accent (same) */
 
-  /* “x-” versions = the light-mode values */
+  /*──────────────────────── Swap x- back to light-mode values ────────────*/
   --x-background-start:   #f5e4d3;
   --x-background-end:     #F9F8F7;
   --x-text-color:         #232A2F;
   --x-accent-color:       #153147;
-  --x-secondary-color:    #ADB8BB; /* same in both modes */
-  --x-yellow:             #FFD700; /* same in both modes */
+  --x-secondary-color:    #ADB8BB;
+  --x-yellow:             #FFD700;
 }
