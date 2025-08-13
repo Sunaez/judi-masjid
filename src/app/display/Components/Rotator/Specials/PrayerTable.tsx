@@ -16,6 +16,13 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
   const prevRef = useRef<RawPrayerTimes | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Real-time clock state
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     async function load() {
       try {
@@ -44,7 +51,6 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
       const items = containerRef.current!.querySelectorAll<HTMLElement>('[data-prayer]');
       const tl = gsap.timeline();
 
-      // staggered entry: slide up + fade in, with a little overshoot
       tl.from(
         items,
         {
@@ -57,10 +63,8 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
         0
       );
 
-      // wait…
       tl.to({}, { duration: idleSec });
 
-      // staggered exit: slide up + fade out
       tl.to(
         items,
         {
@@ -85,7 +89,6 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
     );
   }
 
-  const now = new Date();
   const currentMin = now.getHours() * 60 + now.getMinutes();
   const toMin = (t: string) => {
     const [h, m] = t.split(':').map(Number);
@@ -96,8 +99,8 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
     { name: 'Fajr',    time: prayerTimes.fajrJamaat },
     { name: 'Dhuhr',   time: prayerTimes.dhuhrJamaat },
     { name: 'Asr',     time: prayerTimes.asrJamaat },
-    { name: 'Maghrib', time: prayerTimes.maghrib      },
-    { name: 'Isha',    time: prayerTimes.ishaJamaat   },
+    { name: 'Maghrib', time: prayerTimes.maghrib },
+    { name: 'Isha',    time: prayerTimes.ishaJamaat },
   ];
   const upcoming = allTimes.filter(({ time }) => toMin(time) > currentMin);
 
@@ -118,10 +121,26 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
         display: 'grid',
         width: '100%',
         height: '100%',
-        gridTemplateRows: '1fr 2fr',
+        gridTemplateRows: 'auto 1fr 2fr',
         gridTemplateColumns: `repeat(${upcoming.length}, 1fr)`,
       }}
     >
+      {/* Real-time clock row */}
+{/* Real-time clock row */}
+<div
+  style={{
+    gridColumn: `1 / span ${upcoming.length}`,
+    textAlign: 'center',
+    fontSize: '4vmin',
+    fontWeight: 'bold',
+    padding: '0.5rem 0',
+    color: 'var(--text-color)', // <-- Added this line
+  }}
+>
+  {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+</div>
+
+
       {upcoming.map(({ name, time }, i) => {
         const wasDark = DARK_PRAYERS.has(name);
         const isNext = i === nextIndex;
@@ -144,7 +163,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
             key={name}
             data-prayer
             style={{
-              gridRow: '1 / span 2',
+              gridRow: '2 / span 2',
               gridColumn: i + 1,
               display: 'flex',
               flexDirection: 'column',

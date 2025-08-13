@@ -32,14 +32,14 @@ const CHECK_INTERVAL = 30 * 1000;
 
 // Order of slots: specials (custom components) and messages
 const slots = [
-  // { type: 'special', component: Welcome },
+  { type: 'special', component: Welcome },
   { type: 'special', component: PrayerTable },
   { type: 'message' },
-  // { type: 'special', component: DateTimeWeather },
-  // { type: 'message' },
-  // { type: 'special', component: Donation },
-  // { type: 'message' },
-  // { type: 'special', component: Feedback },
+  { type: 'special', component: DateTimeWeather },
+  { type: 'message' },
+  { type: 'special', component: Donation },
+  { type: 'message' },
+  { type: 'special', component: Feedback },
 ];
 
 interface WeatherData {
