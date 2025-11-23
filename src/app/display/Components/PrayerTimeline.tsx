@@ -94,7 +94,7 @@ export default function PrayerTimeline() {
         { name: 'Dhuhr Jamʿā', type: 'jamaat', timeString: data.dhuhrJamaat, time: toDate(data.dhuhrJamaat)  },
         { name: 'ʿAṣr Jamʿā',  type: 'jamaat', timeString: data.asrJamaat,   time: toDate(data.asrJamaat)   },
         { name: 'Maghrib',     type: 'prayer', timeString: data.maghrib,      time: toDate(data.maghrib)      },
-        { name: 'ʿIshā',       type: 'prayer', timeString: data.ishaStart,    time: toDate(data.ishaStart)   },
+        { name: 'ʿIshā',       type: 'prayer', timeString: data.ishaJamaat,    time: toDate(data.ishaJamaat)   },
       ]
 
       const start = new Date(evts[0].time.getTime() - PRE_EVENT_HOURS * 3_600_000)
