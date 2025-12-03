@@ -1,13 +1,19 @@
 // src/app/display/ThemeProvider.tsx
-// TODO: Make sure changes are dynamic, currently needs refresh to update theme
 'use client'
 
-import { useEffect, useRef, useState, ReactNode } from 'react'
+import { useEffect, useRef, useState, ReactNode, useMemo } from 'react'
 import gsap from 'gsap'
-import { usePrayerTimes } from './usePrayerTimes'
+import { usePrayerTimesContext } from './context/PrayerTimesContext'
+
+// Helper to convert "HH:MM" to Date for today - moved outside component
+const toToday = (hhmm: string): Date => {
+  const [h, m] = hhmm.split(':').map(Number)
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m)
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const times = usePrayerTimes()
+  const { prayerTimes: times, isLoading } = usePrayerTimesContext()
   const [ready, setReady] = useState(false)
   const loaderRef = useRef<HTMLDivElement>(null)
   const tlRef = useRef<gsap.core.Timeline | null>(null)
@@ -29,20 +35,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => { tl.kill() }
   }, [])
 
+  // Memoize theme times to avoid recalculation
+  const { sunrise, maghrib } = useMemo(() => {
+    if (!times) return { sunrise: null, maghrib: null }
+    return {
+      sunrise: toToday(times.sunrise),
+      maghrib: toToday(times.maghrib),
+    }
+  }, [times])
+
   // once we have prayer times, pick theme & tear down loader
   useEffect(() => {
-    if (!times) return
+    if (!times || !sunrise || !maghrib) return
 
     const now = new Date()
-
-    const toToday = (hhmm: string) => {
-      const [h, m] = hhmm.split(':').map(Number)
-      const d = new Date()
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m)
-    }
-
-    const sunrise = toToday(times.sunrise)
-    const maghrib = toToday(times.maghrib)
     const html = document.documentElement
 
     // midnight -> sunrise: DARK
@@ -67,9 +73,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       setReady(true)
     }
-  }, [times])
+  }, [times, sunrise, maghrib])
 
-  if (!ready) {
+  if (!ready || isLoading) {
     return (
       <div ref={loaderRef} className="loader-container">
         <div className="dot" />

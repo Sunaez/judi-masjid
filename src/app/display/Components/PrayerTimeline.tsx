@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useEffect, useState, useRef } from 'react'
-import { fetchPrayerTimes, RawPrayerTimes } from '@/app/FetchPrayerTimes'
+import React, { useEffect, useState, useRef, useMemo, memo, useCallback } from 'react'
+import { RawPrayerTimes } from '@/app/FetchPrayerTimes'
 import TimeUntil from './TimeUntil'
+import { usePrayerTimesContext } from '../context/PrayerTimesContext'
 
 // SVG icons in public/icons
 const ICON_MAP: Record<string, string> = {
@@ -35,90 +36,54 @@ type Event = {
   type:       'jamaat' | 'sunrise' | 'prayer'
 }
 
-export default function PrayerTimeline() {
+// Helper to convert HH:MM to Date
+const toDate = (ts: string): Date => {
+  const [h, m] = ts.split(':').map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d
+}
+
+// Build events from prayer times - memoized outside component
+const buildEvents = (data: RawPrayerTimes): Event[] => [
+  { name: 'Fajr Jamʿā',  type: 'jamaat',  timeString: data.fajrJamaat,  time: toDate(data.fajrJamaat)  },
+  { name: 'Sunrise',     type: 'sunrise', timeString: data.sunrise,     time: toDate(data.sunrise)     },
+  { name: 'Dhuhr Jamʿā', type: 'jamaat',  timeString: data.dhuhrJamaat, time: toDate(data.dhuhrJamaat) },
+  { name: 'ʿAṣr Jamʿā',  type: 'jamaat',  timeString: data.asrJamaat,   time: toDate(data.asrJamaat)   },
+  { name: 'Maghrib',     type: 'prayer',  timeString: data.maghrib,     time: toDate(data.maghrib)     },
+  { name: 'ʿIshā',       type: 'prayer',  timeString: data.ishaJamaat,  time: toDate(data.ishaJamaat)  },
+]
+
+const PrayerTimeline = memo(function PrayerTimeline() {
+  const { prayerTimes, isLoading } = usePrayerTimesContext()
+
   // refs
   const scrollRef = useRef<HTMLDivElement>(null)
   const innerRef  = useRef<HTMLDivElement>(null)
-  const prevRawRef = useRef<RawPrayerTimes | null>(null)
 
   // state
-  const [now,    setNow]    = useState<Date>(new Date())
-  const [events, setEvents] = useState<Event[]>([])
-  const [range,  setRange]  = useState<{ start: Date; end: Date } | null>(null)
+  const [now, setNow] = useState<Date>(new Date())
 
-  // tick “now” every second
+  // tick "now" every second
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), TICK_INTERVAL)
     return () => clearInterval(id)
   }, [])
 
-  // load once immediately, then poll every 60s
-  useEffect(() => {
-    let active = true
-    let intervalId: number
-
-    const toDate = (ts: string): Date => {
-      const [h, m] = ts.split(':').map(Number)
-      const d = new Date()
-      d.setHours(h, m, 0, 0)
-      return d
+  // Memoize events and range based on prayer times
+  const { events, range } = useMemo(() => {
+    if (!prayerTimes) {
+      return { events: [], range: null }
     }
 
-    async function loadAndMaybeReload() {
-      let data: RawPrayerTimes | null = null
-      try {
-        data = await fetchPrayerTimes()
-      } catch (err) {
-        console.error('Fetch error:', err)
-      } finally {
-        console.log('Fetch result:', data)
-      }
+    const evts = buildEvents(prayerTimes)
+    const start = new Date(evts[0].time.getTime() - PRE_EVENT_HOURS * 3_600_000)
+    const end   = new Date(evts[evts.length - 1].time.getTime() + POST_EVENT_HOURS * 3_600_000)
 
-      if (!active || !data) return
+    return { events: evts, range: { start, end } }
+  }, [prayerTimes])
 
-      const prev = prevRawRef.current
-      if (!prev) {
-        // first load — just initialize
-        prevRawRef.current = data
-      } else if (JSON.stringify(prev) !== JSON.stringify(data)) {
-        // data changed — reload entire page
-        window.location.reload()
-        return
-      }
-
-      // build timeline (will re-render even if identical data)
-      prevRawRef.current = data
-      const evts: Event[] = [
-        { name: 'Fajr Jamʿā',  type: 'jamaat', timeString: data.fajrJamaat,  time: toDate(data.fajrJamaat)  },
-        { name: 'Sunrise',     type: 'sunrise',timeString: data.sunrise,      time: toDate(data.sunrise)     },
-        { name: 'Dhuhr Jamʿā', type: 'jamaat', timeString: data.dhuhrJamaat, time: toDate(data.dhuhrJamaat)  },
-        { name: 'ʿAṣr Jamʿā',  type: 'jamaat', timeString: data.asrJamaat,   time: toDate(data.asrJamaat)   },
-        { name: 'Maghrib',     type: 'prayer', timeString: data.maghrib,      time: toDate(data.maghrib)      },
-        { name: 'ʿIshā',       type: 'prayer', timeString: data.ishaJamaat,    time: toDate(data.ishaJamaat)   },
-      ]
-
-      const start = new Date(evts[0].time.getTime() - PRE_EVENT_HOURS * 3_600_000)
-      const end   = new Date(evts.at(-1)!.time.getTime()  + POST_EVENT_HOURS * 3_600_000)
-
-      if (active) {
-        setEvents(evts)
-        setRange({ start, end })
-      }
-    }
-
-    // initial fetch
-    loadAndMaybeReload().then(() => {
-      if (!active) return
-      intervalId = window.setInterval(loadAndMaybeReload, 60_000)
-    })
-
-    return () => {
-      active = false
-      clearInterval(intervalId)
-    }
-  }, [])
-
-  // auto-center “now”
+  // auto-center "now"
   useEffect(() => {
     if (!range || !scrollRef.current || !innerRef.current) return
     const width = innerRef.current.scrollWidth
@@ -133,27 +98,41 @@ export default function PrayerTimeline() {
     })
   }, [now, range])
 
+  // Memoize compute offset function
+  const computeOffset = useCallback((e: Event) => {
+    if (!range) return { position: 'absolute' as const, left: '0%', transform: 'translateX(-50%)' }
+    const totalMs = range.end.getTime() - range.start.getTime() || 1
+    return {
+      position:  'absolute' as const,
+      left:      `${((e.time.getTime() - range.start.getTime()) / totalMs) * 100}%`,
+      transform: 'translateX(-50%)',
+    }
+  }, [range])
+
+  // Memoize next event
+  const nextEvt = useMemo(() =>
+    events.find(e => e.time.getTime() > now.getTime()),
+    [events, now]
+  )
+
+  // Memoize passedPct
+  const passedPct = useMemo(() => {
+    if (!range) return 0
+    const totalMs = range.end.getTime() - range.start.getTime() || 1
+    return Math.max(
+      0,
+      Math.min(100, (now.getTime() - range.start.getTime()) / totalMs * 100)
+    )
+  }, [now, range])
+
   // loading state
-  if (!range) {
+  if (isLoading || !range) {
     return (
       <div className="flex items-center justify-center h-full w-full text-xl">
         Loading prayer timeline…
       </div>
     )
   }
-
-  // compute fill % and event offsets
-  const totalMs   = range.end.getTime() - range.start.getTime() || 1
-  const passedPct = Math.max(
-    0,
-    Math.min(100, (now.getTime() - range.start.getTime()) / totalMs * 100)
-  )
-  const computeOffset = (e: Event) => ({
-    position:  'absolute' as const,
-    left:      `${((e.time.getTime() - range.start.getTime()) / totalMs) * 100}%`,
-    transform: 'translateX(-50%)',
-  })
-  const nextEvt = events.find(e => e.time.getTime() > now.getTime())
 
   return (
     <div className="flex flex-col h-full w-full text-[var(--text-color)]">
@@ -258,4 +237,6 @@ export default function PrayerTimeline() {
       )}
     </div>
   )
-}
+})
+
+export default PrayerTimeline
