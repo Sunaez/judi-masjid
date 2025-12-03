@@ -11,7 +11,8 @@ import Donation from './Specials/Donation';
 import Feedback from './Specials/Feedback';
 import PrayerTable from './Specials/PrayerTable';
 import Footer from './Footer';
-import { fetchPrayerTimes, RawPrayerTimes } from '@/app/FetchPrayerTimes';
+import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
+import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -53,8 +54,8 @@ interface WeatherData {
 export default function Rotator() {
   // Raw messages fetched from various sources
   const all = useMessages();
-  // Prayer times loaded from Google Sheets
-  const [prayerTimes, setPrayerTimes] = useState<RawPrayerTimes | null>(null);
+  // Prayer times from Firebase context
+  const { prayerTimes } = usePrayerTimesContext();
   // Current + forecast weather data
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // Counter to trigger re-renders after prayer times +1min
@@ -70,14 +71,6 @@ export default function Rotator() {
   // Refs for container (for animation + blur) and progress bar
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-
-  // ─── Fetch Prayer Times ───────────────────────────────────────────────────────
-  // Runs once on mount to load today's prayer times
-  useEffect(() => {
-    fetchPrayerTimes()
-      .then(data => setPrayerTimes(data))
-      .catch(err => console.error('[prayer] Error:', err));
-  }, []);
 
   // ─── Schedule Re-Render After Jama‘at/Maghrib ─────────────────────────────────
   // Sets up a timeout for each prayer's jama‘at time +1 minute or maghrib +1 minute.
