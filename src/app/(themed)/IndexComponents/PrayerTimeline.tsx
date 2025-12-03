@@ -33,7 +33,7 @@ const ICON_SIZE_MOBILE  = 20
 const WRAPPER_MOBILE    = 32
 const LABEL_ABOVE_GAP   = 4
 const LABEL_BELOW_GAP   = 4
-const TICK_INTERVAL     = 60_000  // update every minute; use 1_000 for seconds
+const TICK_INTERVAL     = 5_000  // update every 5 seconds for responsive prayer transitions
 
 //////////////////////////////////////////
 
