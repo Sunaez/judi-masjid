@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes';
+import React, { useMemo } from 'react';
+import { usePrayerTimesContext } from '../context/PrayerTimesContext';
 
 // VW‐based sizing constants
 const HEADER_TEXT_VW = 4;   // prayer‐name & header font
@@ -20,38 +20,40 @@ const colBg = [
 ];
 
 export default function PrayTable() {
-  const [times, setTimes] = useState<RawPrayerTimes | null>(null);
+  const { prayerTimes: times, isLoading } = usePrayerTimesContext();
 
-  // fetch today’s times
-  useEffect(() => {
-    fetchPrayerTimes()
-      .then(setTimes)
-      .catch(console.error);
-  }, []);
+  // Memoize prayer data arrays
+  const prayerData = useMemo(() => {
+    if (!times) return null;
 
-  if (!times) return null;
+    const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+    const adhan = [
+      times.fajrStart,
+      times.dhuhrStart,
+      times.asrStart,
+      times.maghrib,
+      times.ishaStart,
+    ];
+    const jamaat = [
+      times.fajrJamaat,
+      times.dhuhrJamaat,
+      times.asrJamaat,
+      times.maghrib,
+      times.ishaJamaat,
+    ];
 
-  const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-  const adhan  = [
-    times.fajrStart,
-    times.dhuhrStart,
-    times.asrStart,
-    times.maghrib,
-    times.ishaStart,
-  ];
-  const jamaat = [
-    times.fajrJamaat,
-    times.dhuhrJamaat,
-    times.asrJamaat,
-    times.maghrib,
-    times.ishaJamaat,
-  ];
+    return { prayers, adhan, jamaat };
+  }, [times]);
+
+  if (isLoading || !prayerData) return null;
+
+  const { prayers, adhan, jamaat } = prayerData;
 
   return (
     <div id="pray-table" className="overflow-x-auto">
       <table className="table-fixed w-full border-collapse">
         <thead>
-          <tr className={`h-[${ROW_HEIGHT_VW}vw]`}>
+          <tr style={{ height: `${ROW_HEIGHT_VW}vw` }}>
             <th className={`${colBg[0]} w-1/6 border border-[var(--secondary-color)]`} />
             {prayers.map((prayer, i) => {
               const bg       = colBg[i + 1];
@@ -59,10 +61,12 @@ export default function PrayTable() {
               return (
                 <th
                   key={prayer}
-                  className={
-                    `${bg} border border-[var(--secondary-color)] text-center text-[${HEADER_TEXT_VW}vw] h-[${ROW_HEIGHT_VW}vw] ` +
-                    (isAccent ? 'text-[var(--background-end)]' : 'text-[var(--text-color)]')
-                  }
+                  className={`${bg} border border-[var(--secondary-color)] text-center`}
+                  style={{
+                    fontSize: `${HEADER_TEXT_VW}vw`,
+                    height: `${ROW_HEIGHT_VW}vw`,
+                    color: isAccent ? 'var(--background-end)' : 'var(--text-color)',
+                  }}
                 >
                   {prayer}
                 </th>
@@ -71,8 +75,11 @@ export default function PrayTable() {
           </tr>
         </thead>
         <tbody>
-          <tr className={`h-[${ROW_HEIGHT_VW}vw]`}>
-            <td className={`${colBg[0]} border border-[var(--secondary-color)] flex items-center justify-center text-[${BODY_TEXT_VW}vw]`}>
+          <tr style={{ height: `${ROW_HEIGHT_VW}vw` }}>
+            <td
+              className={`${colBg[0]} border border-[var(--secondary-color)] flex items-center justify-center`}
+              style={{ fontSize: `${BODY_TEXT_VW}vw` }}
+            >
               Adhan
             </td>
             {adhan.map((t, i) => {
@@ -81,17 +88,18 @@ export default function PrayTable() {
               return (
                 <td
                   key={i}
-                  className={
-                    `${bg} border border-[var(--secondary-color)] text-center text-[${BODY_TEXT_VW}vw] ` +
-                    (isAccent ? 'text-[var(--background-end)]' : 'text-[var(--text-color)]')
-                  }
+                  className={`${bg} border border-[var(--secondary-color)] text-center`}
+                  style={{
+                    fontSize: `${BODY_TEXT_VW}vw`,
+                    color: isAccent ? 'var(--background-end)' : 'var(--text-color)',
+                  }}
                 >
                   {t}
                 </td>
               );
             })}
           </tr>
-          <tr className={`h-[${ROW_HEIGHT_VW}vw]`}>
+          <tr style={{ height: `${ROW_HEIGHT_VW}vw` }}>
             <td className={`${colBg[0]} border border-[var(--secondary-color)] flex items-center justify-center`}>
               <img
                 id="mosque-icon"
@@ -110,10 +118,11 @@ export default function PrayTable() {
               return (
                 <td
                   key={i}
-                  className={
-                    `${bg} border border-[var(--secondary-color)] text-center text-[${BODY_TEXT_VW}vw] ` +
-                    (isAccent ? 'text-[var(--background-end)]' : 'text-[var(--text-color)]')
-                  }
+                  className={`${bg} border border-[var(--secondary-color)] text-center`}
+                  style={{
+                    fontSize: `${BODY_TEXT_VW}vw`,
+                    color: isAccent ? 'var(--background-end)' : 'var(--text-color)',
+                  }}
                 >
                   {t}
                 </td>
@@ -125,4 +134,3 @@ export default function PrayTable() {
     </div>
   );
 }
- 

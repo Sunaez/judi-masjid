@@ -7,143 +7,140 @@ import {
   useAnimation,
   usePresence,
 } from 'motion/react'
-import { useEffect, useState, ReactNode } from 'react'
-import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
+import { useEffect, useState, ReactNode, useMemo, memo } from 'react'
+import { usePrayerTimesContext } from '../context/PrayerTimesContext'
 
 interface PrayerTime {
   name: string
   date: Date
 }
 
-export default function PrayerOverlay() {
-  // ─── State: “now” ───────────────────────────────────────────
+// Helper to convert HH:MM to Date
+const toDate = (ts: string): Date => {
+  const [h, m] = ts.split(':').map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d
+}
+
+const WINDOW_MS = 165 * 1000
+
+const PrayerOverlay = memo(function PrayerOverlay() {
+  const { prayerTimes: rawTimes, isLoading } = usePrayerTimesContext()
+
+  // ─── State: "now" ───────────────────────────────────────────
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
 
-  // ─── State: prayer times with names ─────────────────────────
-  const [prayerTimes, setPrayerTimes] = useState<PrayerTime[] | null>(null)
+  // ─── Memoize prayer times array ─────────────────────────
+  const prayerTimes = useMemo<PrayerTime[] | null>(() => {
+    if (!rawTimes) return null
 
-  useEffect(() => {
-    async function loadTimes() {
-      try {
-        const t: RawPrayerTimes = await fetchPrayerTimes()
-        const toDate = (ts: string) => {
-          const [h, m] = ts.split(':').map(Number)
-          const d = new Date()
-          d.setHours(h, m, 0, 0)
-          return d
-        }
+    return [
+      { name: 'Fajr',    date: toDate(rawTimes.fajrJamaat) },
+      { name: 'Dhuhr',   date: toDate(rawTimes.dhuhrJamaat) },
+      { name: 'Asr',     date: toDate(rawTimes.asrJamaat) },
+      { name: 'Maghrib', date: toDate(rawTimes.maghrib)   },
+      { name: 'Isha',    date: toDate(rawTimes.ishaJamaat) },
+    ].sort((a, b) => a.date.getTime() - b.date.getTime())
+  }, [rawTimes])
 
-        const times: PrayerTime[] = [
-          { name: 'Fajr',    date: toDate(t.fajrJamaat) },
-          { name: 'Dhuhr',   date: toDate(t.dhuhrJamaat) },
-          { name: 'Asr',     date: toDate(t.asrJamaat) },
-          { name: 'Maghrib', date: toDate(t.maghrib)   },
-          { name: 'Isha',    date: toDate(t.ishaJamaat) },
-        ].sort((a, b) => a.date.getTime() - b.date.getTime())
-
-        setPrayerTimes(times)
-      } catch (e) {
-        console.error('Failed to load prayer times:', e)
-      }
+  // Memoize next prayer and phase
+  const { nextPrayer, phase, secsUntil } = useMemo(() => {
+    if (!prayerTimes) {
+      return { nextPrayer: null, phase: 'idle' as const, secsUntil: 0 }
     }
 
-    loadTimes()
-  }, [])
+    const nextPr = prayerTimes.find(pt => now.getTime() < pt.date.getTime() + WINDOW_MS) || null
 
-  if (!prayerTimes) return null
+    if (!nextPr) {
+      return { nextPrayer: null, phase: 'idle' as const, secsUntil: 0 }
+    }
 
-  // ─── Determine the “current” prayer time to watch ─────────────
-  const WINDOW_MS = 165 * 1000
-  const nextPrayer =
-    prayerTimes.find(pt => now.getTime() < pt.date.getTime() + WINDOW_MS) || null
+    const deltaMs = nextPr.date.getTime() - now.getTime()
+    const secsUnt = Math.ceil(deltaMs / 1000)
+    const secsSince = Math.floor(-deltaMs / 1000)
 
-  if (!nextPrayer) {
-    // No upcoming or in-progress prayer
+    let ph: 'idle' | 'countdown' | 'prayer' = 'idle'
+    if (secsUnt >= 1 && secsUnt <= 60) {
+      ph = 'countdown'
+    } else if (secsSince >= 0 && secsSince < 165) {
+      ph = 'prayer'
+    }
+
+    return { nextPrayer: nextPr, phase: ph, secsUntil: secsUnt }
+  }, [prayerTimes, now])
+
+  if (isLoading || !prayerTimes || !nextPrayer || phase === 'idle') {
     return null
-  }
-
-  // ─── Compute secsUntil & secsSince relative to nextPrayer ─
-  const deltaMs = nextPrayer.date.getTime() - now.getTime()
-  const secsUntil = Math.ceil(deltaMs / 1000)
-  const secsSince = Math.floor(-deltaMs / 1000)
-
-  // ─── Phase logic: countdown 1–60, prayer 0–164s, else idle ──
-  let phase: 'idle' | 'countdown' | 'prayer' = 'idle'
-  if (secsUntil >= 1 && secsUntil <= 60) {
-    phase = 'countdown'
-  } else if (secsSince >= 0 && secsSince < 165) {
-    phase = 'prayer'
   }
 
   return (
     <AnimatePresence>
-      {phase !== 'idle' && (
-        <ShrinkingOverlay>
-          <GradientOverlay />
+      <ShrinkingOverlay>
+        <GradientOverlay />
 
-          <AnimatePresence initial={false} mode="wait">
-            {phase === 'countdown' ? (
-              <motion.div
-                key="countdown"
-                className="countdown-text"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1, transition: { duration: 0.3 } }}
-                exit={{ scale: 0.8, opacity: 0, transition: { duration: 0.3 } }}
-              >
-                {secsUntil}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="prayer"
-                className="inprogress-text"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1, transition: { duration: 0.4 } }}
-                exit={{ y: 20, opacity: 0, transition: { duration: 0.4 } }}
-              >
-                {`${nextPrayer.name} in progress`}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <AnimatePresence initial={false} mode="wait">
+          {phase === 'countdown' ? (
+            <motion.div
+              key="countdown"
+              className="countdown-text"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1, transition: { duration: 0.3 } }}
+              exit={{ scale: 0.8, opacity: 0, transition: { duration: 0.3 } }}
+            >
+              {secsUntil}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="prayer"
+              className="inprogress-text"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1, transition: { duration: 0.4 } }}
+              exit={{ y: 20, opacity: 0, transition: { duration: 0.4 } }}
+            >
+              {`${nextPrayer.name} in progress`}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <style>{`
-            .overlay-root {
-              position: fixed;
-              inset: 0;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              background: rgba(0,0,0,0.2);
-              color: var(--text-color);
-              overflow: hidden;
-              z-index: 50;
-            }
-            .countdown-text {
-              font-size: 6vw;
-              font-weight: bold;
-              color: var(--x-text-color);
-              z-index: 10;
-            }
-            .inprogress-text {
-              font-size: 5vh;
-              font-weight: 600;
-              color: var(--x-text-color);
-              z-index: 10;
-            }
-          `}</style>
-        </ShrinkingOverlay>
-      )}
+        <style>{`
+          .overlay-root {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.2);
+            color: var(--text-color);
+            overflow: hidden;
+            z-index: 50;
+          }
+          .countdown-text {
+            font-size: 6vw;
+            font-weight: bold;
+            color: var(--x-text-color);
+            z-index: 10;
+          }
+          .inprogress-text {
+            font-size: 5vh;
+            font-weight: 600;
+            color: var(--x-text-color);
+            z-index: 10;
+          }
+        `}</style>
+      </ShrinkingOverlay>
     </AnimatePresence>
   )
-}
+})
 
 function ShrinkingOverlay({ children }: { children: ReactNode }) {
   const [isPresent, safeToRemove] = usePresence()
 
-  const variants = {
+  const variants = useMemo(() => ({
     open: {
       clipPath: 'circle(150% at 50% 100%)',
       opacity: 1,
@@ -156,7 +153,7 @@ function ShrinkingOverlay({ children }: { children: ReactNode }) {
       backdropFilter: 'blur(0px)',
       transition: { duration: 0.6, ease: 'easeInOut' },
     },
-  }
+  }), [])
 
   return (
     <motion.div
@@ -175,7 +172,7 @@ function ShrinkingOverlay({ children }: { children: ReactNode }) {
   )
 }
 
-function GradientOverlay() {
+const GradientOverlay = memo(function GradientOverlay() {
   const popCtrl     = useAnimation()
   const breatheCtrl = useAnimation()
 
@@ -263,4 +260,6 @@ function GradientOverlay() {
       `}</style>
     </div>
   )
-}
+})
+
+export default PrayerOverlay

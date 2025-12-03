@@ -1,5 +1,6 @@
 import './display.css';
 import { ThemeProvider } from './ThemeProvider';
+import { PrayerTimesProvider } from './context/PrayerTimesContext';
 import { Poppins } from 'next/font/google';
 import type { Metadata } from 'next';
 
@@ -19,12 +20,14 @@ export default function DisplayLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider>
-      <main
-        className={`display-root ${poppins.variable}`}
-      >
-        {children}
-      </main>
-    </ThemeProvider>
+    <PrayerTimesProvider>
+      <ThemeProvider>
+        <main
+          className={`display-root ${poppins.variable}`}
+        >
+          {children}
+        </main>
+      </ThemeProvider>
+    </PrayerTimesProvider>
   );
 }
