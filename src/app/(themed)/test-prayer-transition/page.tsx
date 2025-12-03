@@ -21,13 +21,21 @@ export default function TestPrayerTransition() {
   const [fajrTime, setFajrTime] = useState<Date | null>(null)
   const [dhuhrTime, setDhuhrTime] = useState<Date | null>(null)
   const [testStatus, setTestStatus] = useState<string>('Initializing...')
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Set mounted state and initialize time on client only
+  useEffect(() => {
+    setIsMounted(true)
+    setNow(new Date())
+  }, [])
 
   // Update "now" every second to show real-time countdown
   useEffect(() => {
+    if (!isMounted) return
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [isMounted])
 
   // Initialize test on mount
   useEffect(() => {
@@ -51,7 +59,7 @@ export default function TestPrayerTransition() {
   }, [])
 
   const getTimeUntil = (time: Date | null) => {
-    if (!time) return 'N/A'
+    if (!time || !now) return 'N/A'
     const diff = time.getTime() - now.getTime()
     if (diff <= 0) return 'PASSED'
     return `${Math.floor(diff / 1000)}s`
@@ -100,7 +108,10 @@ export default function TestPrayerTransition() {
             <span className="font-semibold">Status:</span> {testStatus}
           </p>
           <p className="text-sm text-gray-300">
-            <span className="font-semibold">Current Time:</span> {now.toLocaleTimeString()}
+            <span className="font-semibold">Current Time:</span>{' '}
+            <span suppressHydrationWarning>
+              {now ? now.toLocaleTimeString() : 'Loading...'}
+            </span>
           </p>
         </div>
 
@@ -137,12 +148,13 @@ export default function TestPrayerTransition() {
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-8 mb-6 shadow-2xl">
           <h3 className="text-2xl font-bold mb-4 text-center">Component Under Test:</h3>
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-            {currentPrayer === 'Fajr' && fajrTime && (
+            {isMounted && currentPrayer === 'Fajr' && fajrTime && (
               <TimeUntil eventName="Fajr" eventTime={fajrTime} />
             )}
-            {currentPrayer === 'Dhuhr' && dhuhrTime && (
+            {isMounted && currentPrayer === 'Dhuhr' && dhuhrTime && (
               <TimeUntil eventName="Dhuhr" eventTime={dhuhrTime} />
             )}
+            {!isMounted && <p className="text-center">Loading...</p>}
           </div>
         </div>
 

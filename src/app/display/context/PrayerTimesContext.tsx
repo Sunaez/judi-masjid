@@ -3,21 +3,23 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
-import { usePrayerTimes } from '../usePrayerTimes';
+import { usePrayerTimesFromFirebase } from '@/app/hooks/usePrayerTimesFromFirebase';
 
 interface PrayerTimesContextValue {
   prayerTimes: RawPrayerTimes | null;
   isLoading: boolean;
+  error: string | null;
 }
 
 const PrayerTimesContext = createContext<PrayerTimesContextValue | undefined>(undefined);
 
 export function PrayerTimesProvider({ children }: { children: ReactNode }) {
-  const prayerTimes = usePrayerTimes();
+  const { times, error, isLoading } = usePrayerTimesFromFirebase();
 
   const value: PrayerTimesContextValue = {
-    prayerTimes,
-    isLoading: prayerTimes === null,
+    prayerTimes: times,
+    isLoading,
+    error,
   };
 
   return (

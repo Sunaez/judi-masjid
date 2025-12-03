@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
 import { IoDownload } from 'react-icons/io5'
-import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
+import { RawPrayerTimes } from '../../FetchPrayerTimes'
+import { usePrayerTimesContext } from '../../display/context/PrayerTimesContext'
 
 // 1. Container variants: animate section in, then stagger children
 const containerVariants = {
@@ -52,33 +53,25 @@ function TableSkeleton() {
 }
 
 export default function PrayerTimesTable() {
-  const [times, setTimes] = useState<TableTimes | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isError, setIsError] = useState(false)
+  // Get prayer times from Firebase context
+  const { prayerTimes, isLoading, error } = usePrayerTimesContext()
+  const isError = !!error
 
-  // Fetch prayer times
-  useEffect(() => {
-    fetchPrayerTimes()
-      .then((t: RawPrayerTimes) => {
-        setTimes({
-          fajrStart: t.fajrStart,
-          fajrJamaat: t.fajrJamaat,
-          dhuhrStart: t.dhuhrStart,
-          dhuhrJamaat: t.dhuhrJamaat,
-          asrStart: t.asrStart,
-          asrJamaat: t.asrJamaat,
-          maghrib: t.maghrib,
-          ishaStart: t.ishaStart,
-          ishaJamaat: t.ishaJamaat,
-        })
-        setIsLoading(false)
-      })
-      .catch((e) => {
-        console.error('Error fetching prayer times', e)
-        setIsError(true)
-        setIsLoading(false)
-      })
-  }, [])
+  // Transform prayer times to table format (omit sunrise)
+  const times: TableTimes | null = useMemo(() => {
+    if (!prayerTimes) return null
+    return {
+      fajrStart: prayerTimes.fajrStart,
+      fajrJamaat: prayerTimes.fajrJamaat,
+      dhuhrStart: prayerTimes.dhuhrStart,
+      dhuhrJamaat: prayerTimes.dhuhrJamaat,
+      asrStart: prayerTimes.asrStart,
+      asrJamaat: prayerTimes.asrJamaat,
+      maghrib: prayerTimes.maghrib,
+      ishaStart: prayerTimes.ishaStart,
+      ishaJamaat: prayerTimes.ishaJamaat,
+    }
+  }, [prayerTimes])
 
   // Memoize month/year calculations
   const { monthNum, year, monthName, fileName, filePath } = useMemo(() => {

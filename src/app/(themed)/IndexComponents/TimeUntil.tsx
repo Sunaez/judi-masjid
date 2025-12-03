@@ -25,18 +25,9 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
   // 2) time difference
   const diffMs = eventTime.getTime() - now.getTime()
 
-  // 3) if we've reached (or passed) the event, show "Started"
-  if (diffMs <= 0) {
-    return (
-      <div className="w-full py-2 text-center text-sm md:text-xs">
-        Started
-      </div>
-    )
-  }
-
-  // 4) compute HH:MM:SS & split - memoized
+  // 3) compute HH:MM:SS & split - memoized (always call, even if diffMs <= 0)
   const { H, M, S, ht, ho, mt, mo, st, so } = useMemo(() => {
-    const totalS = Math.floor(diffMs / 1000)
+    const totalS = Math.max(0, Math.floor(diffMs / 1000)) // Clamp to 0
     const H      = Math.floor(totalS / 3600)
     const M      = Math.floor((totalS % 3600) / 60)
     const S      = totalS % 60
@@ -48,7 +39,7 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
     return { H, M, S, ht, ho, mt, mo, st, so }
   }, [diffMs])
 
-  // 5) refs for each digit column
+  // 4) refs for each digit column
   const hTR = useRef<HTMLUListElement>(null!)
   const hOR = useRef<HTMLUListElement>(null!)
   const mTR = useRef<HTMLUListElement>(null!)
@@ -59,7 +50,7 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
   // Keep track of previous values to only animate when changed
   const prevValues = useRef({ ht, ho, mt, mo, st, so })
 
-  // 6) slide digits on change - ONLY ANIMATE CHANGED DIGITS
+  // 5) slide digits on change - ONLY ANIMATE CHANGED DIGITS
   useLayoutEffect(() => {
     const slide = (ref: React.RefObject<HTMLUListElement>, digit: number, prevDigit: number) => {
       // Only animate if the digit actually changed
@@ -84,6 +75,15 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
     // Update previous values
     prevValues.current = { ht, ho, mt, mo, st, so }
   }, [ht, ho, mt, mo, st, so])
+
+  // 6) if we've reached (or passed) the event, show "Started" (conditional render, not early return)
+  if (diffMs <= 0) {
+    return (
+      <div className="w-full py-2 text-center text-sm md:text-xs">
+        Started
+      </div>
+    )
+  }
 
   return (
     <div className="w-full text-[var(--text-color)] py-2">

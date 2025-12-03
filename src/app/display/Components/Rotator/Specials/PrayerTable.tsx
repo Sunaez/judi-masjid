@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { fetchPrayerTimes, RawPrayerTimes } from '@/app/FetchPrayerTimes';
+import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
+import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
 
 interface PrayerTableProps {
   /** How long this panel stays on screen (ms) */
@@ -12,31 +13,14 @@ interface PrayerTableProps {
 const DARK_PRAYERS = new Set(['Fajr', 'Maghrib', 'Isha']);
 
 export default function PrayerTable({ displayDuration }: PrayerTableProps) {
-  const [prayerTimes, setPrayerTimes] = useState<RawPrayerTimes | null>(null);
-  const prevRef = useRef<RawPrayerTimes | null>(null);
+  // Get prayer times from Firebase context
+  const { prayerTimes } = usePrayerTimesContext();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Real-time clock state
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await fetchPrayerTimes();
-        if (!prevRef.current || JSON.stringify(data) !== JSON.stringify(prevRef.current)) {
-          setPrayerTimes(data);
-          prevRef.current = data;
-        }
-      } catch (err) {
-        console.error('[prayer] Fetch error:', err);
-      }
-    }
-    load();
-    const id = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
 
