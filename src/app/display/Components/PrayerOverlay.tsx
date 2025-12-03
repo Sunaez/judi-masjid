@@ -23,7 +23,7 @@ const toDate = (ts: string): Date => {
   return d
 }
 
-const WINDOW_MS = 165 * 1000
+const WINDOW_MS = 180 * 1000 // 3 minutes active window
 
 const PrayerOverlay = memo(function PrayerOverlay() {
   const { prayerTimes: rawTimes, isLoading } = usePrayerTimesContext()
@@ -67,7 +67,7 @@ const PrayerOverlay = memo(function PrayerOverlay() {
     let ph: 'idle' | 'countdown' | 'prayer' = 'idle'
     if (secsUnt >= 1 && secsUnt <= 60) {
       ph = 'countdown'
-    } else if (secsSince >= 0 && secsSince < 165) {
+    } else if (secsSince >= 0 && secsSince < 180) {
       ph = 'prayer'
     }
 
