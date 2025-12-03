@@ -73,7 +73,7 @@ export default function Welcome() {
         </div>
       </h1>
 
-      <p
+      <div
         className="arabic text-[var(--text-color)]"
         dir="rtl"
         aria-label="بەخێر بێن بۆ مزگەوتی جودی"
@@ -94,7 +94,7 @@ export default function Welcome() {
             </span>
           ))}
         </div>
-      </p>
+      </div>
 
       <div className="feedback-box mt-6 bg-[var(--background-start)] dark:bg-[var(--background-end)] p-4 rounded-2xl shadow-lg text-center">
         <a
