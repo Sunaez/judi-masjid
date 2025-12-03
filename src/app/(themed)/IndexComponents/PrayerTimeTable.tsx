@@ -1,10 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
 import { IoDownload } from 'react-icons/io5'
-import { usePrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
+import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
 
 // 1. Container variants: animate section in, then stagger children
 const containerVariants = {
@@ -52,7 +52,33 @@ function TableSkeleton() {
 }
 
 export default function PrayerTimesTable() {
-  const { times, isLoading, isError } = usePrayerTimes()
+  const [times, setTimes] = useState<TableTimes | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isError, setIsError] = useState(false)
+
+  // Fetch prayer times
+  useEffect(() => {
+    fetchPrayerTimes()
+      .then((t: RawPrayerTimes) => {
+        setTimes({
+          fajrStart: t.fajrStart,
+          fajrJamaat: t.fajrJamaat,
+          dhuhrStart: t.dhuhrStart,
+          dhuhrJamaat: t.dhuhrJamaat,
+          asrStart: t.asrStart,
+          asrJamaat: t.asrJamaat,
+          maghrib: t.maghrib,
+          ishaStart: t.ishaStart,
+          ishaJamaat: t.ishaJamaat,
+        })
+        setIsLoading(false)
+      })
+      .catch((e) => {
+        console.error('Error fetching prayer times', e)
+        setIsError(true)
+        setIsLoading(false)
+      })
+  }, [])
 
   // Memoize month/year calculations
   const { monthNum, year, monthName, fileName, filePath } = useMemo(() => {

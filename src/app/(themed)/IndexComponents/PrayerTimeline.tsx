@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import Image from 'next/image'
-import { usePrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
+import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
 import TimeUntil from './TimeUntil'
 
 // SVG icons in public/icons
@@ -45,7 +45,9 @@ type Event = {
 }
 
 export default function PrayerTimeline() {
-  const { times, isLoading, isError } = usePrayerTimes()
+  const [times, setTimes] = useState<RawPrayerTimes | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isError, setIsError] = useState(false)
   const [now, setNow] = useState(new Date())
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -55,6 +57,22 @@ export default function PrayerTimeline() {
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), TICK_INTERVAL)
     return () => clearInterval(id)
+  }, [])
+
+  // fetch all prayer times
+  useEffect(() => {
+    async function loadTimeline() {
+      try {
+        const t: RawPrayerTimes = await fetchPrayerTimes()
+        setTimes(t)
+        setIsLoading(false)
+      } catch (e) {
+        console.error('Failed to load timeline prayer times', e)
+        setIsError(true)
+        setIsLoading(false)
+      }
+    }
+    loadTimeline()
   }, [])
 
   // Memoize events and range calculation

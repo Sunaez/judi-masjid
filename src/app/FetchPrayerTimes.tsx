@@ -1,7 +1,4 @@
 // src/app/FetchPrayerTimes.tsx
-'use client'
-
-import useSWR from 'swr'
 
 export interface RawPrayerTimes {
   fajrStart:   string
@@ -29,14 +26,10 @@ function todayKey(): string {
 }
 
 /**
- * Fetcher function for SWR - fetches and parses prayer times CSV
+ * Fetches the CSV and parses today's row into a RawPrayerTimes object.
  */
-async function fetcher(): Promise<RawPrayerTimes> {
-  const res = await fetch(CSV_URL, {
-    // Cache for 5 minutes in the browser
-    next: { revalidate: 300 }
-  })
-
+export async function fetchPrayerTimes(): Promise<RawPrayerTimes> {
+  const res = await fetch(CSV_URL)
   if (!res.ok) {
     throw new Error(`Failed to fetch prayer times (status ${res.status})`)
   }
@@ -81,35 +74,4 @@ async function fetcher(): Promise<RawPrayerTimes> {
     ishaStart,
     ishaJamaat,
   }
-}
-
-/**
- * Custom hook that uses SWR to fetch and cache prayer times
- * Automatically revalidates every 5 minutes and on window focus
- */
-export function usePrayerTimes() {
-  const { data, error, isLoading } = useSWR<RawPrayerTimes>(
-    'prayer-times',
-    fetcher,
-    {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      refreshInterval: 300000, // Refresh every 5 minutes
-      dedupingInterval: 60000,  // Dedupe requests within 1 minute
-    }
-  )
-
-  return {
-    times: data,
-    isLoading,
-    isError: error,
-  }
-}
-
-/**
- * Legacy function for backwards compatibility
- * @deprecated Use usePrayerTimes hook instead for better caching
- */
-export async function fetchPrayerTimes(): Promise<RawPrayerTimes> {
-  return fetcher()
 }
