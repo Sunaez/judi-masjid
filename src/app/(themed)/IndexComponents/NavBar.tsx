@@ -2,13 +2,14 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { IoSunny, IoMoon } from 'react-icons/io5'
 import { motion } from 'motion/react'
 
 // Firestore imports
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 type Weather = {
@@ -20,19 +21,39 @@ type Weather = {
   timestamp: number
 }
 
+// Weather update interval: 15 minutes (weather doesn't change that often)
+const WEATHER_UPDATE_INTERVAL = 15 * 60 * 1000
+
 export default function NavBar() {
   const { theme, systemTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [weather, setWeather] = useState<Weather | null>(null)
+  const [isLoadingWeather, setIsLoadingWeather] = useState(true)
+
+  // Fetch weather function
+  const fetchWeather = async () => {
+    try {
+      const snap = await getDoc(doc(db, 'weather', 'current'))
+      if (snap.exists()) {
+        setWeather(snap.data() as Weather)
+      }
+    } catch (err) {
+      console.error('Failed to fetch weather:', err)
+    } finally {
+      setIsLoadingWeather(false)
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
-    const unsubscribe = onSnapshot(
-      doc(db, 'weather', 'current'),
-      snap => snap.exists() && setWeather(snap.data() as Weather),
-      err => console.error('Failed to fetch weather:', err)
-    )
-    return () => unsubscribe()
+
+    // Fetch weather immediately
+    fetchWeather()
+
+    // Then fetch periodically every 15 minutes
+    const intervalId = setInterval(fetchWeather, WEATHER_UPDATE_INTERVAL)
+
+    return () => clearInterval(intervalId)
   }, [])
 
   if (!mounted) return null
@@ -56,17 +77,25 @@ export default function NavBar() {
         </Link>
 
         {/* Weather display with entry animation */}
-        {weather ? (
+        {isLoadingWeather ? (
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"></div>
+            <div className="w-32 h-4 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        ) : weather ? (
           <motion.div
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex items-center space-x-2 text-base"
           >
-            <img
+            <Image
               src={`https://openweathermap.org/img/wn/${weather.iconCode}@2x.png`}
               alt={weather.forecastCondition}
+              width={32}
+              height={32}
               className="w-8 h-8"
+              unoptimized
             />
             <span className="font-medium">
               {Math.round(weather.forecastTemp)}°C, <span className="capitalize">{weather.forecastCondition}</span>
@@ -74,7 +103,7 @@ export default function NavBar() {
             <span className="italic text-sm">At Al Judi Masjid</span>
           </motion.div>
         ) : (
-          <div className="text-base italic opacity-50">Loading weather…</div>
+          <div className="text-base italic opacity-50">Weather unavailable</div>
         )}
       </div>
 

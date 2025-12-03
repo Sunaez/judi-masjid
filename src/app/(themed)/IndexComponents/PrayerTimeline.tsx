@@ -1,10 +1,10 @@
 // src/app/IndexComponents/PrayerTimeline.tsx
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import Image from 'next/image'
-import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
-import TimeUntil from './TimeUntil'  // updated import path
+import { usePrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
+import TimeUntil from './TimeUntil'
 
 // SVG icons in public/icons
 const ICON_MAP: Record<string, string> = {
@@ -45,56 +45,63 @@ type Event = {
 }
 
 export default function PrayerTimeline() {
-  const [events, setEvents] = useState<Event[]>([])
-  const [range,  setRange]  = useState<{ start: Date; end: Date } | null>(null)
-  const [now,    setNow]    = useState(new Date())
+  const { times, isLoading, isError } = usePrayerTimes()
+  const [now, setNow] = useState(new Date())
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const innerRef  = useRef<HTMLDivElement>(null)
 
-  // tick “now”
+  // tick "now" - optimized to only update when needed
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), TICK_INTERVAL)
     return () => clearInterval(id)
   }, [])
 
-  // fetch all prayer times
-  useEffect(() => {
-    async function loadTimeline() {
-      try {
-        const t: RawPrayerTimes = await fetchPrayerTimes()
-        const toDate = (ts: string) => {
-          const [h, m] = ts.split(':').map(Number)
-          const d = new Date()
-          d.setHours(h, m, 0, 0)
-          return d
-        }
+  // Memoize events and range calculation
+  const { events, range } = useMemo(() => {
+    if (!times) return { events: [], range: null }
 
-        const evts: Event[] = [
-          { name: 'Fajr Jamʿā', type: 'jamaat', timeString: t.fajrJamaat, time: toDate(t.fajrJamaat) },
-          { name: 'Fajr',       type: 'prayer', timeString: t.fajrStart,   time: toDate(t.fajrStart)  },
-          { name: 'Sunrise',    type: 'sunrise',timeString: t.sunrise,      time: toDate(t.sunrise)    },
-          { name: 'Dhuhr Jamʿā',type: 'jamaat', timeString: t.dhuhrJamaat, time: toDate(t.dhuhrJamaat)},
-          { name: 'Dhuhr',      type: 'prayer', timeString: t.dhuhrStart,  time: toDate(t.dhuhrStart)},
-          { name: 'ʿAṣr Jamʿā', type: 'jamaat', timeString: t.asrJamaat,   time: toDate(t.asrJamaat)  },
-          { name: 'ʿAṣr',       type: 'prayer', timeString: t.asrStart,    time: toDate(t.asrStart)   },
-          { name: 'Maghrib',    type: 'prayer', timeString: t.maghrib,     time: toDate(t.maghrib)    },
-          { name: 'ʿIshā',      type: 'prayer', timeString: t.ishaStart,   time: toDate(t.ishaStart)  },
-        ]
-
-        const start = new Date(evts[1].time.getTime() - PRE_EVENT_HOURS * 3_600_000)
-        const end   = new Date(evts[evts.length - 1].time.getTime() + POST_EVENT_HOURS * 3_600_000)
-
-        setEvents(evts)
-        setRange({ start, end })
-      } catch (e) {
-        console.error('Failed to load timeline prayer times', e)
-      }
+    const toDate = (ts: string) => {
+      const [h, m] = ts.split(':').map(Number)
+      const d = new Date()
+      d.setHours(h, m, 0, 0)
+      return d
     }
-    loadTimeline()
-  }, [])
 
-  // auto-scroll so “now” stays centered
+    const evts: Event[] = [
+      { name: 'Fajr Jamʿā', type: 'jamaat', timeString: times.fajrJamaat, time: toDate(times.fajrJamaat) },
+      { name: 'Fajr',       type: 'prayer', timeString: times.fajrStart,   time: toDate(times.fajrStart)  },
+      { name: 'Sunrise',    type: 'sunrise',timeString: times.sunrise,      time: toDate(times.sunrise)    },
+      { name: 'Dhuhr Jamʿā',type: 'jamaat', timeString: times.dhuhrJamaat, time: toDate(times.dhuhrJamaat)},
+      { name: 'Dhuhr',      type: 'prayer', timeString: times.dhuhrStart,  time: toDate(times.dhuhrStart)},
+      { name: 'ʿAṣr Jamʿā', type: 'jamaat', timeString: times.asrJamaat,   time: toDate(times.asrJamaat)  },
+      { name: 'ʿAṣr',       type: 'prayer', timeString: times.asrStart,    time: toDate(times.asrStart)   },
+      { name: 'Maghrib',    type: 'prayer', timeString: times.maghrib,     time: toDate(times.maghrib)    },
+      { name: 'ʿIshā',      type: 'prayer', timeString: times.ishaStart,   time: toDate(times.ishaStart)  },
+    ]
+
+    const start = new Date(evts[1].time.getTime() - PRE_EVENT_HOURS * 3_600_000)
+    const end   = new Date(evts[evts.length - 1].time.getTime() + POST_EVENT_HOURS * 3_600_000)
+
+    return { events: evts, range: { start, end } }
+  }, [times])
+
+  // Memoize computeOffset function
+  const totalMs = useMemo(() => {
+    if (!range) return 0
+    return range.end.getTime() - range.start.getTime()
+  }, [range])
+
+  const computeOffset = useCallback((e: Event) => {
+    if (!range) return {}
+    return {
+      position: 'absolute' as const,
+      left:     `${((e.time.getTime() - range.start.getTime()) / totalMs) * 100}%`,
+      transform:'translateX(-50%)',
+    }
+  }, [range, totalMs])
+
+  // auto-scroll so "now" stays centered - optimized with useCallback
   useEffect(() => {
     if (!range || !scrollRef.current || !innerRef.current) return
     const container = scrollRef.current
@@ -104,29 +111,39 @@ export default function PrayerTimeline() {
     container.scrollTo({ left: scrollPos - container.offsetWidth / 2, behavior: 'auto' })
   }, [now, range])
 
-  if (!range) return null
+  // Memoize next prayer/jamaat calculations
+  const { nextPrayer, nextJamaat } = useMemo(() => {
+    const nextPrayer = events.find(
+      e => e.type === 'prayer' && e.time.getTime() > now.getTime()
+    )
 
-  const totalMs = range.end.getTime() - range.start.getTime()
+    const nextJamaat = events.find(e =>
+      (e.type === 'jamaat' || e.name === 'Maghrib' || e.name === 'ʿIshā')
+      && e.time.getTime() > now.getTime()
+    )
+
+    return { nextPrayer, nextJamaat }
+  }, [events, now])
+
+  if (isError) {
+    return (
+      <div className="text-center text-red-500 py-8">
+        <p>Failed to load prayer timeline</p>
+      </div>
+    )
+  }
+
+  if (isLoading || !range) {
+    return (
+      <div className="animate-pulse py-12">
+        <div className="h-16 bg-gray-300 dark:bg-gray-700 rounded"></div>
+      </div>
+    )
+  }
+
   const passedPct = Math.min(
     100,
     Math.max(0, (now.getTime() - range.start.getTime()) / totalMs * 100)
-  )
-
-  const computeOffset = (e: Event) => ({
-    position: 'absolute' as const,
-    left:     `${((e.time.getTime() - range.start.getTime()) / totalMs) * 100}%`,
-    transform:'translateX(-50%)',
-  })
-
-  // next adhān (prayer times)
-  const nextPrayer = events.find(
-    e => e.type === 'prayer' && e.time.getTime() > now.getTime()
-  )
-
-  // next jamʿāh (jamaat events; include Maghrib/Ishā if you wish)
-  const nextJamaat = events.find(e =>
-    (e.type === 'jamaat' || e.name === 'Maghrib' || e.name === 'ʿIshā')
-    && e.time.getTime() > now.getTime()
   )
 
   return (
