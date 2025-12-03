@@ -13,7 +13,7 @@ const toToday = (hhmm: string): Date => {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { prayerTimes: times, isLoading } = usePrayerTimesContext()
+  const { prayerTimes: times, isLoading, error } = usePrayerTimesContext()
   const [ready, setReady] = useState(false)
   const loaderRef = useRef<HTMLDivElement>(null)
   const tlRef = useRef<gsap.core.Timeline | null>(null)
@@ -74,6 +74,32 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setReady(true)
     }
   }, [times, sunrise, maghrib])
+
+  // Show error state
+  if (error && !isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)]">
+        <div className="text-center p-8 bg-[var(--background-end)] rounded-2xl shadow-xl max-w-md border border-[var(--secondary-color)]">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-[var(--accent-color)] mb-3">
+            Prayer Times Unavailable
+          </h2>
+          <p className="text-[var(--text-color)] mb-4">
+            {error}
+          </p>
+          <p className="text-sm text-[var(--secondary-color)]">
+            Please contact the administrator or try refreshing the page.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 py-2 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (!ready || isLoading) {
     return (

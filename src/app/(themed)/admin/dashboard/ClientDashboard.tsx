@@ -15,6 +15,10 @@ const AddAnimation = dynamic(
   () => import('./DashBoardComponents/AddAnimation'),
   { ssr: false }
 );
+const SyncPrayerTimes = dynamic(
+  () => import('./DashBoardComponents/SyncPrayerTimes'),
+  { ssr: false }
+);
 
 export default function ClientDashboard() {
   const [isMessageModalOpen, setMessageModalOpen] = useState(false);
@@ -23,6 +27,9 @@ export default function ClientDashboard() {
   const [isAnimModalOpen, setAnimModalOpen] = useState(false);
   const [animChildIsClosing, setAnimChildIsClosing] = useState(false);
   const [selectedMessageForAnimation, setSelectedMessageForAnimation] = useState<any>(null);
+
+  const [isSyncModalOpen, setSyncModalOpen] = useState(false);
+  const [syncChildIsClosing, setSyncChildIsClosing] = useState(false);
 
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -50,6 +57,17 @@ export default function ClientDashboard() {
   const handleAnimSuccessToast = () => setToast({ type: 'success', message: 'Animation previewed successfully' });
   const handleAnimErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
 
+  const openSyncModal = () => {
+    setSyncChildIsClosing(false);
+    setSyncModalOpen(true);
+  };
+  const handleSyncChildClose = () => {
+    setSyncChildIsClosing(false);
+    setSyncModalOpen(false);
+  };
+  const handleSyncSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
+  const handleSyncErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
+
   const handleBackdropClick = () => {
     if (!messageChildIsClosing && isMessageModalOpen) {
       setMessageModalOpen(false);
@@ -57,6 +75,9 @@ export default function ClientDashboard() {
     if (!animChildIsClosing && isAnimModalOpen) {
       setAnimModalOpen(false);
       setSelectedMessageForAnimation(null);
+    }
+    if (!syncChildIsClosing && isSyncModalOpen) {
+      setSyncModalOpen(false);
     }
   };
 
@@ -76,6 +97,27 @@ export default function ClientDashboard() {
           >
             {/* svg icon omitted for brevity */}
             Add Message
+          </button>
+
+          <button
+            onClick={openSyncModal}
+            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            Sync Prayer Times
           </button>
 
           <a
@@ -157,6 +199,37 @@ export default function ClientDashboard() {
                 setClosing={setAnimChildIsClosing}
                 onSuccess={handleAnimSuccessToast}
                 onError={handleAnimErrorToast}
+              />
+            </div>
+          </div>
+        )}
+
+        {isSyncModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
+            onClick={handleBackdropClick}
+          >
+            <div
+              className="bg-[var(--background-end)] rounded-2xl shadow-2xl w-full sm:w-11/12 lg:w-3/5 max-w-3xl max-h-[95vh] overflow-y-auto p-10"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-[var(--accent-color)]">
+                  Sync Prayer Times
+                </h2>
+                <button
+                  onClick={() => !syncChildIsClosing && setSyncModalOpen(false)}
+                  className="text-2xl font-bold text-[var(--text-color)] hover:opacity-70"
+                  aria-label="Close modal"
+                >
+                  ×
+                </button>
+              </div>
+              <SyncPrayerTimes
+                onClose={handleSyncChildClose}
+                setClosing={setSyncChildIsClosing}
+                onSuccess={handleSyncSuccessToast}
+                onError={handleSyncErrorToast}
               />
             </div>
           </div>
