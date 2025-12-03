@@ -1,6 +1,5 @@
 'use client'
 
-import Head from 'next/head'
 import { motion } from 'motion/react'
 
 import NavBar from './IndexComponents/NavBar'
@@ -12,19 +11,12 @@ import Footer from './IndexComponents/Footer'
 
 export default function Home() {
   return (
-    <>
-      <Head>
-        <title>Al-judi Masjid</title>
-        <link rel="icon" href="/img.png" />
-        <link rel="stylesheet" href="/Style.css" />
-      </Head>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="flex flex-col"
-      >
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="flex flex-col"
+    >
         <NavBar />
 
         {/* Title & Prayer Table */}
@@ -44,8 +36,7 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <Footer />
-      </motion.div>
-    </>
+      <Footer />
+    </motion.div>
   )
 }

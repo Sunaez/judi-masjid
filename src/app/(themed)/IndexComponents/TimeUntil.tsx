@@ -1,13 +1,18 @@
 // src/app/IndexComponents/TimeUntil.tsx
 'use client'
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import gsap from 'gsap'
 
 type TimeUntilProps = {
   eventName: string
   eventTime: Date
 }
+
+// Digit pools - constant, no need to recalculate
+const H_TENS = [0, 1, 2]
+const DIGITS = Array.from({ length: 10 }, (_, i) => i)
+const M_TENS = [0, 1, 2, 3, 4, 5]
 
 export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
   // 1) ticking clock
@@ -20,7 +25,7 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
   // 2) time difference
   const diffMs = eventTime.getTime() - now.getTime()
 
-  // 3) if we've reached (or passed) the event, show “Started”
+  // 3) if we've reached (or passed) the event, show "Started"
   if (diffMs <= 0) {
     return (
       <div className="w-full py-2 text-center text-sm md:text-xs">
@@ -29,15 +34,19 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
     )
   }
 
-  // 4) compute HH:MM:SS & split
-  const totalS = Math.floor(diffMs / 1000)
-  const H      = Math.floor(totalS / 3600)
-  const M      = Math.floor((totalS % 3600) / 60)
-  const S      = totalS % 60
-  const pad2   = (n: number) => n.toString().padStart(2, '0')
-  const [ht, ho] = pad2(H).split('').map(Number)
-  const [mt, mo] = pad2(M).split('').map(Number)
-  const [st, so] = pad2(S).split('').map(Number)
+  // 4) compute HH:MM:SS & split - memoized
+  const { H, M, S, ht, ho, mt, mo, st, so } = useMemo(() => {
+    const totalS = Math.floor(diffMs / 1000)
+    const H      = Math.floor(totalS / 3600)
+    const M      = Math.floor((totalS % 3600) / 60)
+    const S      = totalS % 60
+    const pad2   = (n: number) => n.toString().padStart(2, '0')
+    const [ht, ho] = pad2(H).split('').map(Number)
+    const [mt, mo] = pad2(M).split('').map(Number)
+    const [st, so] = pad2(S).split('').map(Number)
+
+    return { H, M, S, ht, ho, mt, mo, st, so }
+  }, [diffMs])
 
   // 5) refs for each digit column
   const hTR = useRef<HTMLUListElement>(null!)
@@ -47,10 +56,14 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
   const sTR = useRef<HTMLUListElement>(null!)
   const sOR = useRef<HTMLUListElement>(null!)
 
-  // 6) slide digits on change
+  // Keep track of previous values to only animate when changed
+  const prevValues = useRef({ ht, ho, mt, mo, st, so })
+
+  // 6) slide digits on change - ONLY ANIMATE CHANGED DIGITS
   useLayoutEffect(() => {
-    const slide = (ref: React.RefObject<HTMLUListElement>, digit: number) => {
-      if (ref.current) {
+    const slide = (ref: React.RefObject<HTMLUListElement>, digit: number, prevDigit: number) => {
+      // Only animate if the digit actually changed
+      if (ref.current && digit !== prevDigit) {
         gsap.to(ref.current, {
           y: `-${digit}em`,
           duration: 0.4,
@@ -58,18 +71,19 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
         })
       }
     }
-    slide(hTR, ht)
-    slide(hOR, ho)
-    slide(mTR, mt)
-    slide(mOR, mo)
-    slide(sTR, st)
-    slide(sOR, so)
-  }, [ht, ho, mt, mo, st, so])
 
-  // 7) digit pools
-  const H_TENS = [0, 1, 2]
-  const DIGITS = Array.from({ length: 10 }, (_, i) => i)
-  const M_TENS = [0, 1, 2, 3, 4, 5]
+    const prev = prevValues.current
+
+    slide(hTR, ht, prev.ht)
+    slide(hOR, ho, prev.ho)
+    slide(mTR, mt, prev.mt)
+    slide(mOR, mo, prev.mo)
+    slide(sTR, st, prev.st)
+    slide(sOR, so, prev.so)
+
+    // Update previous values
+    prevValues.current = { ht, ho, mt, mo, st, so }
+  }, [ht, ho, mt, mo, st, so])
 
   return (
     <div className="w-full text-[var(--text-color)] py-2">
@@ -85,32 +99,29 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps) {
 
         {/* Clock */}
         <div className="inline-flex font-mono text-2xl md:text-3xl lg:text-4xl overflow-hidden">
-          {[hTR, hOR, mTR, mOR, sTR, sOR].map((ref, idx) => {
-            const pool =
-              idx === 0 ? H_TENS :
-              idx === 1 ? DIGITS :
-              idx === 2 ? M_TENS :
-              idx === 3 ? DIGITS :
-              idx === 4 ? M_TENS :
-                           DIGITS
-
-            return (
-              <div key={idx} className="flex items-center">
-                <div className="h-[1em] overflow-hidden">
-                  <ul ref={ref} className="m-0 p-0">
-                    {pool.map(d => (
-                      <li key={d} className="h-[1em] leading-[1em]">
-                        {d}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {(idx === 1 || idx === 3) && (
-                  <div className="px-1 select-none">:</div>
-                )}
+          {[
+            { ref: hTR, pool: H_TENS, idx: 0 },
+            { ref: hOR, pool: DIGITS, idx: 1 },
+            { ref: mTR, pool: M_TENS, idx: 2 },
+            { ref: mOR, pool: DIGITS, idx: 3 },
+            { ref: sTR, pool: M_TENS, idx: 4 },
+            { ref: sOR, pool: DIGITS, idx: 5 },
+          ].map(({ ref, pool, idx }) => (
+            <div key={idx} className="flex items-center">
+              <div className="h-[1em] overflow-hidden">
+                <ul ref={ref} className="m-0 p-0">
+                  {pool.map(d => (
+                    <li key={d} className="h-[1em] leading-[1em]">
+                      {d}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            )
-          })}
+              {(idx === 1 || idx === 3) && (
+                <div className="px-1 select-none">:</div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// src/app/(themed)/admin/dashboard/DashBoardComponents/Footer.tsx
+// src/app/(themed)/IndexComponents/Footer.tsx
 
 'use client';
 

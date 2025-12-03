@@ -1,13 +1,10 @@
 'use client'
 
-import React, { useState, useRef, useLayoutEffect, Fragment } from 'react'
-import { Listbox, Transition } from '@headlessui/react'
+import React, { useState, useRef, useLayoutEffect } from 'react'
+import { Listbox } from '@headlessui/react'
 import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { FaYoutube, FaFacebook } from 'react-icons/fa'
 import { MdMosque, MdHelpOutline, MdOutlineMenuBook, MdArrowDropDown, MdLibraryBooks, MdOndemandVideo } from 'react-icons/md'
-
-gsap.registerPlugin(ScrollTrigger)
 
 interface LinkItem {
   label: string
@@ -22,10 +19,11 @@ interface Category {
   links: LinkItem[]
 }
 
+// Move categories outside component to avoid recreation on every render
 const categories: Category[] = [
   {
     name: 'General Islamic Help',
-    icon: <MdMosque className="w-6 h-6 text-[var(--x-text-color)]" />, // inverted icon
+    icon: <MdMosque className="w-6 h-6 text-[var(--x-text-color)]" />,
     links: [
       {
         label: 'Quran.com',
@@ -57,7 +55,7 @@ const categories: Category[] = [
   },
   {
     name: 'Social Media',
-    icon: <MdOndemandVideo className="w-6 h-6 text-[var(--x-text-color)]" />, // inverted icon
+    icon: <MdOndemandVideo className="w-6 h-6 text-[var(--x-text-color)]" />,
     links: [
       {
         label: 'YouTube',
@@ -140,16 +138,28 @@ const UsefulLinks: React.FC = () => {
   // Default to General Islamic Help
   const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0])
   const contentRef = useRef<HTMLDivElement>(null)
+  const animationRef = useRef<gsap.core.Tween | null>(null)
 
   useLayoutEffect(() => {
     if (!contentRef.current) return
-    const tween = gsap.fromTo(
+
+    // Kill previous animation to avoid race conditions
+    if (animationRef.current) {
+      animationRef.current.kill()
+    }
+
+    // Create new animation
+    animationRef.current = gsap.fromTo(
       contentRef.current,
       { autoAlpha: 0, x: 20 },
       { autoAlpha: 1, x: 0, duration: 0.5, ease: 'power2.out' }
     )
+
     return () => {
-      tween.kill()
+      if (animationRef.current) {
+        animationRef.current.kill()
+        animationRef.current = null
+      }
     }
   }, [selectedCategory])
 
@@ -158,33 +168,31 @@ const UsefulLinks: React.FC = () => {
       {/* Mobile */}
       <div className="md:hidden">
         <Listbox value={selectedCategory} onChange={setSelectedCategory}>
-          {({ open }) => (
-            <div>
-              <Listbox.Button className="w-full flex justify-between items-center p-4 bg-white dark:bg-[var(--x-background-start)] rounded-lg shadow">
-                <div className="flex items-center space-x-2">
-                  {selectedCategory.icon}
-                  <span className="font-semibold text-[var(--text-color)] dark:text-[var(--x-text-color)]">{selectedCategory.name}</span>
-                </div>
-                <MdArrowDropDown className="w-6 h-6 text-[var(--secondary-color)]" />
-              </Listbox.Button>
-              <Listbox.Options className="mt-2 bg-white dark:bg-[var(--x-background-start)] rounded-lg shadow-lg overflow-hidden">
-                {categories.map(cat => (
-                  <Listbox.Option
-                    key={cat.name}
-                    value={cat}
-                    className={({ active }) =>
-                      `cursor-pointer select-none relative p-4 flex items-center space-x-2 ${
-                        active ? 'bg-[var(--background-end)] dark:bg-[var(--x-background-end)]' : ''
-                      }`
-                    }
-                  >
-                    {cat.icon}
-                    <span className="text-[var(--text-color)] dark:text-[var(--x-text-color)]">{cat.name}</span>
-                  </Listbox.Option>
-                ))}
-              </Listbox.Options>
-            </div>
-          )}
+          <div>
+            <Listbox.Button className="w-full flex justify-between items-center p-4 bg-white dark:bg-[var(--x-background-start)] rounded-lg shadow">
+              <div className="flex items-center space-x-2">
+                {selectedCategory.icon}
+                <span className="font-semibold text-[var(--text-color)] dark:text-[var(--x-text-color)]">{selectedCategory.name}</span>
+              </div>
+              <MdArrowDropDown className="w-6 h-6 text-[var(--secondary-color)]" />
+            </Listbox.Button>
+            <Listbox.Options className="mt-2 bg-white dark:bg-[var(--x-background-start)] rounded-lg shadow-lg overflow-hidden">
+              {categories.map(cat => (
+                <Listbox.Option
+                  key={cat.name}
+                  value={cat}
+                  className={({ active }) =>
+                    `cursor-pointer select-none relative p-4 flex items-center space-x-2 ${
+                      active ? 'bg-[var(--background-end)] dark:bg-[var(--x-background-end)]' : ''
+                    }`
+                  }
+                >
+                  {cat.icon}
+                  <span className="text-[var(--text-color)] dark:text-[var(--x-text-color)]">{cat.name}</span>
+                </Listbox.Option>
+              ))}
+            </Listbox.Options>
+          </div>
         </Listbox>
         <div ref={contentRef} className="mt-4 space-y-3">
           {selectedCategory.links.map(link => (
@@ -205,7 +213,7 @@ const UsefulLinks: React.FC = () => {
 
       {/* Desktop */}
       <div className="hidden md:flex">
-        <nav className="w-1/4 pr-4"> {/* adjust width here */}
+        <nav className="w-1/4 pr-4">
           <ul className="space-y-2">
             {categories.map(cat => (
               <li key={cat.name}>

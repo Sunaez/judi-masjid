@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef, useLayoutEffect } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion } from 'motion/react'
-import gsap from 'gsap'
+import Image from 'next/image'
 import { IoDownload } from 'react-icons/io5'
 import { fetchPrayerTimes, RawPrayerTimes } from '../../FetchPrayerTimes'
 
@@ -37,26 +37,26 @@ const rowVariants = {
 
 type TableTimes = Omit<RawPrayerTimes, 'sunrise'>
 
+// Loading skeleton component
+function TableSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mx-auto mb-4"></div>
+      <div className="space-y-2">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-12 bg-gray-300 dark:bg-gray-700 rounded"></div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function PrayerTimesTable() {
-  const [times, setTimes] = useState<TableTimes>({
-    fajrStart: '', fajrJamaat: '',
-    dhuhrStart: '', dhuhrJamaat: '',
-    asrStart: '', asrJamaat: '',
-    maghrib: '',
-    ishaStart: '', ishaJamaat: ''
-  })
+  const [times, setTimes] = useState<TableTimes | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isError, setIsError] = useState(false)
 
-  const buttonRef = useRef<HTMLButtonElement>(null)
-
-  // Compute month and year for file naming and display
-  const now = new Date()
-  const monthNum = String(now.getMonth() + 1).padStart(2, '0')
-  const year = now.getFullYear()
-  const monthName = now.toLocaleString('default', { month: 'long' })
-  const fileName = `${monthNum}-${year}.jpg`
-  const filePath = `/Timetables/${fileName}`
-
-  // Fetch prayer times via shared function
+  // Fetch prayer times
   useEffect(() => {
     fetchPrayerTimes()
       .then((t: RawPrayerTimes) => {
@@ -71,17 +71,39 @@ export default function PrayerTimesTable() {
           ishaStart: t.ishaStart,
           ishaJamaat: t.ishaJamaat,
         })
+        setIsLoading(false)
       })
-      .catch((e) => console.error('Error fetching prayer times', e))
+      .catch((e) => {
+        console.error('Error fetching prayer times', e)
+        setIsError(true)
+        setIsLoading(false)
+      })
   }, [])
-  
-  const prayers = [
-    { name: 'Fajr', start: times.fajrStart, jamaat: times.fajrJamaat, icon: 'icon-fajr.svg' },
-    { name: 'Dhuhr', start: times.dhuhrStart, jamaat: times.dhuhrJamaat, icon: 'icon-dhuhr.svg' },
-    { name: 'Asr', start: times.asrStart, jamaat: times.asrJamaat, icon: 'icon-asr.svg' },
-    { name: 'Maghrib', start: times.maghrib, jamaat: times.maghrib, icon: 'icon-maghrib.svg' },
-    { name: 'Isha', start: times.ishaStart, jamaat: times.ishaJamaat, icon: 'icon-isha.svg' },
-  ]
+
+  // Memoize month/year calculations
+  const { monthNum, year, monthName, fileName, filePath } = useMemo(() => {
+    const now = new Date()
+    const monthNum = String(now.getMonth() + 1).padStart(2, '0')
+    const year = now.getFullYear()
+    const monthName = now.toLocaleString('default', { month: 'long' })
+    const fileName = `${monthNum}-${year}.jpg`
+    const filePath = `/Timetables/${fileName}`
+
+    return { monthNum, year, monthName, fileName, filePath }
+  }, [])
+
+  // Memoize prayers array
+  const prayers = useMemo(() => {
+    if (!times) return []
+
+    return [
+      { name: 'Fajr', start: times.fajrStart, jamaat: times.fajrJamaat, icon: 'icon-fajr.svg' },
+      { name: 'Dhuhr', start: times.dhuhrStart, jamaat: times.dhuhrJamaat, icon: 'icon-dhuhr.svg' },
+      { name: 'Asr', start: times.asrStart, jamaat: times.asrJamaat, icon: 'icon-asr.svg' },
+      { name: 'Maghrib', start: times.maghrib, jamaat: times.maghrib, icon: 'icon-maghrib.svg' },
+      { name: 'Isha', start: times.ishaStart, jamaat: times.ishaJamaat, icon: 'icon-isha.svg' },
+    ]
+  }, [times])
 
   // Download handler: triggers download of the computed file
   const downloadTimetable = () => {
@@ -91,6 +113,25 @@ export default function PrayerTimesTable() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  if (isError) {
+    return (
+      <section className="flex-1 p-4 min-h-[50vh] flex items-center justify-center">
+        <div className="text-center text-red-500">
+          <p className="text-xl mb-2">Failed to load prayer times</p>
+          <p className="text-sm">Please try refreshing the page</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (isLoading || !times) {
+    return (
+      <section className="flex-1 p-4 min-h-[50vh]">
+        <TableSkeleton />
+      </section>
+    )
   }
 
   return (
@@ -119,7 +160,7 @@ export default function PrayerTimesTable() {
               Start
             </th>
             <th className="px-2 py-1 border border-[var(--secondary-color)] bg-[var(--accent-color)] text-[var(--background-end)] text-center">
-              Jama’at
+              Jama'at
             </th>
           </tr>
         </thead>
@@ -127,9 +168,11 @@ export default function PrayerTimesTable() {
           {prayers.map(({ name, start, jamaat, icon }) => (
             <motion.tr key={name} variants={rowVariants}>
               <td className="py-1 border border-[var(--secondary-color)] flex items-center justify-center space-x-2 bg-[var(--secondary-color)]">
-                <img
+                <Image
                   src={`/Icons/${icon}`}
                   alt={`${name} icon`}
+                  width={24}
+                  height={24}
                   className="h-6 w-6"
                 />
                 <span className="font-medium">{name}</span>
@@ -147,7 +190,6 @@ export default function PrayerTimesTable() {
 
       <div className="flex justify-center mt-4">
         <button
-          ref={buttonRef}
           onClick={downloadTimetable}
           className="flex items-center px-4 py-2 bg-[var(--x-background-start)] text-[var(--x-text-color)] rounded-lg hover:px-6 hover:py-3 transition-all duration-200"
         >
