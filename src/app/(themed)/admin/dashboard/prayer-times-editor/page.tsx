@@ -66,7 +66,7 @@ export default function PrayerTimesEditorPage() {
     try {
       const allData: PrayerTimeRow[] = [];
 
-      // Load all 12 months of selected year
+      // Load all 12 months of selected year only
       for (let month = 1; month <= 12; month++) {
         const monthStr = String(month).padStart(2, "0");
         const data = await getPrayerTimesByMonth(selectedYear, monthStr);
@@ -90,26 +90,6 @@ export default function PrayerTimesEditorPage() {
         allData.push(...rows);
       }
 
-      // Also load January of next year
-      const nextYear = String(parseInt(selectedYear) + 1);
-      const nextYearData = await getPrayerTimesByMonth(nextYear, "01");
-      const nextYearRows: PrayerTimeRow[] = nextYearData.map((doc) => ({
-        date: doc.date,
-        fajrStart: doc.fajrStart,
-        fajrJamaat: doc.fajrJamaat,
-        sunrise: doc.sunrise,
-        dhuhrStart: doc.dhuhrStart,
-        dhuhrJamaat: doc.dhuhrJamaat,
-        asrStart: doc.asrStart,
-        asrJamaat: doc.asrJamaat,
-        maghrib: doc.maghrib,
-        ishaStart: doc.ishaStart,
-        ishaJamaat: doc.ishaJamaat,
-        isModified: false,
-        archived: false,
-      }));
-      allData.push(...nextYearRows);
-
       // Sort by date
       allData.sort((a, b) => {
         const [dayA, monthA, yearA] = a.date.split("/").map(Number);
@@ -119,13 +99,13 @@ export default function PrayerTimesEditorPage() {
         return dateA.getTime() - dateB.getTime();
       });
 
-      // Add 45 empty rows after the most recent date
+      // Add 31 empty rows after the most recent date
       if (allData.length > 0) {
         const lastRow = allData[allData.length - 1];
         const [day, month, year] = lastRow.date.split("/").map(Number);
         let currentDate = new Date(year, month - 1, day);
 
-        for (let i = 0; i < 45; i++) {
+        for (let i = 0; i < 31; i++) {
           currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
           const newDay = String(currentDate.getDate()).padStart(2, "0");
           const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
@@ -173,6 +153,13 @@ export default function PrayerTimesEditorPage() {
   };
 
   const toggleRowSelection = (index: number, e: React.MouseEvent | React.ChangeEvent) => {
+    const row = prayerTimes[index];
+
+    // Prevent selection of current or future dates
+    if (isCurrentOrFutureDate(row.date)) {
+      return;
+    }
+
     const isCheckbox = (e.target as HTMLElement).type === 'checkbox';
     const ctrlKey = (e as React.MouseEvent).ctrlKey || (e as React.MouseEvent).metaKey;
     const shiftKey = (e as React.MouseEvent).shiftKey;
@@ -185,11 +172,13 @@ export default function PrayerTimesEditorPage() {
     let newSelection = new Set(selectedRows);
 
     if (shiftKey && lastSelectedRow !== null && !isCheckbox) {
-      // Shift+Click: Select range from last selected to current
+      // Shift+Click: Select range from last selected to current (only past dates)
       const start = Math.min(lastSelectedRow, index);
       const end = Math.max(lastSelectedRow, index);
       for (let i = start; i <= end; i++) {
-        newSelection.add(i);
+        if (!isCurrentOrFutureDate(prayerTimes[i].date)) {
+          newSelection.add(i);
+        }
       }
     } else if (ctrlKey && !isCheckbox) {
       // Ctrl+Click: Toggle single selection
@@ -213,14 +202,19 @@ export default function PrayerTimesEditorPage() {
   };
 
   const toggleAllRowsSelection = () => {
-    const visibleRows = prayerTimes
-      .map((row, idx) => (showArchived || !row.archived) ? idx : -1)
+    // Only select visible rows that are past dates (not current or future)
+    const selectableRows = prayerTimes
+      .map((row, idx) => {
+        const isVisible = showArchived || !row.archived;
+        const isPast = !isCurrentOrFutureDate(row.date);
+        return (isVisible && isPast) ? idx : -1;
+      })
       .filter(idx => idx !== -1);
 
-    if (selectedRows.size === visibleRows.length) {
+    if (selectedRows.size === selectableRows.length && selectableRows.length > 0) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(visibleRows));
+      setSelectedRows(new Set(selectableRows));
     }
   };
 
@@ -424,6 +418,18 @@ export default function PrayerTimesEditorPage() {
     }
   };
 
+  const isCurrentOrFutureDate = (dateStr: string): boolean => {
+    try {
+      const [day, month, year] = dateStr.split("/").map(Number);
+      const rowDate = new Date(year, month - 1, day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day
+      return rowDate >= today;
+    } catch {
+      return false;
+    }
+  };
+
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
@@ -587,6 +593,7 @@ export default function PrayerTimesEditorPage() {
                     const isSelected = selectedRows.has(actualIndex);
                     const isFri = isFriday(row.date);
                     const isFirst = isFirstOfMonth(row.date);
+                    const isFutureDate = isCurrentOrFutureDate(row.date);
 
                     return (
                       <tr
@@ -596,7 +603,7 @@ export default function PrayerTimesEditorPage() {
                             toggleRowSelection(actualIndex, e);
                           }
                         }}
-                        className={`cursor-pointer select-none ${
+                        className={`${isFutureDate ? 'cursor-default' : 'cursor-pointer'} select-none ${
                           isSelected
                             ? "bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500"
                             : isFri
@@ -615,7 +622,8 @@ export default function PrayerTimesEditorPage() {
                             type="checkbox"
                             checked={isSelected}
                             onChange={(e) => toggleRowSelection(actualIndex, e)}
-                            className="w-4 h-4 cursor-pointer"
+                            disabled={isFutureDate}
+                            className="w-4 h-4 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                           />
                         </td>
                         {COLUMN_KEYS.map((colKey) => (
