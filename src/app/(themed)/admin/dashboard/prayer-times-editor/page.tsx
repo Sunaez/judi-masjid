@@ -40,11 +40,11 @@ export default function PrayerTimesEditorPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [exitModalOpen, setExitModalOpen] = useState(false);
 
   // Selection state
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const [selectedColumn, setSelectedColumn] = useState<ColumnKey | null>(null);
-  const [focusedCell, setFocusedCell] = useState<{row: number, col: ColumnKey} | null>(null);
+  const [lastSelectedRow, setLastSelectedRow] = useState<number | null>(null);
 
   // Initialize with current year
   useEffect(() => {
@@ -64,7 +64,6 @@ export default function PrayerTimesEditorPage() {
     setLoading(true);
     setError(null);
     try {
-      // Load all 12 months for the selected year
       const allData: PrayerTimeRow[] = [];
 
       for (let month = 1; month <= 12; month++) {
@@ -121,13 +120,38 @@ export default function PrayerTimesEditorPage() {
     setHasChanges(true);
   };
 
-  const toggleRowSelection = (index: number) => {
-    const newSelection = new Set(selectedRows);
-    if (newSelection.has(index)) {
-      newSelection.delete(index);
+  const toggleRowSelection = (index: number, e: React.MouseEvent | React.ChangeEvent) => {
+    const isCheckbox = (e.target as HTMLElement).type === 'checkbox';
+    const ctrlKey = (e as React.MouseEvent).ctrlKey || (e as React.MouseEvent).metaKey;
+    const shiftKey = (e as React.MouseEvent).shiftKey;
+
+    let newSelection = new Set(selectedRows);
+
+    if (shiftKey && lastSelectedRow !== null && !isCheckbox) {
+      // Shift+Click: Select range from last selected to current
+      const start = Math.min(lastSelectedRow, index);
+      const end = Math.max(lastSelectedRow, index);
+      for (let i = start; i <= end; i++) {
+        newSelection.add(i);
+      }
+    } else if (ctrlKey && !isCheckbox) {
+      // Ctrl+Click: Toggle single selection
+      if (newSelection.has(index)) {
+        newSelection.delete(index);
+      } else {
+        newSelection.add(index);
+      }
+      setLastSelectedRow(index);
     } else {
-      newSelection.add(index);
+      // Regular click or checkbox: Toggle single
+      if (newSelection.has(index)) {
+        newSelection.delete(index);
+      } else {
+        newSelection.add(index);
+      }
+      setLastSelectedRow(index);
     }
+
     setSelectedRows(newSelection);
   };
 
@@ -192,10 +216,6 @@ export default function PrayerTimesEditorPage() {
     setToast({ type: 'success', message: `Deleted ${selectedRows.size} row(s)` });
   };
 
-  const handleColumnSelect = (column: ColumnKey) => {
-    setSelectedColumn(column === selectedColumn ? null : column);
-  };
-
   const handleCellPaste = async (rowIndex: number, colKey: ColumnKey, e: React.ClipboardEvent) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text');
@@ -203,16 +223,20 @@ export default function PrayerTimesEditorPage() {
 
     if (lines.length === 0) return;
 
-    // If pasting into a column-selected area, paste to all visible rows in that column
-    if (selectedColumn === colKey) {
-      const updatedRows = [...prayerTimes];
-      const visibleRows = updatedRows
-        .map((row, idx) => (showArchived || !row.archived) ? idx : -1)
-        .filter(idx => idx !== -1);
+    const updatedRows = [...prayerTimes];
 
+    if (lines.length === 1) {
+      // Single value - paste into current cell
+      updatedRows[rowIndex] = {
+        ...updatedRows[rowIndex],
+        [colKey]: lines[0],
+        isModified: true,
+      };
+    } else {
+      // Multiple lines - paste starting from current cell going down
       lines.forEach((value, offset) => {
-        const targetIdx = visibleRows[offset];
-        if (targetIdx !== undefined && targetIdx < updatedRows.length) {
+        const targetIdx = rowIndex + offset;
+        if (targetIdx < updatedRows.length) {
           updatedRows[targetIdx] = {
             ...updatedRows[targetIdx],
             [colKey]: value,
@@ -220,39 +244,11 @@ export default function PrayerTimesEditorPage() {
           };
         }
       });
-
-      setPrayerTimes(updatedRows);
-      setHasChanges(true);
-      setToast({ type: 'success', message: `Pasted ${lines.length} value(s) to column` });
-    } else {
-      // Single cell or row paste
-      const updatedRows = [...prayerTimes];
-
-      if (lines.length === 1) {
-        // Single value - paste into current cell
-        updatedRows[rowIndex] = {
-          ...updatedRows[rowIndex],
-          [colKey]: lines[0],
-          isModified: true,
-        };
-      } else {
-        // Multiple lines - paste starting from current cell going down
-        lines.forEach((value, offset) => {
-          const targetIdx = rowIndex + offset;
-          if (targetIdx < updatedRows.length) {
-            updatedRows[targetIdx] = {
-              ...updatedRows[targetIdx],
-              [colKey]: value,
-              isModified: true,
-            };
-          }
-        });
-      }
-
-      setPrayerTimes(updatedRows);
-      setHasChanges(true);
-      setToast({ type: 'success', message: `Pasted ${lines.length} value(s)` });
     }
+
+    setPrayerTimes(updatedRows);
+    setHasChanges(true);
+    setToast({ type: 'success', message: `Pasted ${lines.length} value(s)` });
   };
 
   const addNewRow = () => {
@@ -332,16 +328,42 @@ export default function PrayerTimesEditorPage() {
 
   const handleExit = () => {
     if (hasChanges) {
-      const confirm = window.confirm("You have unsaved changes. Exit without saving?");
-      if (!confirm) return;
+      setExitModalOpen(true);
+    } else {
+      router.push("/admin/dashboard");
     }
+  };
+
+  const handleExitWithoutSaving = () => {
+    setExitModalOpen(false);
     router.push("/admin/dashboard");
   };
 
+  const handleSaveAndExitFromModal = async () => {
+    setExitModalOpen(false);
+    await handleSaveAndExit();
+  };
+
   const handleDiscardAndExit = () => {
-    const confirm = window.confirm("Are you sure you want to discard all changes and exit?");
-    if (confirm) {
-      router.push("/admin/dashboard");
+    setExitModalOpen(true);
+  };
+
+  const isFriday = (dateStr: string): boolean => {
+    try {
+      const [day, month, year] = dateStr.split("/").map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.getDay() === 5; // Friday is 5
+    } catch {
+      return false;
+    }
+  };
+
+  const isFirstOfMonth = (dateStr: string): boolean => {
+    try {
+      const [day] = dateStr.split("/");
+      return day === "01";
+    } catch {
+      return false;
     }
   };
 
@@ -359,13 +381,11 @@ export default function PrayerTimesEditorPage() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-[var(--text-color)]">
-                Local Prayer Times Editor
-              </h1>
-            </div>
+            <h1 className="text-3xl font-bold text-[var(--text-color)]">
+              Local Prayer Times Editor
+            </h1>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-[var(--text-color)] cursor-pointer">
                 <input
                   type="checkbox"
@@ -381,7 +401,7 @@ export default function PrayerTimesEditorPage() {
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="px-3 py-2 bg-[var(--background-end)] text-[var(--text-color)] border border-[var(--secondary-color)] rounded-lg focus:outline-none focus:border-[var(--accent-color)]"
+                  className="px-3 py-2 bg-[var(--background-end)] text-[var(--text-color)] border border-[var(--secondary-color)] focus:outline-none focus:border-[var(--accent-color)]"
                 >
                   {years.map((year) => (
                     <option key={year} value={year}>
@@ -393,7 +413,7 @@ export default function PrayerTimesEditorPage() {
 
               <button
                 onClick={addNewRow}
-                className="px-4 py-2 bg-[var(--accent-color)] text-[var(--background-end)] rounded-lg hover:opacity-90 transition-opacity font-medium"
+                className="px-4 py-2 bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 transition-opacity font-medium"
               >
                 + Add Row
               </button>
@@ -401,97 +421,69 @@ export default function PrayerTimesEditorPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !hasChanges}
-                className="px-6 py-2 bg-[var(--accent-color)] text-[var(--background-end)] rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? "Saving..." : "Save Changes"}
+                {saving ? "Saving..." : "💾 Save"}
+              </button>
+
+              <button
+                onClick={handleExit}
+                className="px-5 py-2 bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 transition-opacity font-medium"
+              >
+                ← Back
               </button>
             </div>
           </div>
 
           {/* Selection Actions */}
           {selectedRows.size > 0 && (
-            <div className="flex items-center gap-3 mb-4 p-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-lg">
+            <div className="flex items-center gap-3 mb-4 p-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700">
               <span className="text-[var(--text-color)] font-medium">
                 {selectedRows.size} row(s) selected
               </span>
               <button
                 onClick={archiveSelected}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-sm font-medium"
+                className="px-3 py-1.5 bg-amber-600 text-white hover:bg-amber-700 transition-colors text-sm font-medium"
               >
                 Archive Selected
               </button>
               <button
                 onClick={unarchiveSelected}
-                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm font-medium"
+                className="px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 transition-colors text-sm font-medium"
               >
                 Unarchive Selected
               </button>
               <button
                 onClick={deleteSelected}
-                className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm font-medium"
+                className="px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium"
               >
                 Delete Selected
               </button>
               <button
                 onClick={() => setSelectedRows(new Set())}
-                className="ml-auto px-3 py-1.5 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm font-medium"
+                className="ml-auto px-3 py-1.5 bg-gray-500 text-white hover:bg-gray-600 transition-colors text-sm font-medium"
               >
                 Clear Selection
               </button>
             </div>
           )}
 
-          {/* Exit Buttons */}
-          <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={handleSaveAndExit}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Save & Exit
-            </button>
-
-            <button
-              onClick={handleExit}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Exit
-            </button>
-
-            <button
-              onClick={handleDiscardAndExit}
-              disabled={!hasChanges}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Discard Changes & Exit
-            </button>
-          </div>
-
           {/* Help Text */}
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
             <p className="text-sm text-[var(--text-color)]">
-              💡 <strong>Tip:</strong> Click column headers to select entire columns. Paste data directly into cells (Ctrl+V). Select multiple rows using checkboxes.
+              💡 <strong>Tip:</strong> Use <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs font-mono">Ctrl+Click</kbd> to select multiple rows, <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs font-mono">Shift+Click</kbd> to select ranges. Paste data directly into cells with <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs font-mono">Ctrl+V</kbd>.
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700">
               {error}
             </div>
           )}
         </div>
 
         {/* Table Container */}
-        <div className="bg-[var(--background-end)] border border-[var(--secondary-color)] rounded-lg shadow-lg overflow-hidden">
+        <div className="bg-[var(--background-end)] border border-[var(--secondary-color)] shadow-lg overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center h-96">
               <div className="text-[var(--text-color)] text-lg">Loading prayer times...</div>
@@ -505,7 +497,7 @@ export default function PrayerTimesEditorPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-auto max-h-[calc(100vh-350px)]">
+            <div className="overflow-auto max-h-[calc(100vh-320px)] custom-scrollbar">
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-[var(--accent-color)] text-[var(--background-end)]">
@@ -532,14 +524,9 @@ export default function PrayerTimesEditorPage() {
                     ].map(({ key, label, width }) => (
                       <th
                         key={key}
-                        onClick={() => handleColumnSelect(key as ColumnKey)}
-                        className={`px-4 py-3 text-left font-bold border border-[var(--secondary-color)] ${width} cursor-pointer hover:bg-[var(--accent-color)]/80 transition-colors ${
-                          selectedColumn === key ? 'bg-[var(--yellow)]' : ''
-                        }`}
-                        title="Click to select entire column"
+                        className={`px-4 py-3 text-left font-bold border border-[var(--secondary-color)] ${width}`}
                       >
                         {label}
-                        {selectedColumn === key && <span className="ml-2">✓</span>}
                       </th>
                     ))}
                   </tr>
@@ -548,13 +535,24 @@ export default function PrayerTimesEditorPage() {
                   {visibleRows.map((row) => {
                     const actualIndex = prayerTimes.indexOf(row);
                     const isSelected = selectedRows.has(actualIndex);
+                    const isFri = isFriday(row.date);
+                    const isFirst = isFirstOfMonth(row.date);
 
                     return (
                       <tr
                         key={actualIndex}
-                        className={`${
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).tagName !== 'INPUT') {
+                            toggleRowSelection(actualIndex, e);
+                          }
+                        }}
+                        className={`cursor-pointer ${
                           isSelected
-                            ? "bg-blue-100 dark:bg-blue-900/30"
+                            ? "bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500"
+                            : isFri
+                            ? "bg-green-100 dark:bg-green-900/20"
+                            : isFirst
+                            ? "bg-yellow-100 dark:bg-yellow-900/20"
                             : row.archived
                             ? "bg-gray-200 dark:bg-gray-800 opacity-60"
                             : row.isModified
@@ -566,24 +564,21 @@ export default function PrayerTimesEditorPage() {
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() => toggleRowSelection(actualIndex)}
+                            onChange={(e) => toggleRowSelection(actualIndex, e)}
                             className="w-4 h-4 cursor-pointer"
                           />
                         </td>
                         {COLUMN_KEYS.map((colKey) => (
                           <td
                             key={colKey}
-                            className={`px-4 py-2 border border-[var(--secondary-color)] ${
-                              selectedColumn === colKey ? 'bg-[var(--yellow)]/20' : ''
-                            }`}
+                            className="px-4 py-2 border border-[var(--secondary-color)]"
                           >
                             <input
                               type="text"
                               value={row[colKey]}
                               onChange={(e) => handleCellChange(actualIndex, colKey, e.target.value)}
                               onPaste={(e) => handleCellPaste(actualIndex, colKey, e)}
-                              onFocus={() => setFocusedCell({ row: actualIndex, col: colKey })}
-                              className="w-full px-2 py-1 bg-transparent text-[var(--text-color)] focus:outline-none focus:border-2 focus:border-[var(--accent-color)] border border-transparent rounded"
+                              className="w-full px-2 py-1 bg-transparent text-[var(--text-color)] focus:outline-none focus:border-2 focus:border-[var(--accent-color)] border border-transparent"
                               placeholder={colKey === 'date' ? 'DD/MM/YYYY' : 'HH:MM'}
                             />
                           </td>
@@ -598,6 +593,41 @@ export default function PrayerTimesEditorPage() {
         </div>
       </div>
 
+      {/* Exit Warning Modal */}
+      {exitModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--background-end)] border-2 border-[var(--secondary-color)] shadow-2xl p-8 max-w-md w-full">
+            <h3 className="text-2xl font-bold text-[var(--text-color)] mb-4">
+              Unsaved Changes
+            </h3>
+            <p className="text-[var(--text-color)] mb-6">
+              You have unsaved changes. What would you like to do?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleSaveAndExitFromModal}
+                disabled={saving}
+                className="w-full px-6 py-3 bg-green-600 text-white hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+              >
+                💾 Save Changes & Exit
+              </button>
+              <button
+                onClick={handleExitWithoutSaving}
+                className="w-full px-6 py-3 bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+              >
+                🗑️ Discard Changes & Exit
+              </button>
+              <button
+                onClick={() => setExitModalOpen(false)}
+                className="w-full px-6 py-3 bg-gray-500 text-white hover:bg-gray-600 transition-colors font-medium"
+              >
+                ← Cancel (Continue Editing)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {toast && (
         <Notification
@@ -606,6 +636,38 @@ export default function PrayerTimesEditorPage() {
           onDone={() => setToast(null)}
         />
       )}
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 12px;
+          height: 12px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: var(--background-start);
+          border-left: 1px solid var(--secondary-color);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: var(--accent-color);
+          border: 2px solid var(--background-start);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: var(--text-color);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-corner {
+          background: var(--background-start);
+        }
+
+        /* Firefox scrollbar */
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: var(--accent-color) var(--background-start);
+        }
+      `}</style>
     </div>
   );
 }
