@@ -84,7 +84,7 @@ export default function PrayerTimesEditorPage() {
           ishaStart: doc.ishaStart,
           ishaJamaat: doc.ishaJamaat,
           isModified: false,
-          archived: false,
+          archived: doc.archived ?? false, // Read archived status from Firebase
         }));
 
         allData.push(...rows);
@@ -99,14 +99,21 @@ export default function PrayerTimesEditorPage() {
         return dateA.getTime() - dateB.getTime();
       });
 
-      // Add 31 empty rows after the most recent date
+      // Add 31 empty rows after the most recent date (only within selected year)
       if (allData.length > 0) {
         const lastRow = allData[allData.length - 1];
         const [day, month, year] = lastRow.date.split("/").map(Number);
         let currentDate = new Date(year, month - 1, day);
+        const selectedYearNum = parseInt(selectedYear);
 
         for (let i = 0; i < 31; i++) {
           currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
+
+          // Stop if we've moved into the next year beyond selected year
+          if (currentDate.getFullYear() > selectedYearNum) {
+            break;
+          }
+
           const newDay = String(currentDate.getDate()).padStart(2, "0");
           const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
           const newYear = String(currentDate.getFullYear());
@@ -341,9 +348,14 @@ export default function PrayerTimesEditorPage() {
     setSaving(true);
     setError(null);
     try {
-      const activeRows = prayerTimes.filter(row => !row.archived);
+      // Filter out empty rows (rows with no prayer time data)
+      const nonEmptyRows = prayerTimes.filter(row =>
+        row.fajrStart || row.fajrJamaat || row.sunrise ||
+        row.dhuhrStart || row.dhuhrJamaat || row.asrStart ||
+        row.asrJamaat || row.maghrib || row.ishaStart || row.ishaJamaat
+      );
 
-      const dataToSave = activeRows.map((row) => ({
+      const dataToSave = nonEmptyRows.map((row) => ({
         date: row.date,
         times: {
           fajrStart: row.fajrStart,
@@ -356,7 +368,8 @@ export default function PrayerTimesEditorPage() {
           maghrib: row.maghrib,
           ishaStart: row.ishaStart,
           ishaJamaat: row.ishaJamaat,
-        } as RawPrayerTimes,
+          archived: row.archived, // Include archived status
+        } as any, // Use 'any' since RawPrayerTimes doesn't include archived
       }));
 
       await batchSavePrayerTimes(dataToSave);
