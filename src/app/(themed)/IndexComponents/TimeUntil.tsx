@@ -44,11 +44,11 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps = {})
       return d
     }
 
-    // All prayer times for the day, in chronological order
+    // All prayer and jamaat times for the day, in chronological order
+    // NOTE: Sunrise is excluded as it's not a prayer or jamaat
     const prayers: PrayerEvent[] = [
       { name: 'Fajr', time: toDate(prayerTimes.fajrStart) },
       { name: 'Fajr Jamʿā', time: toDate(prayerTimes.fajrJamaat) },
-      { name: 'Sunrise', time: toDate(prayerTimes.sunrise) },
       { name: 'Dhuhr', time: toDate(prayerTimes.dhuhrStart) },
       { name: 'Dhuhr Jamʿā', time: toDate(prayerTimes.dhuhrJamaat) },
       { name: 'ʿAṣr', time: toDate(prayerTimes.asrStart) },
@@ -92,12 +92,18 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps = {})
 
   // Keep track of previous values to only animate when changed
   const prevValues = useRef({ ht, ho, mt, mo, st, so })
+  const isFirstRender = useRef(true)
 
-  // 5) slide digits on change - ONLY ANIMATE CHANGED DIGITS
+  // 5) Set initial positions on mount, then animate on change
   useLayoutEffect(() => {
-    const slide = (ref: React.RefObject<HTMLUListElement>, digit: number, prevDigit: number) => {
-      // Only animate if the digit actually changed
-      if (ref.current && digit !== prevDigit) {
+    const slide = (ref: React.RefObject<HTMLUListElement>, digit: number, prevDigit: number, isFirst: boolean) => {
+      if (!ref.current) return
+
+      if (isFirst) {
+        // On first render, set position immediately without animation
+        gsap.set(ref.current, { y: `-${digit}em` })
+      } else if (digit !== prevDigit) {
+        // Only animate if the digit actually changed
         gsap.to(ref.current, {
           y: `-${digit}em`,
           duration: 0.4,
@@ -107,16 +113,18 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps = {})
     }
 
     const prev = prevValues.current
+    const isFirst = isFirstRender.current
 
-    slide(hTR, ht, prev.ht)
-    slide(hOR, ho, prev.ho)
-    slide(mTR, mt, prev.mt)
-    slide(mOR, mo, prev.mo)
-    slide(sTR, st, prev.st)
-    slide(sOR, so, prev.so)
+    slide(hTR, ht, prev.ht, isFirst)
+    slide(hOR, ho, prev.ho, isFirst)
+    slide(mTR, mt, prev.mt, isFirst)
+    slide(mOR, mo, prev.mo, isFirst)
+    slide(sTR, st, prev.st, isFirst)
+    slide(sOR, so, prev.so, isFirst)
 
-    // Update previous values
+    // Update previous values and mark that first render is complete
     prevValues.current = { ht, ho, mt, mo, st, so }
+    isFirstRender.current = false
   }, [ht, ho, mt, mo, st, so])
 
   // 6) Handle loading, error, and no next prayer states (only in auto mode)
