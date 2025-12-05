@@ -66,6 +66,7 @@ export default function PrayerTimesEditorPage() {
     try {
       const allData: PrayerTimeRow[] = [];
 
+      // Load all 12 months of selected year
       for (let month = 1; month <= 12; month++) {
         const monthStr = String(month).padStart(2, "0");
         const data = await getPrayerTimesByMonth(selectedYear, monthStr);
@@ -89,6 +90,26 @@ export default function PrayerTimesEditorPage() {
         allData.push(...rows);
       }
 
+      // Also load January of next year
+      const nextYear = String(parseInt(selectedYear) + 1);
+      const nextYearData = await getPrayerTimesByMonth(nextYear, "01");
+      const nextYearRows: PrayerTimeRow[] = nextYearData.map((doc) => ({
+        date: doc.date,
+        fajrStart: doc.fajrStart,
+        fajrJamaat: doc.fajrJamaat,
+        sunrise: doc.sunrise,
+        dhuhrStart: doc.dhuhrStart,
+        dhuhrJamaat: doc.dhuhrJamaat,
+        asrStart: doc.asrStart,
+        asrJamaat: doc.asrJamaat,
+        maghrib: doc.maghrib,
+        ishaStart: doc.ishaStart,
+        ishaJamaat: doc.ishaJamaat,
+        isModified: false,
+        archived: false,
+      }));
+      allData.push(...nextYearRows);
+
       // Sort by date
       allData.sort((a, b) => {
         const [dayA, monthA, yearA] = a.date.split("/").map(Number);
@@ -97,6 +118,37 @@ export default function PrayerTimesEditorPage() {
         const dateB = new Date(yearB, monthB - 1, dayB);
         return dateA.getTime() - dateB.getTime();
       });
+
+      // Add 45 empty rows after the most recent date
+      if (allData.length > 0) {
+        const lastRow = allData[allData.length - 1];
+        const [day, month, year] = lastRow.date.split("/").map(Number);
+        let currentDate = new Date(year, month - 1, day);
+
+        for (let i = 0; i < 45; i++) {
+          currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
+          const newDay = String(currentDate.getDate()).padStart(2, "0");
+          const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+          const newYear = String(currentDate.getFullYear());
+          const newDate = `${newDay}/${newMonth}/${newYear}`;
+
+          allData.push({
+            date: newDate,
+            fajrStart: "",
+            fajrJamaat: "",
+            sunrise: "",
+            dhuhrStart: "",
+            dhuhrJamaat: "",
+            asrStart: "",
+            asrJamaat: "",
+            maghrib: "",
+            ishaStart: "",
+            ishaJamaat: "",
+            isModified: false,
+            archived: false,
+          });
+        }
+      }
 
       setPrayerTimes(allData);
       setHasChanges(false);
@@ -124,6 +176,11 @@ export default function PrayerTimesEditorPage() {
     const isCheckbox = (e.target as HTMLElement).type === 'checkbox';
     const ctrlKey = (e as React.MouseEvent).ctrlKey || (e as React.MouseEvent).metaKey;
     const shiftKey = (e as React.MouseEvent).shiftKey;
+
+    // Prevent text selection when using Ctrl or Shift
+    if ((ctrlKey || shiftKey) && !isCheckbox) {
+      (e as React.MouseEvent).preventDefault();
+    }
 
     let newSelection = new Set(selectedRows);
 
@@ -468,13 +525,6 @@ export default function PrayerTimesEditorPage() {
             </div>
           )}
 
-          {/* Help Text */}
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-[var(--text-color)]">
-              💡 <strong>Tip:</strong> Use <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs font-mono">Ctrl+Click</kbd> to select multiple rows, <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs font-mono">Shift+Click</kbd> to select ranges. Paste data directly into cells with <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-xs font-mono">Ctrl+V</kbd>.
-            </p>
-          </div>
-
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700">
               {error}
@@ -546,7 +596,7 @@ export default function PrayerTimesEditorPage() {
                             toggleRowSelection(actualIndex, e);
                           }
                         }}
-                        className={`cursor-pointer ${
+                        className={`cursor-pointer select-none ${
                           isSelected
                             ? "bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500"
                             : isFri
