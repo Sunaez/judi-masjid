@@ -20,6 +20,7 @@ export interface PrayerTimeDocument extends RawPrayerTimes {
   date: string; // DD/MM/YYYY format
   dayOfWeek?: string; // Monday, Tuesday, etc.
   isFriday?: boolean; // For purple styling
+  archived?: boolean; // For archiving old prayer times
   lastUpdated: Timestamp;
 }
 
