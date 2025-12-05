@@ -167,7 +167,7 @@ export default function PrayerTimesEditorPage() {
       return;
     }
 
-    const isCheckbox = (e.target as HTMLElement).type === 'checkbox';
+    const isCheckbox = e.target instanceof HTMLInputElement && e.target.type === 'checkbox';
     const ctrlKey = (e as React.MouseEvent).ctrlKey || (e as React.MouseEvent).metaKey;
     const shiftKey = (e as React.MouseEvent).shiftKey;
 
