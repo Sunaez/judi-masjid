@@ -19,6 +19,10 @@ const SyncPrayerTimes = dynamic(
   () => import('./DashBoardComponents/SyncPrayerTimes'),
   { ssr: false }
 );
+const PrayerTimesEditor = dynamic(
+  () => import('./DashBoardComponents/PrayerTimesEditor'),
+  { ssr: false }
+);
 
 export default function ClientDashboard() {
   const [isMessageModalOpen, setMessageModalOpen] = useState(false);
@@ -30,6 +34,8 @@ export default function ClientDashboard() {
 
   const [isSyncModalOpen, setSyncModalOpen] = useState(false);
   const [syncChildIsClosing, setSyncChildIsClosing] = useState(false);
+
+  const [isEditorModalOpen, setEditorModalOpen] = useState(false);
 
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -67,6 +73,13 @@ export default function ClientDashboard() {
   };
   const handleSyncSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
   const handleSyncErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
+
+  const openEditorModal = () => {
+    setEditorModalOpen(true);
+  };
+  const handleEditorClose = () => {
+    setEditorModalOpen(false);
+  };
 
   const handleBackdropClick = () => {
     if (!messageChildIsClosing && isMessageModalOpen) {
@@ -118,6 +131,27 @@ export default function ClientDashboard() {
               />
             </svg>
             Sync Prayer Times
+          </button>
+
+          <button
+            onClick={openEditorModal}
+            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            Local Prayer Times Editor
           </button>
 
           <a
@@ -233,6 +267,10 @@ export default function ClientDashboard() {
               />
             </div>
           </div>
+        )}
+
+        {isEditorModalOpen && (
+          <PrayerTimesEditor onClose={handleEditorClose} />
         )}
 
         {toast && (
