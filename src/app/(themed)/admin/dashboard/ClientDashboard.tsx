@@ -19,10 +19,6 @@ const SyncPrayerTimes = dynamic(
   () => import('./DashBoardComponents/SyncPrayerTimes'),
   { ssr: false }
 );
-const PrayerTimesEditor = dynamic(
-  () => import('./DashBoardComponents/PrayerTimesEditor'),
-  { ssr: false }
-);
 
 export default function ClientDashboard() {
   const [isMessageModalOpen, setMessageModalOpen] = useState(false);
@@ -34,8 +30,6 @@ export default function ClientDashboard() {
 
   const [isSyncModalOpen, setSyncModalOpen] = useState(false);
   const [syncChildIsClosing, setSyncChildIsClosing] = useState(false);
-
-  const [isEditorModalOpen, setEditorModalOpen] = useState(false);
 
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -73,13 +67,6 @@ export default function ClientDashboard() {
   };
   const handleSyncSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
   const handleSyncErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
-
-  const openEditorModal = () => {
-    setEditorModalOpen(true);
-  };
-  const handleEditorClose = () => {
-    setEditorModalOpen(false);
-  };
 
   const handleBackdropClick = () => {
     if (!messageChildIsClosing && isMessageModalOpen) {
@@ -133,8 +120,8 @@ export default function ClientDashboard() {
             Sync Prayer Times
           </button>
 
-          <button
-            onClick={openEditorModal}
+          <a
+            href="/admin/dashboard/prayer-times-editor"
             className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
           >
             <svg
@@ -152,7 +139,7 @@ export default function ClientDashboard() {
               />
             </svg>
             Local Prayer Times Editor
-          </button>
+          </a>
 
           <a
             href="https://docs.google.com/spreadsheets/d/1TqARmQOth6B1BEA8wx-EHGJY-bgEeCtYDHqeYTRmISc/edit?usp=sharing"
@@ -267,10 +254,6 @@ export default function ClientDashboard() {
               />
             </div>
           </div>
-        )}
-
-        {isEditorModalOpen && (
-          <PrayerTimesEditor onClose={handleEditorClose} />
         )}
 
         {toast && (
