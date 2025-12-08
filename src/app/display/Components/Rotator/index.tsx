@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
 import useMessages, { MessageWithConditions } from './Messages';
-import useValidMessages from './Conditions';
+import useValidMessages, { useWeatherMessages } from './Conditions';
 import Welcome from './Specials/Welcome';
 import DateTimeWeather from './Specials/DateTimeWeather';
 import Donation from './Specials/Donation';
@@ -37,7 +37,7 @@ const slots = [
   { type: 'special', component: PrayerTable },
   { type: 'message' },
   { type: 'special', component: DateTimeWeather },
-  { type: 'message' },
+  { type: 'weather-message' },  // Weather-conditional message after weather display
   { type: 'special', component: Donation },
   { type: 'message' },
   { type: 'special', component: Feedback },
@@ -62,11 +62,15 @@ export default function Rotator() {
   const [prayerRefresh, setPrayerRefresh] = useState(0);
   // Filter messages by validity (e.g. time-based conditions)
   const valid = useValidMessages(all, prayerTimes, weatherData?.condition || null);
+  // Filter messages that have weather conditions matching current weather
+  const weatherMessages = useWeatherMessages(all, weatherData?.condition || null);
 
   // Index of the current slot (cycles through `slots`)
   const [index, setIndex] = useState(0);
   // The message object to show when in a message slot
   const [currentMessage, setCurrentMessage] = useState<MessageWithConditions | null>(null);
+  // The weather-conditional message to show when in a weather-message slot
+  const [currentWeatherMessage, setCurrentWeatherMessage] = useState<MessageWithConditions | null>(null);
 
   // Refs for container (for animation + blur) and progress bar
   const containerRef = useRef<HTMLDivElement>(null);
@@ -187,7 +191,7 @@ export default function Rotator() {
     return () => clearInterval(interval);
   }, []);
 
-  // ─── Pick Random Message for “message” Slots ─────────────────────────────────
+  // ─── Pick Random Message for "message" Slots ─────────────────────────────────
   // Whenever the slot index changes to a message, choose one valid at random.
   useEffect(() => {
     if (slots[index].type === 'message') {
@@ -199,6 +203,19 @@ export default function Rotator() {
       }
     }
   }, [index, valid]);
+
+  // ─── Pick Random Weather Message for "weather-message" Slots ─────────────────
+  // Whenever the slot index changes to a weather-message, choose one matching at random.
+  useEffect(() => {
+    if (slots[index].type === 'weather-message') {
+      if (weatherMessages.length > 0) {
+        const random = Math.floor(Math.random() * weatherMessages.length);
+        setCurrentWeatherMessage(weatherMessages[random]);
+      } else {
+        setCurrentWeatherMessage(null);
+      }
+    }
+  }, [index, weatherMessages]);
 
   // ─── Advance Through Slots on Interval ───────────────────────────────────────
   // Every DISPLAY_MS, advance index by 1 (looping)
@@ -240,9 +257,12 @@ export default function Rotator() {
   const slot = slots[index];
   let content: React.ReactNode;
 
-  if (slot.type === 'message') {
-    // Show the two-panel Arabic/English message + footer
-    content = currentMessage ? (
+  // Helper to render a message (used by both 'message' and 'weather-message' slots)
+  const renderMessage = (msg: MessageWithConditions | null) => {
+    if (!msg) {
+      return <div className="flex-1 flex items-center justify-center">Loading…</div>;
+    }
+    return (
       <>
         <div className="flex-1 flex items-start justify-between gap-8 overflow-hidden">
           <div
@@ -250,25 +270,43 @@ export default function Rotator() {
             dir="rtl"
             style={{ fontSize: 'var(--rotator-text-size)' }}
           >
-            {currentMessage.sourceType === 'quran'
-              ? currentMessage.quran?.arabicText
-              : currentMessage.sourceType === 'hadith'
-              ? currentMessage.hadith?.arabicText
-              : currentMessage.other?.arabicText}
+            {msg.sourceType === 'quran'
+              ? msg.quran?.arabicText
+              : msg.sourceType === 'hadith'
+              ? msg.hadith?.arabicText
+              : msg.other?.arabicText}
           </div>
           <div className="flex-1" style={{ fontSize: 'var(--rotator-text-size)' }}>
-            {currentMessage.sourceType === 'quran'
-              ? currentMessage.quran?.englishText
-              : currentMessage.sourceType === 'hadith'
-              ? currentMessage.hadith?.englishText
-              : currentMessage.other?.englishText}
+            {msg.sourceType === 'quran'
+              ? msg.quran?.englishText
+              : msg.sourceType === 'hadith'
+              ? msg.hadith?.englishText
+              : msg.other?.englishText}
           </div>
         </div>
-        <Footer message={currentMessage} />
+        <Footer message={msg} />
       </>
-    ) : (
-      <div className="flex-1 flex items-center justify-center">Loading…</div>
     );
+  };
+
+  if (slot.type === 'message') {
+    // Show the two-panel Arabic/English message + footer
+    content = renderMessage(currentMessage);
+  } else if (slot.type === 'weather-message') {
+    // Show a weather-conditional message (same layout as regular messages)
+    // If no weather messages match, show a placeholder
+    if (currentWeatherMessage) {
+      content = renderMessage(currentWeatherMessage);
+    } else {
+      // Fallback: show weather info summary when no weather-specific messages exist
+      content = (
+        <div className="flex-1 flex items-center justify-center text-center">
+          <div style={{ fontSize: 'var(--rotator-text-size)', opacity: 0.7 }}>
+            {weatherData ? `${weatherData.condition} · ${weatherData.temp}°C` : 'Loading weather…'}
+          </div>
+        </div>
+      );
+    }
   } else {
     // Render a special component with its specific props
     const Special = slot.component as React.ComponentType<any>;
