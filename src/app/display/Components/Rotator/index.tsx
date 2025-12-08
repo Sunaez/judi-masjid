@@ -192,12 +192,12 @@ export default function Rotator() {
     return () => clearInterval(interval);
   }, [updateWeather]);
 
-  // ─── Refresh Weather When Entering DateTimeWeather Slot ───────────────────────
-  // Force a fresh weather fetch when the DateTimeWeather slot is shown,
-  // ensuring both the weather display and following weather-message use fresh data.
+  // ─── Refresh Weather When Entering Welcome Slot ────────────────────────────────
+  // Force a fresh weather fetch at the start of each rotation cycle (Welcome slot),
+  // so weather data is ready before DateTimeWeather and weather-message slots.
   useEffect(() => {
     const slot = slots[index];
-    if (slot.type === 'special' && slot.component === DateTimeWeather) {
+    if (slot.type === 'special' && slot.component === Welcome) {
       updateWeather(true);
     }
   }, [index, updateWeather]);
