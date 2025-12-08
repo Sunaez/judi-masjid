@@ -72,35 +72,32 @@ export default function AddAnimationWrapper({
   const englishPreviewRef = useRef<HTMLDivElement>(null);
   const arabicPreviewRef = useRef<HTMLDivElement>(null);
 
-  // Clear preview animations
-  const clearPreview = useCallback(() => {
-    [
-      { ref: englishPreviewRef, config: englishConfig, content: englishText },
-      { ref: arabicPreviewRef, config: arabicConfig, content: arabicText },
-    ].forEach(({ ref, config, content }) => {
-      const el = ref.current;
-      if (el) {
-        gsap.killTweensOf(el);
-        gsap.killTweensOf(el.querySelectorAll('.char-word'));
-        el.style.opacity = '1';
-        el.style.transform = '';
-        // Reset content if word-appear was used
-        if (config.animation === 'word-appear' && content) {
-          el.textContent = content;
-        }
-      }
-    });
-  }, [englishConfig, arabicConfig, englishText, arabicText]);
+  // Reset an element to its original state
+  const resetElement = useCallback((el: HTMLElement | null, content: string | undefined) => {
+    if (!el) return;
+    gsap.killTweensOf(el);
+    gsap.killTweensOf(el.querySelectorAll('.char-word'));
+    el.style.opacity = '1';
+    el.style.transform = '';
+    el.style.scale = '';
+    if (content) {
+      el.textContent = content;
+    }
+  }, []);
 
-  // Apply animation to a single element
+  // Apply animation to a single element (for preview - ignores enabled flag)
   const animateElement = useCallback((
     el: HTMLElement | null,
-    config: { enabled: boolean; animation: AnimationType; duration: number },
+    config: { animation: AnimationType; duration: number },
     content: string | undefined,
     isArabic: boolean,
     delay: number = 0
   ) => {
-    if (!el || !config.enabled || !content) return;
+    if (!el || !content) return;
+
+    // Kill any existing animations on this element
+    gsap.killTweensOf(el);
+    gsap.killTweensOf(el.querySelectorAll('.char-word'));
 
     // Duration in seconds for GSAP
     const durationSec = config.duration / 1000;
@@ -188,14 +185,16 @@ export default function AddAnimationWrapper({
 
   // Run preview animation
   const runPreview = useCallback(() => {
-    clearPreview();
+    // Reset both elements first
+    resetElement(englishPreviewRef.current, englishText);
+    resetElement(arabicPreviewRef.current, arabicText);
 
-    // Small delay to let clear take effect
+    // Small delay to let reset take effect, then animate
     setTimeout(() => {
       animateElement(englishPreviewRef.current, englishConfig, englishText, false, 0);
-      animateElement(arabicPreviewRef.current, arabicConfig, arabicText, true, 0.1);
+      animateElement(arabicPreviewRef.current, arabicConfig, arabicText, true, 0.15);
     }, 50);
-  }, [clearPreview, animateElement, englishConfig, arabicConfig, englishText, arabicText]);
+  }, [resetElement, animateElement, englishConfig, arabicConfig, englishText, arabicText]);
 
   // Save animations to Firebase
   const handleSave = async () => {
