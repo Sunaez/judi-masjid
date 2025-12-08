@@ -3,7 +3,10 @@
 
 import React, { useState, useRef } from 'react';
 import gsap from 'gsap';
-import type { MessageRecord } from '../MessageList/index'; // adjust path if needed
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import type { MessageRecord } from '../MessageList/index';
+import type { AnimationData, AnimationType } from '../AddMessage/types';
 import { IoClose } from 'react-icons/io5';
 
 export type AddAnimationWrapperProps = {
@@ -19,8 +22,6 @@ type TextEntry = {
   label: string;
   content: string;
 };
-
-type AnimationOption = 'fade' | 'slide' | 'bounce' | 'zoom' | 'word-appear';
 
 export default function AddAnimationWrapper({
   message,
@@ -78,15 +79,21 @@ export default function AddAnimationWrapper({
   }
 
   // State for each entry: enabled, animation type, duration
+  // Initialize from existing animations if available
   const [config, setConfig] = useState<
-    Record<string, { enabled: boolean; animation: AnimationOption; duration: number }>
+    Record<string, { enabled: boolean; animation: AnimationType; duration: number }>
   >(
     () =>
       entries.reduce((acc, e) => {
-        acc[e.key] = { enabled: false, animation: 'fade', duration: 1 };
+        const existingAnim = message.data.animations?.[e.key];
+        acc[e.key] = existingAnim
+          ? { enabled: existingAnim.enabled, animation: existingAnim.animation, duration: existingAnim.duration }
+          : { enabled: false, animation: 'fade', duration: 1 };
         return acc;
-      }, {} as Record<string, { enabled: boolean; animation: AnimationOption; duration: number }>),
+      }, {} as Record<string, { enabled: boolean; animation: AnimationType; duration: number }>),
   );
+
+  const [saving, setSaving] = useState(false);
 
   // Refs for preview elements
   const previewRefs = useRef<Record<string, HTMLElement | null>>(
@@ -110,6 +117,41 @@ export default function AddAnimationWrapper({
         }
       }
     });
+  };
+
+  // Save animations to Firebase
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Build animation data object with only enabled animations
+      const animationData: AnimationData = {};
+      entries.forEach((e) => {
+        const cfg = config[e.key];
+        if (cfg.enabled) {
+          animationData[e.key] = {
+            enabled: cfg.enabled,
+            animation: cfg.animation,
+            duration: cfg.duration,
+          };
+        }
+      });
+
+      // Update the message document in Firestore
+      const messageRef = doc(db, 'messages', message.id);
+      await updateDoc(messageRef, {
+        animations: animationData,
+      });
+
+      onSuccess();
+      setClosing(true);
+      setIsClosingLocal(true);
+      setTimeout(onClose, 300);
+    } catch (err: any) {
+      console.error('Error saving animations:', err);
+      onError(err.message || 'Failed to save animations');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Trigger preview animations
@@ -249,7 +291,7 @@ export default function AddAnimationWrapper({
                           ...prev,
                           [e.key]: {
                             ...prev[e.key],
-                            animation: evt.target.value as AnimationOption,
+                            animation: evt.target.value as AnimationType,
                           },
                         }))
                       }
@@ -328,15 +370,11 @@ export default function AddAnimationWrapper({
           Preview Animation
         </button>
         <button
-          onClick={() => {
-            onSuccess();
-            setClosing(true);
-            setIsClosingLocal(true);
-            setTimeout(onClose, 300);
-          }}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors duration-200"
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Done
+          {saving ? 'Saving…' : 'Save Animation'}
         </button>
       </div>
 

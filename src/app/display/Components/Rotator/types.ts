@@ -18,6 +18,18 @@ export type ConditionData =
 
 export type SourceType = 'quran' | 'hadith' | 'other';
 
+export type AnimationType = 'fade' | 'slide' | 'bounce' | 'zoom' | 'word-appear';
+
+export interface AnimationConfig {
+  enabled: boolean;
+  animation: AnimationType;
+  duration: number;
+}
+
+export interface AnimationData {
+  [key: string]: AnimationConfig;
+}
+
 export interface MessageData {
   sourceType: SourceType;
   quran?: {
@@ -38,4 +50,5 @@ export interface MessageData {
     arabicText: string;
     englishText: string;
   };
+  animations?: AnimationData;
 }

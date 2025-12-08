@@ -29,6 +29,18 @@ export const weatherGroups = [
   'Clear','Cloudy','Rain','Snow','Sleet','Drizzle','Fog','Thunder','Ice'
 ];
 
+export type AnimationType = 'fade' | 'slide' | 'bounce' | 'zoom' | 'word-appear';
+
+export interface AnimationConfig {
+  enabled: boolean;
+  animation: AnimationType;
+  duration: number;
+}
+
+export interface AnimationData {
+  [key: string]: AnimationConfig;
+}
+
 /**
  * The full message payload (minus createdAt) you send to Firestore
  */
@@ -53,6 +65,7 @@ export interface MessageData {
     englishText: string;
   };
   conditions: ConditionData[];
+  animations?: AnimationData;
 }
 
 /**
