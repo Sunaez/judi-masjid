@@ -39,7 +39,6 @@ const slots = [
   { type: 'special', component: DateTimeWeather },
   { type: 'weather-message' },  // Weather-conditional message after weather display
   { type: 'special', component: Donation },
-  { type: 'message' },
   { type: 'special', component: Feedback },
 ];
 
