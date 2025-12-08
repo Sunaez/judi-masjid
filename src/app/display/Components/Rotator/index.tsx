@@ -297,11 +297,27 @@ export default function Rotator() {
       const targets = element.querySelectorAll<HTMLElement>('span');
       const numTargets = targets.length;
 
-      // Calculate stagger so total animation completes within durationSec
+      if (numTargets === 0) return;
+
+      // Calculate timing so TOTAL animation = durationSec
       // Total time = elementDuration + stagger * (N - 1)
-      // We use 30% of total time for each element's animation
-      const elementDuration = Math.min(durationSec * 0.3, durationSec);
-      const stagger = numTargets > 1 ? (durationSec - elementDuration) / (numTargets - 1) : 0;
+      let elementDuration: number;
+      let stagger: number;
+
+      if (numTargets === 1) {
+        elementDuration = durationSec;
+        stagger = 0;
+      } else {
+        // Use 20% of total time for each element's fade-in (min 50ms)
+        elementDuration = Math.max(durationSec * 0.2, 0.05);
+        // Calculate stagger to fit remaining time
+        stagger = (durationSec - elementDuration) / (numTargets - 1);
+        // If stagger would be negative or zero, spread evenly
+        if (stagger <= 0) {
+          stagger = durationSec / numTargets;
+          elementDuration = stagger;
+        }
+      }
 
       gsap.fromTo(
         targets,
@@ -311,7 +327,7 @@ export default function Rotator() {
           y: 0,
           ease: 'power3.out',
           duration: elementDuration,
-          stagger: Math.max(stagger, 0.01),
+          stagger: stagger,
           delay: delay,
         }
       );
