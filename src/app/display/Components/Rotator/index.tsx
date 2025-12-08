@@ -1,7 +1,7 @@
 // src/app/display/Components/Rotator/index.tsx
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { gsap } from 'gsap';
 import useMessages, { MessageWithConditions } from './Messages';
 import useValidMessages, { useWeatherMessages } from './Conditions';
@@ -244,25 +244,28 @@ export default function Rotator() {
 
   // ─── Helper: Apply Animation to Element ───────────────────────────────────────
   // Applies GSAP animation based on the animation config
+  // Duration is stored in ms but GSAP uses seconds
   const applyAnimation = useCallback((
     element: HTMLElement | null,
     config: AnimationConfig | undefined,
     content: string,
+    isArabic: boolean,
     delay: number = 0
   ) => {
     if (!element) return;
 
-    // Default animation config if none specified
+    // Default animation config if none specified (300ms default)
     const effectiveConfig: AnimationConfig = config?.enabled
       ? config
-      : { enabled: true, animation: 'fade' as AnimationType, duration: 0.8 };
+      : { enabled: true, animation: 'fade' as AnimationType, duration: 300 };
 
     const { animation, duration } = effectiveConfig;
+    // Convert ms to seconds for GSAP
+    const durationSec = duration / 1000;
 
     if (animation === 'word-appear') {
       // Word-appear: split into spans and animate each
       element.textContent = '';
-      const isArabic = /[\u0600-\u06FF]/.test(content);
 
       if (isArabic) {
         // Split into words for Arabic
@@ -299,19 +302,19 @@ export default function Rotator() {
           opacity: 1,
           y: 0,
           ease: 'power3.out',
-          duration: duration,
-          stagger: 0.05,
+          duration: durationSec,
+          stagger: 0.03,
           delay: delay,
         }
       );
     } else {
       // Standard animations
       const fromVars: gsap.TweenVars = { opacity: 0 };
-      const toVars: gsap.TweenVars = { opacity: 1, duration: duration, ease: 'power3.out', delay: delay };
+      const toVars: gsap.TweenVars = { opacity: 1, duration: durationSec, ease: 'power3.out', delay: delay };
 
       switch (animation) {
         case 'slide':
-          fromVars.x = -50;
+          fromVars.x = isArabic ? 50 : -50;
           toVars.x = 0;
           break;
         case 'bounce':
@@ -360,10 +363,10 @@ export default function Rotator() {
 
       // Apply animations with staggered delay
       if (arabicContent) {
-        applyAnimation(arabicTextRef.current, msg.animations?.[arabicKey], arabicContent, 0.3);
+        applyAnimation(arabicTextRef.current, msg.animations?.[arabicKey], arabicContent, true, 0.3);
       }
       if (englishContent) {
-        applyAnimation(englishTextRef.current, msg.animations?.[englishKey], englishContent, 0.5);
+        applyAnimation(englishTextRef.current, msg.animations?.[englishKey], englishContent, false, 0.5);
       }
     }, 100);
 
