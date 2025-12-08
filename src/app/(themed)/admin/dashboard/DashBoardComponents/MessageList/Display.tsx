@@ -1,11 +1,11 @@
 // src/app/(themed)/admin/dashboard/DashBoardComponents/MessageList/Display.tsx
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { gsap } from 'gsap';
 import type { MessageRecord } from './index';
 import { IoEllipsisHorizontal, IoTrash, IoStar } from 'react-icons/io5';
-import type { ConditionData } from '../AddMessage/types';
+import type { ConditionData, AnimationType } from '../AddMessage/types';
 
 type FilterOption = 'all' | 'normal' | 'time' | 'prayer' | 'weather' | 'day';
 
@@ -26,10 +26,13 @@ export default function Display({
 }: DisplayProps) {
   // Tracks which filter tab is selected
   const [filter, setFilter] = useState<FilterOption>('all');
-  // Tracks which card’s “Show more” menu is open (by message ID)
+  // Tracks which card's "Show more" menu is open (by message ID)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   // Ref to the currently open menu container (button + dropdown)
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Refs for animation text elements - keyed by message ID
+  const textRefsMap = useRef<Map<string, { arabic: HTMLElement | null; english: HTMLElement | null }>>(new Map());
 
   // Compute counts for each filter
   const counts = useMemo(() => {
@@ -87,6 +90,158 @@ export default function Display({
     );
   }, [filteredMessages]);
 
+  // Animation helper - applies animation to an element
+  const applyAnimation = useCallback((
+    el: HTMLElement | null,
+    animation: AnimationType,
+    duration: number,
+    content: string,
+    isArabic: boolean
+  ) => {
+    if (!el || !content) return;
+
+    // Kill any existing animations
+    gsap.killTweensOf(el);
+    gsap.killTweensOf(el.querySelectorAll('.anim-char'));
+
+    // Reset element
+    el.style.opacity = '1';
+    el.style.transform = '';
+    el.textContent = content;
+
+    const durationSec = duration / 1000;
+
+    if (animation === 'word-appear') {
+      el.textContent = '';
+      if (isArabic) {
+        const words = content.trim().split(/\s+/);
+        words.forEach((word, i) => {
+          const span = document.createElement('span');
+          span.textContent = word;
+          span.className = 'anim-char';
+          span.style.display = 'inline-block';
+          el.appendChild(span);
+          if (i < words.length - 1) el.appendChild(document.createTextNode(' '));
+        });
+      } else {
+        const chars = content.split('');
+        chars.forEach((char) => {
+          if (char === ' ') {
+            el.appendChild(document.createTextNode(' '));
+          } else {
+            const span = document.createElement('span');
+            span.textContent = char;
+            span.className = 'anim-char';
+            span.style.display = 'inline-block';
+            el.appendChild(span);
+          }
+        });
+      }
+
+      const targets = el.querySelectorAll<HTMLElement>('.anim-char');
+      const numTargets = targets.length;
+
+      if (numTargets === 0) return;
+
+      let elementDuration: number;
+      let stagger: number;
+
+      if (numTargets === 1) {
+        elementDuration = durationSec;
+        stagger = 0;
+      } else {
+        elementDuration = Math.max(durationSec * 0.2, 0.05);
+        stagger = (durationSec - elementDuration) / (numTargets - 1);
+        if (stagger <= 0) {
+          stagger = durationSec / numTargets;
+          elementDuration = stagger;
+        }
+      }
+
+      gsap.fromTo(
+        targets,
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, ease: 'power3.out', duration: elementDuration, stagger }
+      );
+    } else {
+      const fromVars: gsap.TweenVars = { opacity: 0 };
+      const toVars: gsap.TweenVars = { opacity: 1, duration: durationSec, ease: 'power3.out' };
+
+      switch (animation) {
+        case 'slide':
+          fromVars.x = isArabic ? 30 : -30;
+          toVars.x = 0;
+          break;
+        case 'bounce':
+          fromVars.scale = 0.5;
+          toVars.scale = 1;
+          toVars.ease = 'bounce.out';
+          break;
+        case 'zoom':
+          fromVars.scale = 0.7;
+          toVars.scale = 1;
+          break;
+        case 'fade':
+        default:
+          break;
+      }
+
+      gsap.fromTo(el, fromVars, toVars);
+    }
+  }, []);
+
+  // Play animations for all messages that have them
+  const playAllAnimations = useCallback(() => {
+    filteredMessages.forEach((msg) => {
+      const animations = msg.data.animations;
+      if (!animations) return;
+
+      const refs = textRefsMap.current.get(msg.id);
+      if (!refs) return;
+
+      // Determine keys based on source type
+      const arabicKey = msg.data.sourceType === 'quran' ? 'quranArabic'
+        : msg.data.sourceType === 'hadith' ? 'hadithArabic'
+        : 'otherArabic';
+      const englishKey = msg.data.sourceType === 'quran' ? 'quranEnglish'
+        : msg.data.sourceType === 'hadith' ? 'hadithEnglish'
+        : 'otherEnglish';
+
+      // Get content
+      const arabicContent = msg.data.sourceType === 'quran' ? msg.data.quran?.arabicText
+        : msg.data.sourceType === 'hadith' ? msg.data.hadith?.arabicText
+        : msg.data.other?.arabicText;
+      const englishContent = msg.data.sourceType === 'quran' ? msg.data.quran?.englishText
+        : msg.data.sourceType === 'hadith' ? msg.data.hadith?.englishText
+        : msg.data.other?.englishText;
+
+      // Apply animations if configured
+      const arabicAnim = animations[arabicKey];
+      if (arabicAnim?.enabled && arabicContent && refs.arabic) {
+        applyAnimation(refs.arabic, arabicAnim.animation, arabicAnim.duration, arabicContent, true);
+      }
+
+      const englishAnim = animations[englishKey];
+      if (englishAnim?.enabled && englishContent && refs.english) {
+        applyAnimation(refs.english, englishAnim.animation, englishAnim.duration, englishContent, false);
+      }
+    });
+  }, [filteredMessages, applyAnimation]);
+
+  // Set up interval to play animations every 5 seconds
+  useEffect(() => {
+    // Initial play after a short delay
+    const initialTimeout = setTimeout(playAllAnimations, 500);
+
+    // Set up interval
+    const interval = setInterval(playAllAnimations, 5000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [playAllAnimations]);
+
   // Handle click-away to close dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -132,6 +287,22 @@ export default function Display({
     });
   }, [openMenuId]);
 
+  // Helper to set refs for a message
+  const setTextRef = (msgId: string, type: 'arabic' | 'english', el: HTMLElement | null) => {
+    if (!textRefsMap.current.has(msgId)) {
+      textRefsMap.current.set(msgId, { arabic: null, english: null });
+    }
+    const refs = textRefsMap.current.get(msgId)!;
+    refs[type] = el;
+  };
+
+  // Check if message has any animations
+  const hasAnimations = (msg: MessageRecord): boolean => {
+    const animations = msg.data.animations;
+    if (!animations) return false;
+    return Object.values(animations).some(a => a.enabled);
+  };
+
   if (loading) {
     return <p className="text-[var(--text-color)]">Loading messages…</p>;
   }
@@ -153,7 +324,7 @@ export default function Display({
               key={opt}
               onClick={() => setFilter(opt)}
               className={`
-                px-3 py-1 rounded-full text-sm font-medium 
+                px-3 py-1 rounded-full text-sm font-medium
                 ${
                   filter === opt
                     ? 'bg-[var(--accent-color)] text-[var(--x-text-color)]'
@@ -188,9 +359,16 @@ export default function Display({
               {/* Content (75%) */}
               <div className="col-span-3 p-6 space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-semibold text-[var(--accent-color)]">
-                    Message #{msg.id}
-                  </h3>
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-2xl font-semibold text-[var(--accent-color)]">
+                      Message #{msg.id.slice(-6)}
+                    </h3>
+                    {hasAnimations(msg) && (
+                      <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full">
+                        Animated
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-3">
                     <span className="text-sm text-[var(--secondary-color)]">
                       {msg.createdAt.toDate().toLocaleString()}
@@ -252,7 +430,7 @@ export default function Display({
                                 WebkitTextFillColor: 'transparent',
                               }}
                             >
-                              Add Animation
+                              {hasAnimations(msg) ? 'Edit Animation' : 'Add Animation'}
                             </span>
                           </button>
                           <button
@@ -296,10 +474,16 @@ export default function Display({
                     <p className="text-[var(--text-color)]">
                       <strong>Ayahs:</strong> {msg.data.quran.startAyah}–{msg.data.quran.endAyah}
                     </p>
-                    <p className="font-arabic text-right text-lg leading-relaxed">
+                    <p
+                      ref={(el) => setTextRef(msg.id, 'arabic', el)}
+                      className="font-arabic text-right text-lg leading-relaxed"
+                    >
                       {msg.data.quran.arabicText}
                     </p>
-                    <p className="text-[var(--text-color)] italic">
+                    <p
+                      ref={(el) => setTextRef(msg.id, 'english', el)}
+                      className="text-[var(--text-color)] italic"
+                    >
                       {msg.data.quran.englishText}
                     </p>
                   </div>
@@ -316,10 +500,16 @@ export default function Display({
                     <p className="text-[var(--text-color)]">
                       <strong>Authenticity:</strong> {msg.data.hadith.authenticity}
                     </p>
-                    <p className="font-arabic text-right text-lg leading-relaxed">
+                    <p
+                      ref={(el) => setTextRef(msg.id, 'arabic', el)}
+                      className="font-arabic text-right text-lg leading-relaxed"
+                    >
                       {msg.data.hadith.arabicText}
                     </p>
-                    <p className="text-[var(--text-color)] italic">
+                    <p
+                      ref={(el) => setTextRef(msg.id, 'english', el)}
+                      className="text-[var(--text-color)] italic"
+                    >
                       {msg.data.hadith.englishText}
                     </p>
                   </div>
@@ -327,11 +517,17 @@ export default function Display({
 
                 {msg.data.sourceType === 'other' && msg.data.other && (
                   <div className="space-y-2">
-                    <p className="text-[var(--text-color)] italic">
+                    <p
+                      ref={(el) => setTextRef(msg.id, 'english', el)}
+                      className="text-[var(--text-color)] italic"
+                    >
                       {msg.data.other.englishText}
                     </p>
                     {msg.data.other.arabicText && (
-                      <p className="font-arabic text-right text-lg leading-relaxed">
+                      <p
+                        ref={(el) => setTextRef(msg.id, 'arabic', el)}
+                        className="font-arabic text-right text-lg leading-relaxed"
+                      >
                         {msg.data.other.arabicText}
                       </p>
                     )}
