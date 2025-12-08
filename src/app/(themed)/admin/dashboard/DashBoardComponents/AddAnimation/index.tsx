@@ -181,20 +181,6 @@ export default function AddAnimationWrapper({
     }, 50);
   }, [clearPreview, animateElement, englishConfig, arabicConfig, englishText, arabicText]);
 
-  // Auto-play preview every 2 seconds
-  useEffect(() => {
-    // Initial preview
-    const initialTimeout = setTimeout(runPreview, 100);
-
-    // Set up interval
-    const interval = setInterval(runPreview, 2000);
-
-    return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(interval);
-    };
-  }, [runPreview]);
-
   // Save animations to Firebase
   const handleSave = async () => {
     setSaving(true);
@@ -325,9 +311,15 @@ export default function AddAnimationWrapper({
 
       {/* Preview Section - Always Visible */}
       <div className="border border-[var(--secondary-color)] rounded-lg p-4 bg-[var(--background-start)]">
-        <h4 className="text-lg font-medium text-[var(--text-color)] mb-3">
-          Live Preview <span className="text-sm font-normal text-[var(--secondary-color)]">(plays every 2s)</span>
-        </h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-lg font-medium text-[var(--text-color)]">Preview</h4>
+          <button
+            onClick={runPreview}
+            className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
+          >
+            Play Preview
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-8">
           {/* English Preview */}
           <div className="min-h-[100px] p-3 border rounded bg-[var(--background-end)] overflow-hidden">
