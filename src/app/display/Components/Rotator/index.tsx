@@ -216,13 +216,15 @@ export default function Rotator() {
 
   // ─── Pick Random Weather Message for "weather-message" Slots ─────────────────
   // Whenever the slot index changes to a weather-message, choose one matching at random.
+  // If no matching messages exist, skip to the next slot immediately.
   useEffect(() => {
     if (slots[index].type === 'weather-message') {
       if (weatherMessages.length > 0) {
         const random = Math.floor(Math.random() * weatherMessages.length);
         setCurrentWeatherMessage(weatherMessages[random]);
       } else {
-        setCurrentWeatherMessage(null);
+        // No matching weather messages - skip to next slot
+        setIndex(i => (i + 1) % slots.length);
       }
     }
   }, [index, weatherMessages]);
@@ -304,19 +306,8 @@ export default function Rotator() {
     content = renderMessage(currentMessage);
   } else if (slot.type === 'weather-message') {
     // Show a weather-conditional message (same layout as regular messages)
-    // If no weather messages match, show a placeholder
-    if (currentWeatherMessage) {
-      content = renderMessage(currentWeatherMessage);
-    } else {
-      // Fallback: show weather info summary when no weather-specific messages exist
-      content = (
-        <div className="flex-1 flex items-center justify-center text-center">
-          <div style={{ fontSize: 'var(--rotator-text-size)', opacity: 0.7 }}>
-            {weatherData ? `${weatherData.condition} · ${weatherData.temp}°C` : 'Loading weather…'}
-          </div>
-        </div>
-      );
-    }
+    // Note: If no weather messages match, the slot is skipped entirely (see useEffect above)
+    content = renderMessage(currentWeatherMessage);
   } else {
     // Render a special component with its specific props
     const Special = slot.component as React.ComponentType<any>;
