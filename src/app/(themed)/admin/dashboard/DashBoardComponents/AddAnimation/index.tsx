@@ -130,10 +130,18 @@ export default function AddAnimationWrapper({
         });
       }
       const targets = el.querySelectorAll<HTMLElement>('.char-word');
+      const numTargets = targets.length;
+
+      // Calculate stagger so total animation completes within durationSec
+      // Total time = elementDuration + stagger * (N - 1)
+      // We use 30% of total time for each element's animation
+      const elementDuration = Math.min(durationSec * 0.3, durationSec);
+      const stagger = numTargets > 1 ? (durationSec - elementDuration) / (numTargets - 1) : 0;
+
       gsap.fromTo(
         targets,
         { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, ease: 'power3.out', duration: durationSec, stagger: 0.03, delay }
+        { opacity: 1, y: 0, ease: 'power3.out', duration: elementDuration, stagger: Math.max(stagger, 0.01), delay }
       );
     } else {
       const fromVars: gsap.TweenVars = { opacity: 0 };

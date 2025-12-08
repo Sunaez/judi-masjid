@@ -295,6 +295,14 @@ export default function Rotator() {
       }
 
       const targets = element.querySelectorAll<HTMLElement>('span');
+      const numTargets = targets.length;
+
+      // Calculate stagger so total animation completes within durationSec
+      // Total time = elementDuration + stagger * (N - 1)
+      // We use 30% of total time for each element's animation
+      const elementDuration = Math.min(durationSec * 0.3, durationSec);
+      const stagger = numTargets > 1 ? (durationSec - elementDuration) / (numTargets - 1) : 0;
+
       gsap.fromTo(
         targets,
         { opacity: 0, y: 20 },
@@ -302,8 +310,8 @@ export default function Rotator() {
           opacity: 1,
           y: 0,
           ease: 'power3.out',
-          duration: durationSec,
-          stagger: 0.03,
+          duration: elementDuration,
+          stagger: Math.max(stagger, 0.01),
           delay: delay,
         }
       );
