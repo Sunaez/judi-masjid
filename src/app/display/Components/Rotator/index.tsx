@@ -1,7 +1,7 @@
 // src/app/display/Components/Rotator/index.tsx
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { gsap } from 'gsap';
 import useMessages, { MessageWithConditions } from './Messages';
 import useValidMessages, { useWeatherMessages } from './Conditions';
@@ -131,65 +131,76 @@ export default function Rotator() {
   // ─── Fetch & Cache Weather ───────────────────────────────────────────────────
   // Tries to load cached weather from Firestore first; if stale or missing, fetches
   // from OpenWeather (current + 1-slot forecast), saves to Firestore, updates state.
-  useEffect(() => {
-    async function updateWeather(force = false) {
-      try {
-        const snap = await getDoc(weatherDocRef);
-        if (!force && snap.exists()) {
-          const data = snap.data();
-          const age = Date.now() - (data.timestamp as number);
-          if (age < RELOAD_THRESHOLD) {
-            setWeatherData({
-              temp: data.temp,
-              condition: data.condition,
-              iconCode: data.iconCode,
-              forecastTemp: data.forecastTemp,
-              forecastCondition: data.forecastCondition,
-            });
-            return;
-          }
+  const updateWeather = useCallback(async (force = false) => {
+    try {
+      const snap = await getDoc(weatherDocRef);
+      if (!force && snap.exists()) {
+        const data = snap.data();
+        const age = Date.now() - (data.timestamp as number);
+        if (age < RELOAD_THRESHOLD) {
+          setWeatherData({
+            temp: data.temp,
+            condition: data.condition,
+            iconCode: data.iconCode,
+            forecastTemp: data.forecastTemp,
+            forecastCondition: data.forecastCondition,
+          });
+          return;
         }
-
-        // Fetch current weather
-        const curRes = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`
-        );
-        const curJson = await curRes.json();
-
-        // Fetch next forecast entry
-        const fcRes = await fetch(
-          `https://api.openweathermap.org/data/2.5/forecast?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=1`
-        );
-        const fcJson = await fcRes.json();
-
-        // Extract and round temps, main condition strings, icon code
-        const temp = Math.round(curJson.main.temp);
-        const condition = curJson.weather[0].main;
-        const iconCode = curJson.weather[0].icon;
-        const forecastTemp = Math.round(fcJson.list[0].main.temp);
-        const forecastCondition = fcJson.list[0].weather[0].main;
-
-        // Cache in Firestore
-        const timestamp = Date.now();
-        await setDoc(weatherDocRef, {
-          temp,
-          condition,
-          iconCode,
-          forecastTemp,
-          forecastCondition,
-          timestamp,
-        });
-
-        setWeatherData({ temp, condition, iconCode, forecastTemp, forecastCondition });
-      } catch (error) {
-        console.error('[weather] Error:', error);
       }
-    }
 
+      // Fetch current weather
+      const curRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`
+      );
+      const curJson = await curRes.json();
+
+      // Fetch next forecast entry
+      const fcRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=1`
+      );
+      const fcJson = await fcRes.json();
+
+      // Extract and round temps, main condition strings, icon code
+      const temp = Math.round(curJson.main.temp);
+      const condition = curJson.weather[0].main;
+      const iconCode = curJson.weather[0].icon;
+      const forecastTemp = Math.round(fcJson.list[0].main.temp);
+      const forecastCondition = fcJson.list[0].weather[0].main;
+
+      // Cache in Firestore
+      const timestamp = Date.now();
+      await setDoc(weatherDocRef, {
+        temp,
+        condition,
+        iconCode,
+        forecastTemp,
+        forecastCondition,
+        timestamp,
+      });
+
+      setWeatherData({ temp, condition, iconCode, forecastTemp, forecastCondition });
+    } catch (error) {
+      console.error('[weather] Error:', error);
+    }
+  }, []);
+
+  // Initial weather fetch and periodic refresh
+  useEffect(() => {
     updateWeather();
     const interval = setInterval(() => updateWeather(), CHECK_INTERVAL);
     return () => clearInterval(interval);
-  }, []);
+  }, [updateWeather]);
+
+  // ─── Refresh Weather When Entering DateTimeWeather Slot ───────────────────────
+  // Force a fresh weather fetch when the DateTimeWeather slot is shown,
+  // ensuring both the weather display and following weather-message use fresh data.
+  useEffect(() => {
+    const slot = slots[index];
+    if (slot.type === 'special' && slot.component === DateTimeWeather) {
+      updateWeather(true);
+    }
+  }, [index, updateWeather]);
 
   // ─── Pick Random Message for "message" Slots ─────────────────────────────────
   // Whenever the slot index changes to a message, choose one valid at random.
