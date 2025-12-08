@@ -6,6 +6,28 @@ import type { MessageWithConditions } from './Messages';
 import type { ConditionData } from './types';
 import type { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 
+/**
+ * Returns messages that have a weather condition matching the current weather.
+ * Only includes messages that explicitly have a 'weather' condition type.
+ */
+export function useWeatherMessages(
+  all: MessageWithConditions[],
+  currentWeather: string | null
+) {
+  return useMemo(() => {
+    if (!currentWeather) return [];
+
+    return all.filter(msg =>
+      msg.conditions.some((cond: ConditionData) => {
+        if (cond.type === 'weather') {
+          return cond.entries.some(e => e.weather === currentWeather);
+        }
+        return false;
+      })
+    );
+  }, [all, currentWeather]);
+}
+
 export default function useValidMessages(
   all: MessageWithConditions[],
   prayerTimes: RawPrayerTimes | null,

@@ -1,10 +1,10 @@
 // src/app/display/Components/Rotator/index.tsx
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { gsap } from 'gsap';
 import useMessages, { MessageWithConditions } from './Messages';
-import useValidMessages from './Conditions';
+import useValidMessages, { useWeatherMessages } from './Conditions';
 import Welcome from './Specials/Welcome';
 import DateTimeWeather from './Specials/DateTimeWeather';
 import Donation from './Specials/Donation';
@@ -37,9 +37,8 @@ const slots = [
   { type: 'special', component: PrayerTable },
   { type: 'message' },
   { type: 'special', component: DateTimeWeather },
-  { type: 'message' },
+  { type: 'weather-message' },  // Weather-conditional message after weather display
   { type: 'special', component: Donation },
-  { type: 'message' },
   { type: 'special', component: Feedback },
 ];
 
@@ -62,11 +61,15 @@ export default function Rotator() {
   const [prayerRefresh, setPrayerRefresh] = useState(0);
   // Filter messages by validity (e.g. time-based conditions)
   const valid = useValidMessages(all, prayerTimes, weatherData?.condition || null);
+  // Filter messages that have weather conditions matching current weather
+  const weatherMessages = useWeatherMessages(all, weatherData?.condition || null);
 
   // Index of the current slot (cycles through `slots`)
   const [index, setIndex] = useState(0);
   // The message object to show when in a message slot
   const [currentMessage, setCurrentMessage] = useState<MessageWithConditions | null>(null);
+  // The weather-conditional message to show when in a weather-message slot
+  const [currentWeatherMessage, setCurrentWeatherMessage] = useState<MessageWithConditions | null>(null);
 
   // Refs for container (for animation + blur) and progress bar
   const containerRef = useRef<HTMLDivElement>(null);
@@ -127,67 +130,78 @@ export default function Rotator() {
   // ─── Fetch & Cache Weather ───────────────────────────────────────────────────
   // Tries to load cached weather from Firestore first; if stale or missing, fetches
   // from OpenWeather (current + 1-slot forecast), saves to Firestore, updates state.
-  useEffect(() => {
-    async function updateWeather(force = false) {
-      try {
-        const snap = await getDoc(weatherDocRef);
-        if (!force && snap.exists()) {
-          const data = snap.data();
-          const age = Date.now() - (data.timestamp as number);
-          if (age < RELOAD_THRESHOLD) {
-            setWeatherData({
-              temp: data.temp,
-              condition: data.condition,
-              iconCode: data.iconCode,
-              forecastTemp: data.forecastTemp,
-              forecastCondition: data.forecastCondition,
-            });
-            return;
-          }
+  const updateWeather = useCallback(async (force = false) => {
+    try {
+      const snap = await getDoc(weatherDocRef);
+      if (!force && snap.exists()) {
+        const data = snap.data();
+        const age = Date.now() - (data.timestamp as number);
+        if (age < RELOAD_THRESHOLD) {
+          setWeatherData({
+            temp: data.temp,
+            condition: data.condition,
+            iconCode: data.iconCode,
+            forecastTemp: data.forecastTemp,
+            forecastCondition: data.forecastCondition,
+          });
+          return;
         }
-
-        // Fetch current weather
-        const curRes = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`
-        );
-        const curJson = await curRes.json();
-
-        // Fetch next forecast entry
-        const fcRes = await fetch(
-          `https://api.openweathermap.org/data/2.5/forecast?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=1`
-        );
-        const fcJson = await fcRes.json();
-
-        // Extract and round temps, main condition strings, icon code
-        const temp = Math.round(curJson.main.temp);
-        const condition = curJson.weather[0].main;
-        const iconCode = curJson.weather[0].icon;
-        const forecastTemp = Math.round(fcJson.list[0].main.temp);
-        const forecastCondition = fcJson.list[0].weather[0].main;
-
-        // Cache in Firestore
-        const timestamp = Date.now();
-        await setDoc(weatherDocRef, {
-          temp,
-          condition,
-          iconCode,
-          forecastTemp,
-          forecastCondition,
-          timestamp,
-        });
-
-        setWeatherData({ temp, condition, iconCode, forecastTemp, forecastCondition });
-      } catch (error) {
-        console.error('[weather] Error:', error);
       }
-    }
 
+      // Fetch current weather
+      const curRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`
+      );
+      const curJson = await curRes.json();
+
+      // Fetch next forecast entry
+      const fcRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=1`
+      );
+      const fcJson = await fcRes.json();
+
+      // Extract and round temps, main condition strings, icon code
+      const temp = Math.round(curJson.main.temp);
+      const condition = curJson.weather[0].main;
+      const iconCode = curJson.weather[0].icon;
+      const forecastTemp = Math.round(fcJson.list[0].main.temp);
+      const forecastCondition = fcJson.list[0].weather[0].main;
+
+      // Cache in Firestore
+      const timestamp = Date.now();
+      await setDoc(weatherDocRef, {
+        temp,
+        condition,
+        iconCode,
+        forecastTemp,
+        forecastCondition,
+        timestamp,
+      });
+
+      setWeatherData({ temp, condition, iconCode, forecastTemp, forecastCondition });
+    } catch (error) {
+      console.error('[weather] Error:', error);
+    }
+  }, []);
+
+  // Initial weather fetch and periodic refresh
+  useEffect(() => {
     updateWeather();
     const interval = setInterval(() => updateWeather(), CHECK_INTERVAL);
     return () => clearInterval(interval);
-  }, []);
+  }, [updateWeather]);
 
-  // ─── Pick Random Message for “message” Slots ─────────────────────────────────
+  // ─── Refresh Weather When Entering Welcome Slot ────────────────────────────────
+  // Force a fresh weather fetch at the start of each rotation cycle (Welcome slot),
+  // so weather data is ready before DateTimeWeather and weather-message slots.
+  useEffect(() => {
+    const slot = slots[index];
+    if (slot.type === 'special' && slot.component === Welcome) {
+      updateWeather(true);
+    }
+  }, [index, updateWeather]);
+
+  // ─── Pick Random Message for "message" Slots ─────────────────────────────────
   // Whenever the slot index changes to a message, choose one valid at random.
   useEffect(() => {
     if (slots[index].type === 'message') {
@@ -199,6 +213,21 @@ export default function Rotator() {
       }
     }
   }, [index, valid]);
+
+  // ─── Pick Random Weather Message for "weather-message" Slots ─────────────────
+  // Whenever the slot index changes to a weather-message, choose one matching at random.
+  // If no matching messages exist, skip to the next slot immediately.
+  useEffect(() => {
+    if (slots[index].type === 'weather-message') {
+      if (weatherMessages.length > 0) {
+        const random = Math.floor(Math.random() * weatherMessages.length);
+        setCurrentWeatherMessage(weatherMessages[random]);
+      } else {
+        // No matching weather messages - skip to next slot
+        setIndex(i => (i + 1) % slots.length);
+      }
+    }
+  }, [index, weatherMessages]);
 
   // ─── Advance Through Slots on Interval ───────────────────────────────────────
   // Every DISPLAY_MS, advance index by 1 (looping)
@@ -240,9 +269,12 @@ export default function Rotator() {
   const slot = slots[index];
   let content: React.ReactNode;
 
-  if (slot.type === 'message') {
-    // Show the two-panel Arabic/English message + footer
-    content = currentMessage ? (
+  // Helper to render a message (used by both 'message' and 'weather-message' slots)
+  const renderMessage = (msg: MessageWithConditions | null) => {
+    if (!msg) {
+      return <div className="flex-1 flex items-center justify-center">Loading…</div>;
+    }
+    return (
       <>
         <div className="flex-1 flex items-start justify-between gap-8 overflow-hidden">
           <div
@@ -250,25 +282,32 @@ export default function Rotator() {
             dir="rtl"
             style={{ fontSize: 'var(--rotator-text-size)' }}
           >
-            {currentMessage.sourceType === 'quran'
-              ? currentMessage.quran?.arabicText
-              : currentMessage.sourceType === 'hadith'
-              ? currentMessage.hadith?.arabicText
-              : currentMessage.other?.arabicText}
+            {msg.sourceType === 'quran'
+              ? msg.quran?.arabicText
+              : msg.sourceType === 'hadith'
+              ? msg.hadith?.arabicText
+              : msg.other?.arabicText}
           </div>
           <div className="flex-1" style={{ fontSize: 'var(--rotator-text-size)' }}>
-            {currentMessage.sourceType === 'quran'
-              ? currentMessage.quran?.englishText
-              : currentMessage.sourceType === 'hadith'
-              ? currentMessage.hadith?.englishText
-              : currentMessage.other?.englishText}
+            {msg.sourceType === 'quran'
+              ? msg.quran?.englishText
+              : msg.sourceType === 'hadith'
+              ? msg.hadith?.englishText
+              : msg.other?.englishText}
           </div>
         </div>
-        <Footer message={currentMessage} />
+        <Footer message={msg} />
       </>
-    ) : (
-      <div className="flex-1 flex items-center justify-center">Loading…</div>
     );
+  };
+
+  if (slot.type === 'message') {
+    // Show the two-panel Arabic/English message + footer
+    content = renderMessage(currentMessage);
+  } else if (slot.type === 'weather-message') {
+    // Show a weather-conditional message (same layout as regular messages)
+    // Note: If no weather messages match, the slot is skipped entirely (see useEffect above)
+    content = renderMessage(currentWeatherMessage);
   } else {
     // Render a special component with its specific props
     const Special = slot.component as React.ComponentType<any>;
