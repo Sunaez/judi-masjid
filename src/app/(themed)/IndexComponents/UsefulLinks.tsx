@@ -70,7 +70,7 @@ const categories: Category[] = [
     ]
   },
   {
-    name: 'Halal, Haram & Fatta',
+    name: 'Halal, Haram & Fatwa',
     icon: <MdHelpOutline className="w-6 h-6 text-[var(--x-text-color)]" />,
     links: [
       {
