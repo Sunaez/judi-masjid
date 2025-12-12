@@ -54,7 +54,7 @@ export default function ClientDashboard() {
     setAnimModalOpen(false);
     setSelectedMessageForAnimation(null);
   };
-  const handleAnimSuccessToast = () => setToast({ type: 'success', message: 'Animation previewed successfully' });
+  const handleAnimSuccessToast = () => setToast({ type: 'success', message: 'Animation saved successfully' });
   const handleAnimErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
 
   const openSyncModal = () => {

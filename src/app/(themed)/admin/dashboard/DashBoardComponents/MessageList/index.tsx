@@ -15,7 +15,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 
-import type { MessageData, ConditionData } from '../AddMessage/types';
+import type { MessageData, ConditionData, AnimationData } from '../AddMessage/types';
 import Display from './Display';
 import DeleteModal from './Delete';
 import Notification from '../Notification';
@@ -89,6 +89,7 @@ export default function MessageList({ onAddAnimation }: MessageListProps) {
                   quran: raw.quran,
                   hadith: raw.hadith,
                   other: raw.other,
+                  animations: raw.animations,
                 },
                 createdAt: raw.createdAt ?? Timestamp.fromDate(new Date(0)),
                 conditionsData: conds,

@@ -5,6 +5,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { gsap } from 'gsap';
 import useMessages, { MessageWithConditions } from './Messages';
 import useValidMessages, { useWeatherMessages } from './Conditions';
+import type { AnimationConfig, AnimationType } from './types';
 import Welcome from './Specials/Welcome';
 import DateTimeWeather from './Specials/DateTimeWeather';
 import Donation from './Specials/Donation';
@@ -74,6 +75,9 @@ export default function Rotator() {
   // Refs for container (for animation + blur) and progress bar
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  // Refs for message text elements to apply custom animations
+  const arabicTextRef = useRef<HTMLDivElement>(null);
+  const englishTextRef = useRef<HTMLDivElement>(null);
 
   // ─── Schedule Re-Render After Jama‘at/Maghrib ─────────────────────────────────
   // Sets up a timeout for each prayer's jama‘at time +1 minute or maghrib +1 minute.
@@ -238,6 +242,161 @@ export default function Rotator() {
     return () => clearInterval(interval);
   }, []);
 
+  // ─── Helper: Apply Animation to Element ───────────────────────────────────────
+  // Applies GSAP animation based on the animation config
+  // Duration is stored in ms but GSAP uses seconds
+  const applyAnimation = useCallback((
+    element: HTMLElement | null,
+    config: AnimationConfig | undefined,
+    content: string,
+    isArabic: boolean,
+    delay: number = 0
+  ) => {
+    if (!element) return;
+
+    // Default animation config if none specified (300ms default)
+    const effectiveConfig: AnimationConfig = config?.enabled
+      ? config
+      : { enabled: true, animation: 'fade' as AnimationType, duration: 300 };
+
+    const { animation, duration } = effectiveConfig;
+    // Convert ms to seconds for GSAP
+    const durationSec = duration / 1000;
+
+    if (animation === 'word-appear') {
+      // Word-appear: split into spans and animate each
+      element.textContent = '';
+
+      if (isArabic) {
+        // Split into words for Arabic
+        const words = content.trim().split(/\s+/);
+        words.forEach((word, i) => {
+          const span = document.createElement('span');
+          span.textContent = word;
+          span.style.display = 'inline-block';
+          span.style.opacity = '0';
+          element.appendChild(span);
+          if (i < words.length - 1) element.appendChild(document.createTextNode(' '));
+        });
+      } else {
+        // Split into characters for English
+        const chars = content.split('');
+        chars.forEach((char) => {
+          if (char === ' ') {
+            element.appendChild(document.createTextNode(' '));
+          } else {
+            const span = document.createElement('span');
+            span.textContent = char;
+            span.style.display = 'inline-block';
+            span.style.opacity = '0';
+            element.appendChild(span);
+          }
+        });
+      }
+
+      const targets = element.querySelectorAll<HTMLElement>('span');
+      const numTargets = targets.length;
+
+      if (numTargets === 0) return;
+
+      // Calculate timing so TOTAL animation = durationSec
+      // Total time = elementDuration + stagger * (N - 1)
+      let elementDuration: number;
+      let stagger: number;
+
+      if (numTargets === 1) {
+        elementDuration = durationSec;
+        stagger = 0;
+      } else {
+        // Use 20% of total time for each element's fade-in (min 50ms)
+        elementDuration = Math.max(durationSec * 0.2, 0.05);
+        // Calculate stagger to fit remaining time
+        stagger = (durationSec - elementDuration) / (numTargets - 1);
+        // If stagger would be negative or zero, spread evenly
+        if (stagger <= 0) {
+          stagger = durationSec / numTargets;
+          elementDuration = stagger;
+        }
+      }
+
+      gsap.fromTo(
+        targets,
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1,
+          y: 0,
+          ease: 'power3.out',
+          duration: elementDuration,
+          stagger: stagger,
+          delay: delay,
+        }
+      );
+    } else {
+      // Standard animations
+      const fromVars: gsap.TweenVars = { opacity: 0 };
+      const toVars: gsap.TweenVars = { opacity: 1, duration: durationSec, ease: 'power3.out', delay: delay };
+
+      switch (animation) {
+        case 'slide':
+          fromVars.x = isArabic ? 50 : -50;
+          toVars.x = 0;
+          break;
+        case 'bounce':
+          fromVars.scale = 0.3;
+          toVars.scale = 1;
+          toVars.ease = 'bounce.out';
+          break;
+        case 'zoom':
+          fromVars.scale = 0.5;
+          toVars.scale = 1;
+          break;
+        case 'fade':
+        default:
+          break;
+      }
+
+      gsap.fromTo(element, fromVars, toVars);
+    }
+  }, []);
+
+  // ─── Apply Custom Message Animations ─────────────────────────────────────────
+  // Applies custom animations to Arabic and English text when message changes
+  useEffect(() => {
+    const slot = slots[index];
+    const msg = slot.type === 'message' ? currentMessage : slot.type === 'weather-message' ? currentWeatherMessage : null;
+
+    if (!msg) return;
+
+    // Wait a small delay to ensure DOM elements are rendered
+    const timeout = setTimeout(() => {
+      // Get the animation keys based on source type
+      const arabicKey = msg.sourceType === 'quran' ? 'quranArabic'
+        : msg.sourceType === 'hadith' ? 'hadithArabic'
+        : 'otherArabic';
+      const englishKey = msg.sourceType === 'quran' ? 'quranEnglish'
+        : msg.sourceType === 'hadith' ? 'hadithEnglish'
+        : 'otherEnglish';
+
+      // Get the text content
+      const arabicContent = msg.sourceType === 'quran' ? msg.quran?.arabicText
+        : msg.sourceType === 'hadith' ? msg.hadith?.arabicText
+        : msg.other?.arabicText;
+      const englishContent = msg.sourceType === 'quran' ? msg.quran?.englishText
+        : msg.sourceType === 'hadith' ? msg.hadith?.englishText
+        : msg.other?.englishText;
+
+      // Apply animations with staggered delay
+      if (arabicContent) {
+        applyAnimation(arabicTextRef.current, msg.animations?.[arabicKey], arabicContent, true, 0.3);
+      }
+      if (englishContent) {
+        applyAnimation(englishTextRef.current, msg.animations?.[englishKey], englishContent, false, 0.5);
+      }
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [index, currentMessage, currentWeatherMessage, applyAnimation]);
+
   // ─── GSAP Entry/Exit Animation ───────────────────────────────────────────────
   // Runs on every change of `index` or `prayerRefresh` to replay the fade-in/progress/fade-out.
   useEffect(() => {
@@ -274,26 +433,36 @@ export default function Rotator() {
     if (!msg) {
       return <div className="flex-1 flex items-center justify-center">Loading…</div>;
     }
+
+    // Get text content based on source type
+    const arabicText = msg.sourceType === 'quran'
+      ? msg.quran?.arabicText
+      : msg.sourceType === 'hadith'
+      ? msg.hadith?.arabicText
+      : msg.other?.arabicText;
+    const englishText = msg.sourceType === 'quran'
+      ? msg.quran?.englishText
+      : msg.sourceType === 'hadith'
+      ? msg.hadith?.englishText
+      : msg.other?.englishText;
+
     return (
       <>
         <div className="flex-1 flex items-start justify-between gap-8 overflow-hidden">
           <div
+            ref={arabicTextRef}
             className="flex-1 arabic-text rtl"
             dir="rtl"
             style={{ fontSize: 'var(--rotator-text-size)' }}
           >
-            {msg.sourceType === 'quran'
-              ? msg.quran?.arabicText
-              : msg.sourceType === 'hadith'
-              ? msg.hadith?.arabicText
-              : msg.other?.arabicText}
+            {arabicText}
           </div>
-          <div className="flex-1" style={{ fontSize: 'var(--rotator-text-size)' }}>
-            {msg.sourceType === 'quran'
-              ? msg.quran?.englishText
-              : msg.sourceType === 'hadith'
-              ? msg.hadith?.englishText
-              : msg.other?.englishText}
+          <div
+            ref={englishTextRef}
+            className="flex-1"
+            style={{ fontSize: 'var(--rotator-text-size)' }}
+          >
+            {englishText}
           </div>
         </div>
         <Footer message={msg} />
