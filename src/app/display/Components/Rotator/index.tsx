@@ -14,6 +14,7 @@ import PrayerTable from './Specials/PrayerTable';
 import Footer from './Footer';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
+import { useDebugContext } from '@/app/display/context/DebugContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -56,6 +57,8 @@ export default function Rotator() {
   const all = useMessages();
   // Prayer times from Firebase context
   const { prayerTimes } = usePrayerTimesContext();
+  // Debug context for keyboard shortcuts (Key 2 advances to next slot)
+  const { rotatorAdvanceSignal } = useDebugContext();
   // Current + forecast weather data
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // Counter to trigger re-renders after prayer times +1min
@@ -266,6 +269,14 @@ export default function Rotator() {
     }, DISPLAY_MS);
     return () => clearInterval(interval);
   }, []);
+
+  // ─── Debug: Advance on Key 2 Press ─────────────────────────────────────────────
+  // When rotatorAdvanceSignal changes (triggered by pressing "2"), advance to next slot
+  useEffect(() => {
+    if (rotatorAdvanceSignal > 0) {
+      setIndex(i => (i + 1) % slots.length);
+    }
+  }, [rotatorAdvanceSignal]);
 
   // ─── Helper: Apply Animation to Element ───────────────────────────────────────
   // Applies GSAP animation based on the animation config

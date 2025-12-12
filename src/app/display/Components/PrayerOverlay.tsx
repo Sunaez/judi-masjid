@@ -9,6 +9,7 @@ import {
 } from 'motion/react'
 import { useEffect, useState, ReactNode, useMemo, memo } from 'react'
 import { usePrayerTimesContext } from '../context/PrayerTimesContext'
+import { useDebugContext } from '../context/DebugContext'
 
 interface PrayerTime {
   name: string
@@ -24,9 +25,11 @@ const toDate = (ts: string): Date => {
 }
 
 const WINDOW_MS = 180 * 1000 // 3 minutes active window
+const TEST_DURATION_MS = 10_000 // 10 seconds for test mode
 
 const PrayerOverlay = memo(function PrayerOverlay() {
   const { prayerTimes: rawTimes, isLoading } = usePrayerTimesContext()
+  const { prayerOverlayTestSignal } = useDebugContext()
 
   // ─── State: "now" ───────────────────────────────────────────
   const [now, setNow] = useState(() => new Date())
@@ -34,6 +37,43 @@ const PrayerOverlay = memo(function PrayerOverlay() {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
+
+  // ─── Debug: Test mode state (Key 3 triggers) ───────────────────────────────
+  const [testMode, setTestMode] = useState<'off' | 'countdown' | 'prayer'>('off')
+  const [testCountdown, setTestCountdown] = useState(10)
+
+  // When prayerOverlayTestSignal changes (Key 3 pressed), start test mode
+  useEffect(() => {
+    if (prayerOverlayTestSignal > 0) {
+      // Start with countdown phase
+      setTestMode('countdown')
+      setTestCountdown(10)
+    }
+  }, [prayerOverlayTestSignal])
+
+  // Handle test mode countdown and phase transitions
+  useEffect(() => {
+    if (testMode === 'off') return
+
+    const interval = setInterval(() => {
+      setTestCountdown(prev => {
+        if (prev <= 1) {
+          if (testMode === 'countdown') {
+            // Switch to prayer phase
+            setTestMode('prayer')
+            return 5 // Show "in progress" for 5 seconds
+          } else {
+            // End test mode
+            setTestMode('off')
+            return 0
+          }
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [testMode])
 
   // ─── Memoize prayer times array ─────────────────────────
   const prayerTimes = useMemo<PrayerTime[] | null>(() => {
@@ -74,17 +114,25 @@ const PrayerOverlay = memo(function PrayerOverlay() {
     return { nextPrayer: nextPr, phase: ph, secsUntil: secsUnt }
   }, [prayerTimes, now])
 
-  if (isLoading || !prayerTimes || !nextPrayer || phase === 'idle') {
+  // Determine effective phase and values (test mode overrides real values)
+  const effectivePhase = testMode !== 'off' ? testMode : phase
+  const effectiveSecsUntil = testMode === 'countdown' ? testCountdown : secsUntil
+  const effectivePrayerName = testMode !== 'off' ? 'Test Prayer' : nextPrayer?.name || ''
+
+  // Don't render if not in any active state
+  const shouldShow = testMode !== 'off' || (phase !== 'idle' && nextPrayer)
+
+  if (isLoading || !shouldShow) {
     return null
   }
 
   return (
     <AnimatePresence>
-      <ShrinkingOverlay>
+      <ShrinkingOverlay key={testMode !== 'off' ? 'test' : 'real'}>
         <GradientOverlay />
 
         <AnimatePresence initial={false} mode="wait">
-          {phase === 'countdown' ? (
+          {effectivePhase === 'countdown' ? (
             <motion.div
               key="countdown"
               className="countdown-text"
@@ -92,7 +140,7 @@ const PrayerOverlay = memo(function PrayerOverlay() {
               animate={{ scale: 1, opacity: 1, transition: { duration: 0.3 } }}
               exit={{ scale: 0.8, opacity: 0, transition: { duration: 0.3 } }}
             >
-              {secsUntil}
+              {effectiveSecsUntil}
             </motion.div>
           ) : (
             <motion.div
@@ -102,7 +150,7 @@ const PrayerOverlay = memo(function PrayerOverlay() {
               animate={{ y: 0, opacity: 1, transition: { duration: 0.4 } }}
               exit={{ y: 20, opacity: 0, transition: { duration: 0.4 } }}
             >
-              {`${nextPrayer.name} in progress`}
+              {`${effectivePrayerName} in progress`}
             </motion.div>
           )}
         </AnimatePresence>

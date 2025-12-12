@@ -8,12 +8,17 @@ import PrayerTimeline from './Components/PrayerTimeline';
 import PrayerOverlay from './Components/PrayerOverlay';
 import DowntimeDisplay from './Components/DowntimeDisplay';
 import { usePrayerTimesContext } from './context/PrayerTimesContext';
+import { useDebugContext } from './context/DebugContext';
 
 // Transition duration in seconds
 const TRANSITION_DURATION = 1.2;
 
 function DisplayContent() {
-  const { isDowntime, isLoading } = usePrayerTimesContext();
+  const { isDowntime: realIsDowntime, isLoading } = usePrayerTimesContext();
+  const { downtimeOverride } = useDebugContext();
+
+  // Use override if set, otherwise use real value (Key 1 toggles)
+  const isDowntime = downtimeOverride !== null ? downtimeOverride : realIsDowntime;
 
   // Track which mode is currently displayed (allows for smooth transition)
   const [displayMode, setDisplayMode] = useState<'normal' | 'downtime' | null>(null);
