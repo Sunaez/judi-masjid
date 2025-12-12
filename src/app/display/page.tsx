@@ -5,8 +5,27 @@ import React from 'react';
 import Rotator from './Components/Rotator';
 import PrayerTimeline from './Components/PrayerTimeline';
 import PrayerOverlay from './Components/PrayerOverlay';
+import DowntimeDisplay from './Components/DowntimeDisplay';
+import { usePrayerTimesContext } from './context/PrayerTimesContext';
 
-export default function Display() {
+function DisplayContent() {
+  const { isDowntime, isLoading } = usePrayerTimesContext();
+
+  // Show loading state briefly
+  if (isLoading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-2xl opacity-50">Loading...</div>
+      </div>
+    );
+  }
+
+  // Downtime mode: simplified display
+  if (isDowntime) {
+    return <DowntimeDisplay />;
+  }
+
+  // Normal mode: full display
   return (
     <div
       id="app"
@@ -28,4 +47,8 @@ export default function Display() {
       </div>
     </div>
   );
+}
+
+export default function Display() {
+  return <DisplayContent />;
 }

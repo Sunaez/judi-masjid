@@ -10,6 +10,14 @@ function timeToDate(hhmm: string): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m);
 }
 
+// Get milliseconds until next midnight
+function getMsUntilMidnight(): number {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0); // Next midnight
+  return midnight.getTime() - now.getTime();
+}
+
 // build the 3min-before → 5min-after windows for each prayer
 function getBlockedWindows(times: RawPrayerTimes): [Date, Date][] {
   const keys: (keyof RawPrayerTimes)[] = [
@@ -135,6 +143,18 @@ export function usePrayerTimesFromFirebase() {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
+  }, [scheduleFetch]);
+
+  // Schedule a guaranteed refetch at midnight to get the new day's prayer times
+  useEffect(() => {
+    const msUntilMidnight = getMsUntilMidnight();
+    // Add 1 second buffer to ensure we're in the new day
+    const midnightTimer = window.setTimeout(() => {
+      currentDateRef.current = ''; // Force date change detection
+      scheduleFetch();
+    }, msUntilMidnight + 1000);
+
+    return () => clearTimeout(midnightTimer);
   }, [scheduleFetch]);
 
   return { times, error, isLoading };
