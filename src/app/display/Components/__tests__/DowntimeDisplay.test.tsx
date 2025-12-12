@@ -19,6 +19,12 @@ jest.mock('firebase/firestore', () => ({
   })),
 }));
 
+// Mock getPrayerTimesByDate to return null (fallback to Next Fajr)
+jest.mock('@/lib/firebase/prayerTimes', () => ({
+  getPrayerTimesByDate: jest.fn(() => Promise.resolve(null)),
+  getTomorrowDateString: jest.fn(() => '16/01/2024'),
+}));
+
 // Mock prayer times context
 const mockPrayerTimes = {
   fajrStart: '05:00',
@@ -40,6 +46,7 @@ jest.mock('../../context/PrayerTimesContext', () => ({
     error: null,
     currentMinutes: 1380, // 23:00
     isDowntime: true,
+    isRamadan: false,
   }),
 }));
 
@@ -79,10 +86,17 @@ describe('DowntimeDisplay', () => {
     expect(screen.getByText(/2024/i)).toBeInTheDocument();
   });
 
-  it('should display next Fajr time', () => {
+  it('should display next Fajr time as fallback', () => {
     render(<DowntimeDisplay />);
+    // When next day times are not available, show Next Fajr fallback
     expect(screen.getByText('Next Fajr')).toBeInTheDocument();
     expect(screen.getByText('05:30')).toBeInTheDocument();
+  });
+
+  it('should show Tomorrow\'s Prayer Times before midnight', () => {
+    // Time is 23:30 (before midnight)
+    render(<DowntimeDisplay />);
+    expect(screen.getByText("Tomorrow's Prayer Times")).toBeInTheDocument();
   });
 
   it('should have proper background styling with CSS variables', () => {
@@ -92,6 +106,31 @@ describe('DowntimeDisplay', () => {
     expect(mainDiv.style.backgroundImage).toContain('linear-gradient');
     expect(mainDiv.style.backgroundImage).toContain('var(--background-start)');
     expect(mainDiv.style.color).toBe('var(--text-color)');
+  });
+
+  it('should have two-column layout', () => {
+    const { container } = render(<DowntimeDisplay />);
+    // Check for grid with 2 columns
+    const gridElement = container.querySelector('.grid-cols-2');
+    expect(gridElement).toBeTruthy();
+  });
+});
+
+describe('DowntimeDisplay - After Midnight', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    // Set time to 02:30 (after midnight)
+    const mockDate = new Date(2024, 0, 16, 2, 30, 0);
+    jest.setSystemTime(mockDate);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should show Today\'s Prayer Times after midnight', () => {
+    render(<DowntimeDisplay />);
+    expect(screen.getByText("Today's Prayer Times")).toBeInTheDocument();
   });
 });
 

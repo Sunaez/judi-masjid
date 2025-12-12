@@ -26,31 +26,31 @@ const PRAYER_ORDER = [
 
 /**
  * Simplified display for off-peak hours.
- * Uses the same CSS variables as the main display but with dimmed styling.
- * - Current time (large)
- * - Current date (Gregorian + Hijri)
- * - Weather (fetched hourly from cache)
- * - Next day's prayer times table
+ * Two-column layout:
+ * - Left: Date, time, and weather
+ * - Right: Prayer times for the upcoming day
  */
 export default function DowntimeDisplay() {
   const { prayerTimes, isRamadan } = usePrayerTimesContext();
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [tomorrowPrayerTimes, setTomorrowPrayerTimes] = useState<RawPrayerTimes | null>(null);
-  const [tomorrowDateLabel, setTomorrowDateLabel] = useState<string>('');
+  const [nextDayPrayerTimes, setNextDayPrayerTimes] = useState<RawPrayerTimes | null>(null);
+  const [nextDayDateLabel, setNextDayDateLabel] = useState<string>('');
 
   // Refs for GSAP animations
   const containerRef = useRef<HTMLDivElement>(null);
-  const timeRef = useRef<HTMLDivElement>(null);
-  const dateRef = useRef<HTMLDivElement>(null);
-  const weatherRef = useRef<HTMLDivElement>(null);
-  const tableRef = useRef<HTMLDivElement>(null);
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const rightColRef = useRef<HTMLDivElement>(null);
 
   // Update clock every second
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Determine if we're past midnight (showing "today's" times instead of "tomorrow's")
+  // After midnight, the "next day" times are actually today's times
+  const isAfterMidnight = now.getHours() < 12; // Before noon means we crossed midnight
 
   // Entry animation
   useEffect(() => {
@@ -64,58 +64,29 @@ export default function DowntimeDisplay() {
         ease: 'power2.out',
       });
 
-      // Time fade in and scale
+      // Left column slide in from left
       tl.from(
-        timeRef.current,
+        leftColRef.current,
         {
           autoAlpha: 0,
-          scale: 0.9,
-          y: 30,
+          x: -50,
           duration: 0.8,
           ease: 'power2.out',
         },
         '-=0.6'
       );
 
-      // Date slide in
+      // Right column slide in from right
       tl.from(
-        dateRef.current,
+        rightColRef.current,
         {
           autoAlpha: 0,
-          y: 20,
-          duration: 0.6,
+          x: 50,
+          duration: 0.8,
           ease: 'power2.out',
         },
-        '-=0.4'
+        '-=0.6'
       );
-
-      // Weather fade in
-      if (weatherRef.current) {
-        tl.from(
-          weatherRef.current,
-          {
-            autoAlpha: 0,
-            x: -20,
-            duration: 0.6,
-            ease: 'power2.out',
-          },
-          '-=0.3'
-        );
-      }
-
-      // Prayer times table fade in
-      if (tableRef.current) {
-        tl.from(
-          tableRef.current,
-          {
-            autoAlpha: 0,
-            y: 20,
-            duration: 0.6,
-            ease: 'power2.out',
-          },
-          '-=0.2'
-        );
-      }
     }, containerRef);
 
     return () => ctx.revert();
@@ -145,18 +116,18 @@ export default function DowntimeDisplay() {
     return () => clearInterval(interval);
   }, [fetchWeather]);
 
-  // Fetch tomorrow's prayer times
+  // Fetch next day's prayer times
   useEffect(() => {
-    async function fetchTomorrowTimes() {
+    async function fetchNextDayTimes() {
       try {
         const tomorrowDate = getTomorrowDateString();
         const times = await getPrayerTimesByDate(tomorrowDate);
-        setTomorrowPrayerTimes(times);
+        setNextDayPrayerTimes(times);
 
-        // Create a nice label for tomorrow's date
+        // Create a nice label for the date
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        setTomorrowDateLabel(
+        setNextDayDateLabel(
           tomorrow.toLocaleDateString('en-GB', {
             weekday: 'long',
             day: 'numeric',
@@ -164,21 +135,21 @@ export default function DowntimeDisplay() {
           })
         );
       } catch (error) {
-        console.error('[DowntimeDisplay] Failed to fetch tomorrow prayer times:', error);
+        console.error('[DowntimeDisplay] Failed to fetch next day prayer times:', error);
       }
     }
 
-    fetchTomorrowTimes();
+    fetchNextDayTimes();
   }, []);
 
-  // Format time
+  // Format time - larger display
   const time = now.toLocaleTimeString('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
   });
   const seconds = now.toLocaleTimeString('en-GB', { second: '2-digit' }).slice(-2);
 
-  // Format dates - same as DateTimeWeather component
+  // Format dates
   const gregorianDate = now.toLocaleDateString(undefined, {
     weekday: 'long',
     day: 'numeric',
@@ -191,10 +162,13 @@ export default function DowntimeDisplay() {
     year: 'numeric',
   }).format(now);
 
+  // Prayer times label - "Today's" if after midnight, "Tomorrow's" if before
+  const prayerTimesLabel = isAfterMidnight ? "Today's Prayer Times" : "Tomorrow's Prayer Times";
+
   return (
     <div
       ref={containerRef}
-      className="w-full h-screen flex flex-col items-center justify-center p-8 relative"
+      className="w-full h-screen flex items-center justify-center p-12 relative"
       style={{
         backgroundImage: 'linear-gradient(var(--background-start), var(--background-end))',
         color: 'var(--text-color)',
@@ -208,94 +182,108 @@ export default function DowntimeDisplay() {
         }}
       />
 
-      {/* Content wrapper (above overlay) */}
-      <div className="relative z-10 flex flex-col items-center justify-center">
-        {/* Main time display - matches DateTimeWeather font sizes */}
-        <div ref={timeRef} className="text-center mb-8">
-          <div className="flex items-baseline justify-center">
-            <span className="text-9xl font-extrabold" style={{ letterSpacing: '-0.02em' }}>
-              {time}
-            </span>
-            <span className="text-5xl font-light opacity-50 ml-2">:{seconds}</span>
-          </div>
-        </div>
-
-        {/* Date row - matches DateTimeWeather styling */}
-        <div ref={dateRef} className="text-center mb-12 space-y-2">
-          <div className="text-5xl font-bold opacity-90">{gregorianDate}</div>
-          <div className="text-4xl opacity-70">{hijriDate}</div>
-        </div>
-
-        {/* Weather row - matches DateTimeWeather layout */}
-        {weather && (
-          <div ref={weatherRef} className="flex items-center gap-6 mb-12">
-            <div
-              className="p-4 rounded-2xl"
-              style={{ backgroundColor: 'var(--secondary-color)', opacity: 0.8 }}
-            >
-              <img
-                src={`https://openweathermap.org/img/wn/${weather.iconCode}@4x.png`}
-                alt={weather.condition}
-                className="w-32 h-32"
-              />
-            </div>
-            <div className="flex items-baseline gap-4">
-              <span className="text-7xl font-extrabold">{weather.temp}°C</span>
-              <span className="text-3xl uppercase opacity-80">{weather.condition}</span>
+      {/* Two-column layout */}
+      <div className="relative z-10 grid grid-cols-2 gap-16 w-full max-w-[1800px] h-full items-center">
+        {/* Left Column: Date, Time, Weather */}
+        <div ref={leftColRef} className="flex flex-col justify-center space-y-8">
+          {/* Main time display - extra large */}
+          <div className="text-center">
+            <div className="flex items-baseline justify-center">
+              <span
+                className="font-extrabold"
+                style={{ fontSize: '14rem', lineHeight: 1, letterSpacing: '-0.02em' }}
+              >
+                {time}
+              </span>
+              <span
+                className="font-light opacity-50 ml-4"
+                style={{ fontSize: '4rem' }}
+              >
+                :{seconds}
+              </span>
             </div>
           </div>
-        )}
 
-        {/* Tomorrow's Prayer Times Table - matches PrayerTimeline styling */}
-        {tomorrowPrayerTimes && (
-          <div ref={tableRef} className="mt-4">
-            <div
-              className="text-2xl font-semibold uppercase tracking-wider opacity-60 mb-6 text-center"
-              style={{ letterSpacing: '0.1em' }}
-            >
-              Tomorrow&apos;s Prayer Times • {tomorrowDateLabel}
+          {/* Date display - larger */}
+          <div className="text-center space-y-3">
+            <div className="text-6xl font-bold opacity-90">{gregorianDate}</div>
+            <div className="text-5xl opacity-70">{hijriDate}</div>
+          </div>
+
+          {/* Weather display - larger */}
+          {weather && (
+            <div className="flex items-center justify-center gap-8 mt-8">
+              <div
+                className="p-6 rounded-3xl"
+                style={{ backgroundColor: 'var(--secondary-color)', opacity: 0.8 }}
+              >
+                <img
+                  src={`https://openweathermap.org/img/wn/${weather.iconCode}@4x.png`}
+                  alt={weather.condition}
+                  className="w-40 h-40"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-8xl font-extrabold">{weather.temp}°C</span>
+                <span className="text-4xl uppercase opacity-80">{weather.condition}</span>
+              </div>
             </div>
-            <div
-              className="grid gap-4"
-              style={{
-                gridTemplateColumns: `repeat(${PRAYER_ORDER.length}, 1fr)`,
-              }}
-            >
+          )}
+        </div>
+
+        {/* Right Column: Prayer Times */}
+        <div ref={rightColRef} className="flex flex-col justify-center">
+          {/* Header */}
+          <div
+            className="text-4xl font-semibold uppercase tracking-wider opacity-70 mb-8 text-center"
+            style={{ letterSpacing: '0.1em' }}
+          >
+            {prayerTimesLabel}
+          </div>
+
+          {/* Date label */}
+          {nextDayDateLabel && (
+            <div className="text-3xl opacity-60 mb-10 text-center">
+              {nextDayDateLabel}
+            </div>
+          )}
+
+          {/* Prayer times grid - vertical layout for larger display */}
+          {nextDayPrayerTimes ? (
+            <div className="flex flex-col gap-5">
               {PRAYER_ORDER.map(({ key, label }) => (
                 <div
                   key={key}
-                  className="text-center py-4 px-6 rounded-xl"
+                  className="flex items-center justify-between py-6 px-10 rounded-2xl"
                   style={{
                     backgroundColor: 'var(--secondary-color)',
                     opacity: 0.9,
                   }}
                 >
-                  <div className="text-xl font-semibold uppercase tracking-wide opacity-80 mb-2">
+                  <span className="text-4xl font-semibold uppercase tracking-wide opacity-90">
                     {label}
-                  </div>
-                  <div className="text-4xl font-bold">
-                    {tomorrowPrayerTimes[key as keyof RawPrayerTimes]}
-                  </div>
+                  </span>
+                  <span className="text-5xl font-bold">
+                    {nextDayPrayerTimes[key as keyof RawPrayerTimes]}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Today's next Fajr if tomorrow's times not available */}
-        {!tomorrowPrayerTimes && prayerTimes && (
-          <div className="text-center mt-4">
-            <div className="text-2xl font-semibold uppercase tracking-wider opacity-60 mb-2">
-              Next Fajr
+          ) : prayerTimes ? (
+            // Fallback to current day's Fajr if next day times not available
+            <div className="text-center">
+              <div className="text-3xl font-semibold uppercase tracking-wider opacity-60 mb-4">
+                Next Fajr
+              </div>
+              <div className="text-7xl font-bold">{prayerTimes.fajrJamaat}</div>
             </div>
-            <div className="text-6xl font-bold">{prayerTimes.fajrJamaat}</div>
-          </div>
-        )}
+          ) : null}
+        </div>
       </div>
 
       {/* Subtle branding at bottom */}
       <div
-        className="absolute bottom-8 text-lg font-light uppercase opacity-30 z-10"
+        className="absolute bottom-8 text-xl font-light uppercase opacity-30 z-10"
         style={{ letterSpacing: '0.2em' }}
       >
         Off-Peak Mode{isRamadan ? ' • Ramadan' : ''}
