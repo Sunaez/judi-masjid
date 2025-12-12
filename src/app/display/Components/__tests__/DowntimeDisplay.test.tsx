@@ -85,11 +85,13 @@ describe('DowntimeDisplay', () => {
     expect(screen.getByText('05:30')).toBeInTheDocument();
   });
 
-  it('should have dark background styling', () => {
+  it('should have proper background styling with CSS variables', () => {
     const { container } = render(<DowntimeDisplay />);
     const mainDiv = container.firstChild as HTMLElement;
-    expect(mainDiv.style.background).toContain('linear-gradient');
-    expect(mainDiv.style.background).toContain('#0a0a0f');
+    // Now uses CSS variables instead of hardcoded colors
+    expect(mainDiv.style.backgroundImage).toContain('linear-gradient');
+    expect(mainDiv.style.backgroundImage).toContain('var(--background-start)');
+    expect(mainDiv.style.color).toBe('var(--text-color)');
   });
 });
 
