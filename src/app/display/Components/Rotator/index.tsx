@@ -233,6 +233,35 @@ export default function Rotator() {
     }
   }, [index, weatherMessages]);
 
+  // ─── Skip PrayerTable When All Prayers Have Passed ─────────────────────────────
+  // After Isha is finished for the day, skip the PrayerTable slot entirely.
+  useEffect(() => {
+    const slot = slots[index];
+    if (slot.type === 'special' && slot.component === PrayerTable && prayerTimes) {
+      const toMin = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+
+      // Check if all prayers have passed (Isha Jamaat is the last prayer)
+      const allTimes = [
+        toMin(prayerTimes.fajrJamaat),
+        toMin(prayerTimes.dhuhrJamaat),
+        toMin(prayerTimes.asrJamaat),
+        toMin(prayerTimes.maghrib),
+        toMin(prayerTimes.ishaJamaat),
+      ];
+      const allPassed = allTimes.every(t => currentMin > t);
+
+      if (allPassed) {
+        // Skip to next slot
+        setIndex(i => (i + 1) % slots.length);
+      }
+    }
+  }, [index, prayerTimes]);
+
   // ─── Advance Through Slots on Interval ───────────────────────────────────────
   // Every DISPLAY_MS, advance index by 1 (looping)
   useEffect(() => {
