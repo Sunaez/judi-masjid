@@ -4,8 +4,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 interface DebugContextValue {
-  // Override for downtime mode (null = use real value)
-  downtimeOverride: boolean | null;
+  // Override for downtime mode (true = downtime, false = normal)
+  downtimeOverride: boolean;
   toggleDowntimeOverride: () => void;
 
   // Signal to advance rotator to next slot
@@ -15,6 +15,9 @@ interface DebugContextValue {
   // Signal to force prayer overlay test
   prayerOverlayTestSignal: number;
   testPrayerOverlay: () => void;
+
+  // Current notification message (empty = hidden)
+  notification: string;
 }
 
 const DebugContext = createContext<DebugContextValue | undefined>(undefined);
@@ -28,25 +31,34 @@ const DebugContext = createContext<DebugContextValue | undefined>(undefined);
  * - 3: Force test prayer overlay
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
-  const [downtimeOverride, setDowntimeOverride] = useState<boolean | null>(null);
+  const [downtimeOverride, setDowntimeOverride] = useState<boolean>(false);
   const [rotatorAdvanceSignal, setRotatorAdvanceSignal] = useState(0);
   const [prayerOverlayTestSignal, setPrayerOverlayTestSignal] = useState(0);
+  const [notification, setNotification] = useState('');
+
+  // Show notification for 1 second
+  const showNotification = useCallback((message: string) => {
+    setNotification(message);
+    setTimeout(() => setNotification(''), 1000);
+  }, []);
 
   const toggleDowntimeOverride = useCallback(() => {
     setDowntimeOverride(prev => {
-      if (prev === null) return true;  // First press: force downtime
-      if (prev === true) return false; // Second press: force normal
-      return null;                      // Third press: back to auto
+      const newValue = !prev;
+      showNotification(newValue ? 'Off-Peak Mode' : 'Normal Mode');
+      return newValue;
     });
-  }, []);
+  }, [showNotification]);
 
   const advanceRotator = useCallback(() => {
     setRotatorAdvanceSignal(s => s + 1);
-  }, []);
+    showNotification('Next Section');
+  }, [showNotification]);
 
   const testPrayerOverlay = useCallback(() => {
     setPrayerOverlayTestSignal(s => s + 1);
-  }, []);
+    showNotification('Prayer Overlay Test');
+  }, [showNotification]);
 
   // Keyboard event handler
   useEffect(() => {
@@ -80,11 +92,42 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     advanceRotator,
     prayerOverlayTestSignal,
     testPrayerOverlay,
+    notification,
   };
 
   return (
     <DebugContext.Provider value={value}>
       {children}
+      {/* Notification popup */}
+      {notification && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '0.75rem 1.5rem',
+            borderRadius: '0.5rem',
+            fontSize: '1rem',
+            fontWeight: 500,
+            zIndex: 9999,
+            pointerEvents: 'none',
+            animation: 'fadeInOut 1s ease-in-out',
+          }}
+        >
+          {notification}
+          <style>{`
+            @keyframes fadeInOut {
+              0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+              15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+              85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+              100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            }
+          `}</style>
+        </div>
+      )}
     </DebugContext.Provider>
   );
 }

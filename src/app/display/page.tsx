@@ -14,11 +14,11 @@ import { useDebugContext } from './context/DebugContext';
 const TRANSITION_DURATION = 1.2;
 
 function DisplayContent() {
-  const { isDowntime: realIsDowntime, isLoading } = usePrayerTimesContext();
+  const { isLoading } = usePrayerTimesContext();
   const { downtimeOverride } = useDebugContext();
 
-  // Use override if set, otherwise use real value (Key 1 toggles)
-  const isDowntime = downtimeOverride !== null ? downtimeOverride : realIsDowntime;
+  // Key 1 toggles between normal and off-peak mode
+  const isDowntime = downtimeOverride;
 
   // Track which mode is currently displayed (allows for smooth transition)
   const [displayMode, setDisplayMode] = useState<'normal' | 'downtime' | null>(null);
