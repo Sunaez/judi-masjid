@@ -467,7 +467,7 @@ export default function Rotator() {
   // Helper to render a message (used by both 'message' and 'weather-message' slots)
   const renderMessage = (msg: MessageWithConditions | null) => {
     if (!msg) {
-      return <div className="flex-1 flex items-center justify-center">Loading…</div>;
+      return <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--text-color)' }}>Loading…</div>;
     }
 
     // Get text content based on source type
@@ -489,14 +489,14 @@ export default function Rotator() {
             ref={arabicTextRef}
             className="flex-1 arabic-text rtl"
             dir="rtl"
-            style={{ fontSize: 'var(--rotator-text-size)' }}
+            style={{ fontSize: 'var(--rotator-text-size)', color: 'var(--text-color)' }}
           >
             {arabicText}
           </div>
           <div
             ref={englishTextRef}
             className="flex-1"
-            style={{ fontSize: 'var(--rotator-text-size)' }}
+            style={{ fontSize: 'var(--rotator-text-size)', color: 'var(--text-color)' }}
           >
             {englishText}
           </div>
@@ -536,17 +536,22 @@ export default function Rotator() {
   }
 
   // ─── Main Container ─────────────────────────────────────────────────────────
+  // Background wrapper is separate to prevent flash during content transitions
   return (
     <div
-      ref={containerRef}
-      className="relative flex flex-col h-full w-full p-8"
+      className="relative h-full w-full"
       style={{
         backgroundImage: 'linear-gradient(var(--background-start), var(--background-end))',
         '--rotator-text-size': '3.5rem',
       } as React.CSSProperties}
     >
-      {content}
-      <div ref={progressRef} className="absolute bottom-0 left-0 h-1 w-0 bg-accent" />
+      <div
+        ref={containerRef}
+        className="relative flex flex-col h-full w-full p-8"
+      >
+        {content}
+        <div ref={progressRef} className="absolute bottom-0 left-0 h-1 w-0 bg-accent" />
+      </div>
     </div>
   );
 }

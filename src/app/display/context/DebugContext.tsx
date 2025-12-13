@@ -6,6 +6,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 interface DebugContextValue {
   // Override for downtime mode (true = downtime, false = normal)
   downtimeOverride: boolean;
+  // Whether the override has been manually activated (vs using automatic detection)
+  downtimeOverrideActive: boolean;
   toggleDowntimeOverride: () => void;
 
   // Signal to advance rotator to next slot
@@ -41,6 +43,7 @@ const KEYBINDS = [
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
   const [downtimeOverride, setDowntimeOverride] = useState<boolean>(false);
+  const [downtimeOverrideActive, setDowntimeOverrideActive] = useState<boolean>(false);
   const [rotatorAdvanceSignal, setRotatorAdvanceSignal] = useState(0);
   const [prayerOverlayTestSignal, setPrayerOverlayTestSignal] = useState(0);
   const [notification, setNotification] = useState('');
@@ -60,9 +63,10 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleDowntimeOverride = useCallback(() => {
+    setDowntimeOverrideActive(true); // Mark override as manually activated
     setDowntimeOverride(prev => {
       const newValue = !prev;
-      showNotification(newValue ? 'Off-Peak Mode' : 'Normal Mode');
+      showNotification(newValue ? 'Off-Peak Mode (Manual)' : 'Normal Mode (Manual)');
       return newValue;
     });
   }, [showNotification]);
@@ -112,6 +116,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
 
   const value: DebugContextValue = {
     downtimeOverride,
+    downtimeOverrideActive,
     toggleDowntimeOverride,
     rotatorAdvanceSignal,
     advanceRotator,
