@@ -52,7 +52,9 @@ export default function useValidMessages(
           case 'prayer':
             if (!prayerTimes) return true;
             return cond.entries.some(e => {
-              const key = (e.name.toLowerCase() + 'Jamaat') as keyof RawPrayerTimes;
+              // Maghrib only has 'maghrib', other prayers have 'xxxJamaat'
+              const prayerName = e.name.toLowerCase();
+              const key = (prayerName === 'maghrib' ? 'maghrib' : prayerName + 'Jamaat') as keyof RawPrayerTimes;
               const ts  = prayerTimes[key];
               if (!ts) return false;
               const [h,m] = ts.split(':').map(Number);

@@ -53,6 +53,18 @@ export function getTodayDateString(): string {
 }
 
 /**
+ * Get tomorrow's date in DD/MM/YYYY format
+ */
+export function getTomorrowDateString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+/**
  * Check if a date string is a Friday
  */
 function isFridayDate(dateStr: string): boolean {

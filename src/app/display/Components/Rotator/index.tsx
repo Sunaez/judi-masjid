@@ -14,6 +14,7 @@ import PrayerTable from './Specials/PrayerTable';
 import Footer from './Footer';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
+import { useDebugContext } from '@/app/display/context/DebugContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -27,10 +28,10 @@ const weatherDocRef = doc(db, 'weather', 'current');
 
 // Duration each slot is displayed (in milliseconds)
 const DISPLAY_MS = 20_000;
-// How old the cached weather data can be before refetch (1 minute)
-const RELOAD_THRESHOLD = 60 * 1000;
-// Interval at which to check/update weather (30 seconds)
-const CHECK_INTERVAL = 30 * 1000;
+// Minimum time between weather API calls (5 minutes) - prevents abuse from page reloads
+const WEATHER_API_COOLDOWN = 5 * 60 * 1000;
+// Interval at which to check weather cache (1 minute)
+const WEATHER_CHECK_INTERVAL = 60 * 1000;
 
 // Order of slots: specials (custom components) and messages
 const slots = [
@@ -56,6 +57,8 @@ export default function Rotator() {
   const all = useMessages();
   // Prayer times from Firebase context
   const { prayerTimes } = usePrayerTimesContext();
+  // Debug context for keyboard shortcuts (Key 2 advances to next slot)
+  const { rotatorAdvanceSignal } = useDebugContext();
   // Current + forecast weather data
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // Counter to trigger re-renders after prayer times +1min
@@ -132,27 +135,33 @@ export default function Rotator() {
   }, [prayerRefresh]);
 
   // ─── Fetch & Cache Weather ───────────────────────────────────────────────────
-  // Tries to load cached weather from Firestore first; if stale or missing, fetches
-  // from OpenWeather (current + 1-slot forecast), saves to Firestore, updates state.
-  const updateWeather = useCallback(async (force = false) => {
+  // Checks Firestore cache first. Only calls OpenWeather API if cache is older than
+  // 5 minutes (WEATHER_API_COOLDOWN). This prevents abuse from page reloads.
+  const updateWeather = useCallback(async () => {
     try {
       const snap = await getDoc(weatherDocRef);
-      if (!force && snap.exists()) {
+
+      // Always check cache first
+      if (snap.exists()) {
         const data = snap.data();
         const age = Date.now() - (data.timestamp as number);
-        if (age < RELOAD_THRESHOLD) {
-          setWeatherData({
-            temp: data.temp,
-            condition: data.condition,
-            iconCode: data.iconCode,
-            forecastTemp: data.forecastTemp,
-            forecastCondition: data.forecastCondition,
-          });
+
+        // Update state with cached data
+        setWeatherData({
+          temp: data.temp,
+          condition: data.condition,
+          iconCode: data.iconCode,
+          forecastTemp: data.forecastTemp,
+          forecastCondition: data.forecastCondition,
+        });
+
+        // If cache is fresh enough, don't call API
+        if (age < WEATHER_API_COOLDOWN) {
           return;
         }
       }
 
-      // Fetch current weather
+      // Cache is stale or missing - fetch from API
       const curRes = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`
       );
@@ -171,7 +180,7 @@ export default function Rotator() {
       const forecastTemp = Math.round(fcJson.list[0].main.temp);
       const forecastCondition = fcJson.list[0].weather[0].main;
 
-      // Cache in Firestore
+      // Cache in Firestore with timestamp
       const timestamp = Date.now();
       await setDoc(weatherDocRef, {
         temp,
@@ -188,22 +197,12 @@ export default function Rotator() {
     }
   }, []);
 
-  // Initial weather fetch and periodic refresh
+  // Initial weather fetch and periodic check (respects 5-minute API cooldown)
   useEffect(() => {
     updateWeather();
-    const interval = setInterval(() => updateWeather(), CHECK_INTERVAL);
+    const interval = setInterval(updateWeather, WEATHER_CHECK_INTERVAL);
     return () => clearInterval(interval);
   }, [updateWeather]);
-
-  // ─── Refresh Weather When Entering Welcome Slot ────────────────────────────────
-  // Force a fresh weather fetch at the start of each rotation cycle (Welcome slot),
-  // so weather data is ready before DateTimeWeather and weather-message slots.
-  useEffect(() => {
-    const slot = slots[index];
-    if (slot.type === 'special' && slot.component === Welcome) {
-      updateWeather(true);
-    }
-  }, [index, updateWeather]);
 
   // ─── Pick Random Message for "message" Slots ─────────────────────────────────
   // Whenever the slot index changes to a message, choose one valid at random.
@@ -233,6 +232,35 @@ export default function Rotator() {
     }
   }, [index, weatherMessages]);
 
+  // ─── Skip PrayerTable When All Prayers Have Passed ─────────────────────────────
+  // After Isha is finished for the day, skip the PrayerTable slot entirely.
+  useEffect(() => {
+    const slot = slots[index];
+    if (slot.type === 'special' && slot.component === PrayerTable && prayerTimes) {
+      const toMin = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+
+      // Check if all prayers have passed (Isha Jamaat is the last prayer)
+      const allTimes = [
+        toMin(prayerTimes.fajrJamaat),
+        toMin(prayerTimes.dhuhrJamaat),
+        toMin(prayerTimes.asrJamaat),
+        toMin(prayerTimes.maghrib),
+        toMin(prayerTimes.ishaJamaat),
+      ];
+      const allPassed = allTimes.every(t => currentMin > t);
+
+      if (allPassed) {
+        // Skip to next slot
+        setIndex(i => (i + 1) % slots.length);
+      }
+    }
+  }, [index, prayerTimes]);
+
   // ─── Advance Through Slots on Interval ───────────────────────────────────────
   // Every DISPLAY_MS, advance index by 1 (looping)
   useEffect(() => {
@@ -241,6 +269,14 @@ export default function Rotator() {
     }, DISPLAY_MS);
     return () => clearInterval(interval);
   }, []);
+
+  // ─── Debug: Advance on Key 2 Press ─────────────────────────────────────────────
+  // When rotatorAdvanceSignal changes (triggered by pressing "2"), advance to next slot
+  useEffect(() => {
+    if (rotatorAdvanceSignal > 0) {
+      setIndex(i => (i + 1) % slots.length);
+    }
+  }, [rotatorAdvanceSignal]);
 
   // ─── Helper: Apply Animation to Element ───────────────────────────────────────
   // Applies GSAP animation based on the animation config

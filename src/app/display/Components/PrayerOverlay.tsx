@@ -9,6 +9,7 @@ import {
 } from 'motion/react'
 import { useEffect, useState, ReactNode, useMemo, memo } from 'react'
 import { usePrayerTimesContext } from '../context/PrayerTimesContext'
+import { useDebugContext } from '../context/DebugContext'
 
 interface PrayerTime {
   name: string
@@ -27,6 +28,7 @@ const WINDOW_MS = 180 * 1000 // 3 minutes active window
 
 const PrayerOverlay = memo(function PrayerOverlay() {
   const { prayerTimes: rawTimes, isLoading } = usePrayerTimesContext()
+  const { prayerOverlayTestSignal } = useDebugContext()
 
   // ─── State: "now" ───────────────────────────────────────────
   const [now, setNow] = useState(() => new Date())
@@ -34,6 +36,43 @@ const PrayerOverlay = memo(function PrayerOverlay() {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
+
+  // ─── Debug: Test mode state (Key 3 triggers) ───────────────────────────────
+  const [testMode, setTestMode] = useState<'off' | 'countdown' | 'prayer'>('off')
+  const [testCountdown, setTestCountdown] = useState(10)
+
+  // When prayerOverlayTestSignal changes (Key 3 pressed), start test mode
+  useEffect(() => {
+    if (prayerOverlayTestSignal > 0) {
+      // Start with countdown phase
+      setTestMode('countdown')
+      setTestCountdown(10)
+    }
+  }, [prayerOverlayTestSignal])
+
+  // Handle test mode countdown and phase transitions
+  useEffect(() => {
+    if (testMode === 'off') return
+
+    const interval = setInterval(() => {
+      setTestCountdown(prev => {
+        if (prev <= 1) {
+          if (testMode === 'countdown') {
+            // Switch to prayer phase
+            setTestMode('prayer')
+            return 5 // Show "in progress" for 5 seconds
+          } else {
+            // End test mode
+            setTestMode('off')
+            return 0
+          }
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [testMode])
 
   // ─── Memoize prayer times array ─────────────────────────
   const prayerTimes = useMemo<PrayerTime[] | null>(() => {
@@ -74,65 +113,76 @@ const PrayerOverlay = memo(function PrayerOverlay() {
     return { nextPrayer: nextPr, phase: ph, secsUntil: secsUnt }
   }, [prayerTimes, now])
 
-  if (isLoading || !prayerTimes || !nextPrayer || phase === 'idle') {
+  // Determine effective phase and values (test mode overrides real values)
+  const effectivePhase = testMode !== 'off' ? testMode : phase
+  const effectiveSecsUntil = testMode === 'countdown' ? testCountdown : secsUntil
+  const effectivePrayerName = testMode !== 'off' ? 'Test Prayer' : nextPrayer?.name || ''
+
+  // Don't render if not in any active state
+  const shouldShow = testMode !== 'off' || (phase !== 'idle' && nextPrayer)
+
+  if (isLoading) {
     return null
   }
 
+  // AnimatePresence wraps the conditional to enable exit animations
   return (
     <AnimatePresence>
-      <ShrinkingOverlay>
-        <GradientOverlay />
+      {shouldShow && (
+        <ShrinkingOverlay key={testMode !== 'off' ? 'test' : 'real'}>
+          <GradientOverlay />
 
-        <AnimatePresence initial={false} mode="wait">
-          {phase === 'countdown' ? (
-            <motion.div
-              key="countdown"
-              className="countdown-text"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1, transition: { duration: 0.3 } }}
-              exit={{ scale: 0.8, opacity: 0, transition: { duration: 0.3 } }}
-            >
-              {secsUntil}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="prayer"
-              className="inprogress-text"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1, transition: { duration: 0.4 } }}
-              exit={{ y: 20, opacity: 0, transition: { duration: 0.4 } }}
-            >
-              {`${nextPrayer.name} in progress`}
-            </motion.div>
-          )}
-        </AnimatePresence>
+          <AnimatePresence initial={false} mode="wait">
+            {effectivePhase === 'countdown' ? (
+              <motion.div
+                key="countdown"
+                className="countdown-text"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1, transition: { duration: 0.3 } }}
+                exit={{ scale: 0.8, opacity: 0, transition: { duration: 0.3 } }}
+              >
+                {effectiveSecsUntil}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="prayer"
+                className="inprogress-text"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1, transition: { duration: 0.4 } }}
+                exit={{ y: -20, opacity: 0, transition: { duration: 0.4 } }}
+              >
+                {`${effectivePrayerName} in progress`}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <style>{`
-          .overlay-root {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.2);
-            color: var(--text-color);
-            overflow: hidden;
-            z-index: 50;
-          }
-          .countdown-text {
-            font-size: 6vw;
-            font-weight: bold;
-            color: var(--x-text-color);
-            z-index: 10;
-          }
-          .inprogress-text {
-            font-size: 5vh;
-            font-weight: 600;
-            color: var(--x-text-color);
-            z-index: 10;
-          }
-        `}</style>
-      </ShrinkingOverlay>
+          <style>{`
+            .overlay-root {
+              position: fixed;
+              inset: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: rgba(0,0,0,0.2);
+              color: var(--text-color);
+              overflow: hidden;
+              z-index: 50;
+            }
+            .countdown-text {
+              font-size: 6vw;
+              font-weight: bold;
+              color: var(--x-text-color);
+              z-index: 10;
+            }
+            .inprogress-text {
+              font-size: 5vh;
+              font-weight: 600;
+              color: var(--x-text-color);
+              z-index: 10;
+            }
+          `}</style>
+        </ShrinkingOverlay>
+      )}
     </AnimatePresence>
   )
 })
@@ -151,7 +201,7 @@ function ShrinkingOverlay({ children }: { children: ReactNode }) {
       clipPath: 'circle(0% at 50% 100%)',
       opacity: 0,
       backdropFilter: 'blur(0px)',
-      transition: { duration: 0.6, ease: 'easeInOut' },
+      transition: { duration: 0.8, ease: 'easeInOut' },
     },
   }), [])
 
@@ -173,6 +223,7 @@ function ShrinkingOverlay({ children }: { children: ReactNode }) {
 }
 
 const GradientOverlay = memo(function GradientOverlay() {
+  const [isPresent] = usePresence()
   const popCtrl     = useAnimation()
   const breatheCtrl = useAnimation()
 
@@ -195,6 +246,20 @@ const GradientOverlay = memo(function GradientOverlay() {
     play()
   }, [popCtrl, breatheCtrl])
 
+  // When exiting, reverse the animation
+  useEffect(() => {
+    if (!isPresent) {
+      // Stop breathing and shrink back
+      breatheCtrl.stop()
+      popCtrl.start({
+        scaleY: 0,
+        scaleX: 0,
+        opacity: 0,
+        transition: { duration: 0.6, ease: 'easeInOut' },
+      })
+    }
+  }, [isPresent, popCtrl, breatheCtrl])
+
   return (
     <div className="gradient-container">
       {/* big pop-blob */}
@@ -202,12 +267,6 @@ const GradientOverlay = memo(function GradientOverlay() {
         className="expanding-circle"
         initial={{ scaleX: 0, scaleY: 0, opacity: 1 }}
         animate={popCtrl}
-        exit={{
-          scaleY: 0,
-          scaleX: 0,
-          opacity: 0,
-          transition: { duration: 0.6, ease: 'easeInOut' },
-        }}
       />
 
       {/* breathing blobs for each CSS var */}
@@ -217,11 +276,6 @@ const GradientOverlay = memo(function GradientOverlay() {
           className={`gradient-circle ${cls}`}
           initial={{ scale: 1, opacity: 0.2 }}
           animate={breatheCtrl}
-          exit={{
-            scale: 0,
-            opacity: 0,
-            transition: { duration: 0.6, ease: 'easeInOut' },
-          }}
         />
       ))}
 
