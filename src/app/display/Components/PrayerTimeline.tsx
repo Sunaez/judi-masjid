@@ -54,12 +54,17 @@ const buildEvents = (data: RawPrayerTimes): Event[] => [
   { name: 'ʿIshā',       type: 'prayer',  timeString: data.ishaJamaat,  time: toDate(data.ishaJamaat)  },
 ]
 
+// Minimum pixel change required to trigger a scroll update
+const SCROLL_THRESHOLD = 5
+
 const PrayerTimeline = memo(function PrayerTimeline() {
   const { prayerTimes, isLoading } = usePrayerTimesContext()
 
   // refs
   const scrollRef = useRef<HTMLDivElement>(null)
   const innerRef  = useRef<HTMLDivElement>(null)
+  // Track last scroll position to avoid unnecessary updates
+  const lastScrollPosRef = useRef<number | null>(null)
 
   // state
   const [now, setNow] = useState<Date>(new Date())
@@ -83,19 +88,26 @@ const PrayerTimeline = memo(function PrayerTimeline() {
     return { events: evts, range: { start, end } }
   }, [prayerTimes])
 
-  // auto-center "now"
+  // auto-center "now" - only scroll if position changed significantly
   useEffect(() => {
     if (!range || !scrollRef.current || !innerRef.current) return
     const width = innerRef.current.scrollWidth
     const pct   = (now.getTime() - range.start.getTime()) /
                   (range.end.getTime() - range.start.getTime())
     const clamped = Math.max(0, Math.min(1, pct))
-    const scrollPos = clamped * width
+    const targetScrollPos = clamped * width - scrollRef.current.offsetWidth / 2
 
-    scrollRef.current.scrollTo({
-      left: scrollPos - scrollRef.current.offsetWidth / 2,
-      behavior: 'auto',
-    })
+    // Only scroll if position changed by more than threshold (avoids layout thrashing)
+    if (
+      lastScrollPosRef.current === null ||
+      Math.abs(targetScrollPos - lastScrollPosRef.current) > SCROLL_THRESHOLD
+    ) {
+      scrollRef.current.scrollTo({
+        left: targetScrollPos,
+        behavior: 'auto',
+      })
+      lastScrollPosRef.current = targetScrollPos
+    }
   }, [now, range])
 
   // Memoize compute offset function

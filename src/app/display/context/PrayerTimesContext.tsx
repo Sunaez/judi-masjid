@@ -1,7 +1,7 @@
 // src/app/display/context/PrayerTimesContext.tsx
 'use client';
 
-import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, useRef } from 'react';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesFromFirebase } from '@/app/hooks/usePrayerTimesFromFirebase';
 
@@ -61,14 +61,23 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     return now.getHours() * 60 + now.getMinutes();
   });
 
-  // Check if we're in Ramadan period (updates daily at midnight via parent refresh)
-  const isRamadan = useMemo(() => isRamadanPeriod(), []);
+  // Track the current day to detect day changes for Ramadan recalculation
+  const [currentDay, setCurrentDay] = useState(() => new Date().getDate());
+
+  // Check if we're in Ramadan period - recalculates when day changes
+  const isRamadan = useMemo(() => isRamadanPeriod(), [currentDay]);
+
+  // Ref to store the interval ID so we can clean it up properly
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Update current minutes every minute
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setCurrentMinutes(now.getHours() * 60 + now.getMinutes());
+      // Check if day has changed (for Ramadan recalculation)
+      const newDay = now.getDate();
+      setCurrentDay(prev => prev !== newDay ? newDay : prev);
     };
 
     // Calculate ms until next minute
@@ -78,12 +87,18 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     // Initial sync to the start of the next minute
     const syncTimeout = setTimeout(() => {
       updateTime();
-      // Then update every minute
-      const interval = setInterval(updateTime, 60_000);
-      return () => clearInterval(interval);
+      // Then update every minute - store in ref for cleanup
+      intervalRef.current = setInterval(updateTime, 60_000);
     }, msUntilNextMinute);
 
-    return () => clearTimeout(syncTimeout);
+    // Cleanup both timeout AND interval
+    return () => {
+      clearTimeout(syncTimeout);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, []);
 
   // Calculate if we're in downtime
