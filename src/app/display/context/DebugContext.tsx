@@ -1,11 +1,13 @@
 // src/app/display/context/DebugContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
 
 interface DebugContextValue {
   // Override for downtime mode (true = downtime, false = normal)
   downtimeOverride: boolean;
+  // Whether the override has been manually activated (vs using automatic detection)
+  downtimeOverrideActive: boolean;
   toggleDowntimeOverride: () => void;
 
   // Signal to advance rotator to next slot
@@ -27,6 +29,7 @@ const KEYBINDS = [
   { key: '1', description: 'Toggle between Normal and Off-Peak display mode' },
   { key: '2', description: 'Skip to the next rotator section' },
   { key: '3', description: 'Test the prayer overlay (10s countdown + 5s in progress)' },
+  { key: '4', description: 'Toggle between Light and Dark mode' },
   { key: 'H', description: 'Show/hide this help menu' },
 ];
 
@@ -37,15 +40,20 @@ const KEYBINDS = [
  * - 1: Toggle between normal and off-peak (downtime) mode
  * - 2: Advance to next rotator section
  * - 3: Force test prayer overlay
+ * - 4: Toggle between light and dark mode
  * - H: Show/hide keybinds help
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
   const [downtimeOverride, setDowntimeOverride] = useState<boolean>(false);
+  const [downtimeOverrideActive, setDowntimeOverrideActive] = useState<boolean>(false);
   const [rotatorAdvanceSignal, setRotatorAdvanceSignal] = useState(0);
   const [prayerOverlayTestSignal, setPrayerOverlayTestSignal] = useState(0);
   const [notification, setNotification] = useState('');
   const [showHint, setShowHint] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Ref to track notification timeout for cleanup
+  const notificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Hide initial hint after 3 seconds
   useEffect(() => {
@@ -53,16 +61,33 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Show notification for 1 second
+  // Cleanup notification timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Show notification for 1 second - with proper cleanup
   const showNotification = useCallback((message: string) => {
+    // Clear any pending timeout to prevent stale updates
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+    }
     setNotification(message);
-    setTimeout(() => setNotification(''), 1000);
+    notificationTimeoutRef.current = setTimeout(() => {
+      setNotification('');
+      notificationTimeoutRef.current = null;
+    }, 1000);
   }, []);
 
   const toggleDowntimeOverride = useCallback(() => {
+    setDowntimeOverrideActive(true); // Mark override as manually activated
     setDowntimeOverride(prev => {
       const newValue = !prev;
-      showNotification(newValue ? 'Off-Peak Mode' : 'Normal Mode');
+      showNotification(newValue ? 'Off-Peak Mode (Manual)' : 'Normal Mode (Manual)');
       return newValue;
     });
   }, [showNotification]);
@@ -82,7 +107,41 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     setShowHint(false); // Hide hint when help is toggled
   }, []);
 
-  // Keyboard event handler
+  const toggleTheme = useCallback(() => {
+    const html = document.documentElement;
+    const isDark = html.classList.contains('dark');
+    if (isDark) {
+      html.classList.remove('dark');
+      showNotification('Light Mode');
+    } else {
+      html.classList.add('dark');
+      showNotification('Dark Mode');
+    }
+  }, [showNotification]);
+
+  // Ref to store current handlers - avoids re-attaching event listener
+  const handlersRef = useRef({
+    toggleDowntimeOverride,
+    advanceRotator,
+    testPrayerOverlay,
+    toggleTheme,
+    toggleHelp,
+    showHelp,
+  });
+
+  // Update handlers ref when callbacks change (but don't re-attach listener)
+  useEffect(() => {
+    handlersRef.current = {
+      toggleDowntimeOverride,
+      advanceRotator,
+      testPrayerOverlay,
+      toggleTheme,
+      toggleHelp,
+      showHelp,
+    };
+  }, [toggleDowntimeOverride, advanceRotator, testPrayerOverlay, toggleTheme, toggleHelp, showHelp]);
+
+  // Keyboard event handler - attached once, reads from ref
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input
@@ -90,28 +149,34 @@ export function DebugProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const handlers = handlersRef.current;
+
       switch (e.key.toLowerCase()) {
         case '1':
-          if (!showHelp) toggleDowntimeOverride();
+          if (!handlers.showHelp) handlers.toggleDowntimeOverride();
           break;
         case '2':
-          if (!showHelp) advanceRotator();
+          if (!handlers.showHelp) handlers.advanceRotator();
           break;
         case '3':
-          if (!showHelp) testPrayerOverlay();
+          if (!handlers.showHelp) handlers.testPrayerOverlay();
+          break;
+        case '4':
+          if (!handlers.showHelp) handlers.toggleTheme();
           break;
         case 'h':
-          toggleHelp();
+          handlers.toggleHelp();
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleDowntimeOverride, advanceRotator, testPrayerOverlay, toggleHelp, showHelp]);
+  }, []); // Empty deps - listener attached once
 
   const value: DebugContextValue = {
     downtimeOverride,
+    downtimeOverrideActive,
     toggleDowntimeOverride,
     rotatorAdvanceSignal,
     advanceRotator,
@@ -120,29 +185,100 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     notification,
   };
 
+  // Memoized styles to avoid recreating objects on every render
+  const popupBaseStyle = useMemo(() => ({
+    position: 'fixed' as const,
+    bottom: '2rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    color: 'white',
+    padding: '0.75rem 1.5rem',
+    borderRadius: '0.5rem',
+    fontSize: '1rem',
+    fontWeight: 500,
+    zIndex: 9999,
+    pointerEvents: 'none' as const,
+  }), []);
+
+  const hintStyle = useMemo(() => ({
+    ...popupBaseStyle,
+    animation: 'hintFadeInOut 3s ease-in-out',
+  }), [popupBaseStyle]);
+
+  const notificationStyle = useMemo(() => ({
+    ...popupBaseStyle,
+    animation: 'fadeInOut 1s ease-in-out',
+  }), [popupBaseStyle]);
+
+  const helpOverlayStyle = useMemo(() => ({
+    position: 'fixed' as const,
+    inset: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000,
+    animation: 'helpFadeIn 0.2s ease-out',
+  }), []);
+
+  const helpModalStyle = useMemo(() => ({
+    backgroundColor: '#1a1a1a',
+    borderRadius: '1rem',
+    padding: '2rem',
+    maxWidth: '500px',
+    width: '90%',
+    color: 'white',
+  }), []);
+
+  const helpTitleStyle = useMemo(() => ({
+    margin: '0 0 1.5rem 0',
+    fontSize: '1.5rem',
+    fontWeight: 600,
+  }), []);
+
+  const helpListStyle = useMemo(() => ({
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '1rem',
+  }), []);
+
+  const helpItemStyle = useMemo(() => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+  }), []);
+
+  const helpKeyStyle = useMemo(() => ({
+    backgroundColor: '#333',
+    padding: '0.5rem 0.75rem',
+    borderRadius: '0.375rem',
+    fontFamily: 'monospace',
+    fontSize: '1rem',
+    fontWeight: 600,
+    minWidth: '2.5rem',
+    textAlign: 'center' as const,
+  }), []);
+
+  const helpDescStyle = useMemo(() => ({
+    fontSize: '0.95rem',
+    opacity: 0.9,
+  }), []);
+
+  const helpFooterStyle = useMemo(() => ({
+    marginTop: '2rem',
+    textAlign: 'center' as const,
+    opacity: 0.6,
+    fontSize: '0.875rem',
+  }), []);
+
   return (
     <DebugContext.Provider value={value}>
       {children}
 
       {/* Initial hint popup (3 seconds on load) */}
       {showHint && !showHelp && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '2rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '0.5rem',
-            fontSize: '1rem',
-            fontWeight: 500,
-            zIndex: 9999,
-            pointerEvents: 'none',
-            animation: 'hintFadeInOut 3s ease-in-out',
-          }}
-        >
+        <div style={hintStyle}>
           Press <strong>H</strong> for keybinds help
           <style>{`
             @keyframes hintFadeInOut {
@@ -157,23 +293,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
 
       {/* Notification popup */}
       {notification && !showHelp && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '2rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '0.5rem',
-            fontSize: '1rem',
-            fontWeight: 500,
-            zIndex: 9999,
-            pointerEvents: 'none',
-            animation: 'fadeInOut 1s ease-in-out',
-          }}
-        >
+        <div style={notificationStyle}>
           {notification}
           <style>{`
             @keyframes fadeInOut {
@@ -188,69 +308,24 @@ export function DebugProvider({ children }: { children: ReactNode }) {
 
       {/* Help modal */}
       {showHelp && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            animation: 'helpFadeIn 0.2s ease-out',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#1a1a1a',
-              borderRadius: '1rem',
-              padding: '2rem',
-              maxWidth: '500px',
-              width: '90%',
-              color: 'white',
-            }}
-          >
-            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: 600 }}>
+        <div style={helpOverlayStyle}>
+          <div style={helpModalStyle}>
+            <h2 style={helpTitleStyle}>
               Keyboard Shortcuts
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={helpListStyle}>
               {KEYBINDS.map(({ key, description }) => (
-                <div
-                  key={key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                  }}
-                >
-                  <span
-                    style={{
-                      backgroundColor: '#333',
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '0.375rem',
-                      fontFamily: 'monospace',
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      minWidth: '2.5rem',
-                      textAlign: 'center',
-                    }}
-                  >
+                <div key={key} style={helpItemStyle}>
+                  <span style={helpKeyStyle}>
                     {key}
                   </span>
-                  <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
+                  <span style={helpDescStyle}>
                     {description}
                   </span>
                 </div>
               ))}
             </div>
-            <div
-              style={{
-                marginTop: '2rem',
-                textAlign: 'center',
-                opacity: 0.6,
-                fontSize: '0.875rem',
-              }}
-            >
+            <div style={helpFooterStyle}>
               Press <strong>H</strong> to close
             </div>
           </div>
