@@ -29,6 +29,7 @@ const KEYBINDS = [
   { key: '1', description: 'Toggle between Normal and Off-Peak display mode' },
   { key: '2', description: 'Skip to the next rotator section' },
   { key: '3', description: 'Test the prayer overlay (10s countdown + 5s in progress)' },
+  { key: '4', description: 'Toggle between Light and Dark mode' },
   { key: 'H', description: 'Show/hide this help menu' },
 ];
 
@@ -39,6 +40,7 @@ const KEYBINDS = [
  * - 1: Toggle between normal and off-peak (downtime) mode
  * - 2: Advance to next rotator section
  * - 3: Force test prayer overlay
+ * - 4: Toggle between light and dark mode
  * - H: Show/hide keybinds help
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
@@ -86,6 +88,18 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     setShowHint(false); // Hide hint when help is toggled
   }, []);
 
+  const toggleTheme = useCallback(() => {
+    const html = document.documentElement;
+    const isDark = html.classList.contains('dark');
+    if (isDark) {
+      html.classList.remove('dark');
+      showNotification('Light Mode');
+    } else {
+      html.classList.add('dark');
+      showNotification('Dark Mode');
+    }
+  }, [showNotification]);
+
   // Keyboard event handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -104,6 +118,9 @@ export function DebugProvider({ children }: { children: ReactNode }) {
         case '3':
           if (!showHelp) testPrayerOverlay();
           break;
+        case '4':
+          if (!showHelp) toggleTheme();
+          break;
         case 'h':
           toggleHelp();
           break;
@@ -112,7 +129,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleDowntimeOverride, advanceRotator, testPrayerOverlay, toggleHelp, showHelp]);
+  }, [toggleDowntimeOverride, advanceRotator, testPrayerOverlay, toggleTheme, toggleHelp, showHelp]);
 
   const value: DebugContextValue = {
     downtimeOverride,
