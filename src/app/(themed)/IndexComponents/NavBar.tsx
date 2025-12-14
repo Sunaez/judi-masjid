@@ -79,8 +79,8 @@ export default function NavBar() {
         {/* Weather display with entry animation */}
         {isLoadingWeather ? (
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"></div>
-            <div className="w-32 h-4 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"></div>
+            <div className="w-8 h-8 rounded animate-pulse" style={{ backgroundColor: 'var(--skeleton-bg)' }}></div>
+            <div className="w-32 h-4 rounded animate-pulse" style={{ backgroundColor: 'var(--skeleton-bg)' }}></div>
           </div>
         ) : weather ? (
           <motion.div

@@ -139,7 +139,7 @@ export default function PrayerTimeline() {
   if (isLoading || !range) {
     return (
       <div className="animate-pulse py-12">
-        <div className="h-16 bg-gray-300 dark:bg-gray-700 rounded"></div>
+        <div className="h-16 rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }}></div>
       </div>
     )
   }
@@ -237,7 +237,7 @@ export default function PrayerTimeline() {
         </div>
       </div>
 
-      <p className="text-center text-sm text-gray-600 mt-4">
+      <p className="text-center text-sm mt-4" style={{ color: 'var(--text-muted)' }}>
         • Maghrib and Isha are prayed at the Athaan (no separate jamaʿāh time)
       </p>
 

@@ -186,13 +186,14 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   };
 
   // Memoized styles to avoid recreating objects on every render
+  // Using CSS variables from globals.css for consistent theming
   const popupBaseStyle = useMemo(() => ({
     position: 'fixed' as const,
     bottom: '2rem',
     left: '50%',
     transform: 'translateX(-50%)',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    color: 'white',
+    backgroundColor: 'var(--popup-bg)',
+    color: 'var(--static-dark-text-color)',
     padding: '0.75rem 1.5rem',
     borderRadius: '0.5rem',
     fontSize: '1rem',
@@ -214,7 +215,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   const helpOverlayStyle = useMemo(() => ({
     position: 'fixed' as const,
     inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'var(--overlay-darkest)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -223,12 +224,12 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   }), []);
 
   const helpModalStyle = useMemo(() => ({
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'var(--modal-bg)',
     borderRadius: '1rem',
     padding: '2rem',
     maxWidth: '500px',
     width: '90%',
-    color: 'white',
+    color: 'var(--static-dark-text-color)',
   }), []);
 
   const helpTitleStyle = useMemo(() => ({
@@ -250,7 +251,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   }), []);
 
   const helpKeyStyle = useMemo(() => ({
-    backgroundColor: '#333',
+    backgroundColor: 'var(--modal-bg-secondary)',
     padding: '0.5rem 0.75rem',
     borderRadius: '0.375rem',
     fontFamily: 'monospace',

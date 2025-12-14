@@ -201,15 +201,9 @@ const PrayerOverlay = memo(function PrayerOverlay() {
               z-index: 50;
             }
 
-            /* Light mode: light blur overlay */
+            /* Theme-aware blur overlay - uses CSS variables */
             .overlay-root {
-              background: rgba(245, 228, 211, 0.85);
-              backdrop-filter: blur(20px);
-            }
-
-            /* Dark mode: dark blur overlay */
-            html.dark .overlay-root {
-              background: rgba(21, 49, 71, 0.9);
+              background: var(--prayer-overlay-bg);
               backdrop-filter: blur(20px);
             }
 
@@ -235,7 +229,7 @@ const PrayerOverlay = memo(function PrayerOverlay() {
               font-weight: 800;
               line-height: 1;
               color: var(--text-color);
-              text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+              text-shadow: 0 4px 20px var(--shadow-color);
             }
 
             .countdown-label {
@@ -259,7 +253,7 @@ const PrayerOverlay = memo(function PrayerOverlay() {
               font-weight: 800;
               line-height: 1;
               color: var(--text-color);
-              text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+              text-shadow: 0 4px 20px var(--shadow-color);
             }
 
             .prayer-status {
@@ -281,16 +275,12 @@ const PrayerOverlay = memo(function PrayerOverlay() {
               align-items: center;
               gap: 1.5rem;
               padding: 1.5rem 2.5rem;
-              background: var(--secondary-color);
+              background: var(--phone-reminder-bg);
               border-radius: 1rem;
               color: var(--text-color);
               font-size: 2.5vh;
               font-weight: 500;
               opacity: 0.95;
-            }
-
-            html.dark .phone-reminder {
-              background: rgba(173, 184, 187, 0.2);
             }
 
             .phone-icon {

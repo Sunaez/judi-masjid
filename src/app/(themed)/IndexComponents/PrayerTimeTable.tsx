@@ -42,10 +42,10 @@ type TableTimes = Omit<RawPrayerTimes, 'sunrise'>
 function TableSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="h-8 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mx-auto mb-4"></div>
+      <div className="h-8 rounded w-3/4 mx-auto mb-4" style={{ backgroundColor: 'var(--skeleton-bg)' }}></div>
       <div className="space-y-2">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-12 bg-gray-300 dark:bg-gray-700 rounded"></div>
+          <div key={i} className="h-12 rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }}></div>
         ))}
       </div>
     </div>

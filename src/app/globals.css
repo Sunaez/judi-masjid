@@ -12,7 +12,7 @@
   --secondary-color:      #ADB8BB; /* Mist */
   --yellow:               #FFD700; /* Sun accent */
 
-  /*──────────────────────── “x-” Palette (pre-declared dark values) ────────*/
+  /*──────────────────────── "x-" Palette (pre-declared dark values) ────────*/
   --x-background-start:   #153147; /* Navy */
   --x-background-end:     #232A2F; /* Noir */
   --x-text-color:         #F9F8F7; /* Ivory */
@@ -22,7 +22,7 @@
 
   /*────────────────────────── Static Light-mode Vars ───────────────────────
      These never change—even when html.dark overrides the dynamic vars.
-     Use these when you want the “day-palette” hard-locked.
+     Use these when you want the "day-palette" hard-locked.
   ──────────────────────────────────────────────────────────────────────────*/
   --static-light-background-start: #f5e4d3;
   --static-light-background-end:   #F9F8F7;
@@ -33,7 +33,7 @@
 
   /*────────────────────────── Static Dark-mode Vars ────────────────────────
      These never change—even in html.light. Use when you want the
-     “night-palette” hard-locked.
+     "night-palette" hard-locked.
   ──────────────────────────────────────────────────────────────────────────*/
   --static-dark-background-start:  #153147;
   --static-dark-background-end:    #232A2F;
@@ -41,6 +41,65 @@
   --static-dark-accent-color:      #eedecf;
   --static-dark-secondary-color:   #ADB8BB;
   --static-dark-yellow:            #FFD700;
+
+  /*────────────────────────── Status & Semantic Colors ─────────────────────
+     Used for success/error/warning/info states throughout the app.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --status-success:       #16a34a; /* green-600 */
+  --status-success-light: #86efac; /* green-300 */
+  --status-error:         #dc2626; /* red-600 */
+  --status-error-light:   #fca5a5; /* red-300 */
+  --status-warning:       #d97706; /* amber-600 */
+  --status-warning-light: #fcd34d; /* amber-300 */
+  --status-info:          #2563eb; /* blue-600 */
+  --status-info-light:    #93c5fd; /* blue-300 */
+
+  /*────────────────────────── Action Button Colors ─────────────────────────
+     Consistent button colors for primary actions.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --action-primary:       #2563eb; /* blue-600 */
+  --action-primary-hover: #1d4ed8; /* blue-700 */
+  --action-success:       #16a34a; /* green-600 */
+  --action-success-hover: #15803d; /* green-700 */
+  --action-danger:        #dc2626; /* red-600 */
+  --action-danger-hover:  #b91c1c; /* red-700 */
+  --action-cancel:        #6b7280; /* gray-500 */
+  --action-cancel-hover:  #4b5563; /* gray-600 */
+  --button-disabled:      #9ca3af; /* gray-400 */
+
+  /*────────────────────────── Text Variants ────────────────────────────────
+     Secondary and muted text colors.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --text-muted:           #6b7280; /* gray-500 */
+  --text-muted-light:     #9ca3af; /* gray-400 */
+
+  /*────────────────────────── Skeleton Loaders ─────────────────────────────
+     Loading placeholder colors.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --skeleton-bg:          #d1d5db; /* gray-300 */
+  --skeleton-shine:       #e5e7eb; /* gray-200 */
+
+  /*────────────────────────── Overlays & Shadows ───────────────────────────
+     Semi-transparent overlays and shadows.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --overlay-dark:         rgba(0, 0, 0, 0.3);
+  --overlay-darker:       rgba(0, 0, 0, 0.5);
+  --overlay-darkest:      rgba(0, 0, 0, 0.85);
+  --overlay-light:        rgba(255, 255, 255, 0.3);
+  --shadow-color:         rgba(0, 0, 0, 0.2);
+
+  /*────────────────────────── Modal & Popup Colors ─────────────────────────
+     Colors for modals, popups, and tooltips.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --modal-bg:             #1a1a1a;
+  --modal-bg-secondary:   #333333;
+  --popup-bg:             rgba(0, 0, 0, 0.8);
+
+  /*────────────────────────── Prayer Overlay Colors ──────────────────────────
+     Theme-aware overlay backgrounds for prayer countdown/in-progress.
+  ──────────────────────────────────────────────────────────────────────────*/
+  --prayer-overlay-bg:    rgba(245, 228, 211, 0.85); /* Light: Almond with opacity */
+  --phone-reminder-bg:    var(--secondary-color);    /* Uses theme secondary */
 }
 
 /*──────────────────────────────────────────────────────────────────────────
@@ -62,4 +121,16 @@ html.dark {
   --x-accent-color:       #153147;
   --x-secondary-color:    #ADB8BB;
   --x-yellow:             #FFD700;
+
+  /*────────────────────────── Dark-mode Skeleton Loaders ──────────────────*/
+  --skeleton-bg:          #374151; /* gray-700 */
+  --skeleton-shine:       #4b5563; /* gray-600 */
+
+  /*────────────────────────── Dark-mode Text Muted ────────────────────────*/
+  --text-muted:           #9ca3af; /* gray-400 */
+  --text-muted-light:     #6b7280; /* gray-500 */
+
+  /*────────────────────────── Dark-mode Prayer Overlay ───────────────────────*/
+  --prayer-overlay-bg:    rgba(21, 49, 71, 0.9); /* Dark: Navy with opacity */
+  --phone-reminder-bg:    rgba(173, 184, 187, 0.2); /* Mist with transparency */
 }

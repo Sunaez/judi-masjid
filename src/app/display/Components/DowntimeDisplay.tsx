@@ -178,7 +178,7 @@ export default function DowntimeDisplay() {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'rgba(0, 0, 0, 0.3)',
+          background: 'var(--overlay-dark)',
         }}
       />
 
