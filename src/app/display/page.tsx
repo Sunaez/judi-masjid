@@ -120,7 +120,13 @@ function DisplayContent() {
   // Show loading state briefly
   if (isLoading) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-black text-white">
+      <div
+        className="w-full h-screen flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(var(--background-start), var(--background-end))',
+          color: 'var(--text-color)',
+        }}
+      >
         <div className="text-2xl opacity-50">Loading...</div>
       </div>
     );
