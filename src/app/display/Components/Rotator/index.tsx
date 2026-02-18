@@ -1,7 +1,7 @@
 // src/app/display/Components/Rotator/index.tsx
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';
 import useMessages, { MessageWithConditions } from './Messages';
 import useValidMessages, { useWeatherMessages } from './Conditions';
@@ -11,12 +11,15 @@ import DateTimeWeather from './Specials/DateTimeWeather';
 import Donation from './Specials/Donation';
 import Feedback from './Specials/Feedback';
 import PrayerTable from './Specials/PrayerTable';
+import Taraweh from './Specials/Taraweh';
 import Footer from './Footer';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
 import { useDebugContext } from '@/app/display/context/DebugContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getRotatorSlotOrder, type RotatorSlotKey } from './slotConfig';
+import { addMinutesToTime } from '@/lib/prayerTimeUtils';
 
 // Environment variable keys for OpenWeather API
 const OPENWEATHER_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY!;
@@ -33,16 +36,39 @@ const WEATHER_API_COOLDOWN = 5 * 60 * 1000;
 // Interval at which to check weather cache (1 minute)
 const WEATHER_CHECK_INTERVAL = 60 * 1000;
 
-// Order of slots: specials (custom components) and messages
-const slots = [
-  { type: 'special', component: Welcome },
-  { type: 'special', component: PrayerTable },
-  { type: 'message' },
-  { type: 'special', component: DateTimeWeather },
-  { type: 'weather-message' },  // Weather-conditional message after weather display
-  { type: 'special', component: Donation },
-  { type: 'special', component: Feedback },
-];
+type RotatorSlot =
+  | { type: 'message'; key: 'message' }
+  | { type: 'weather-message'; key: 'weather-message' }
+  | {
+      type: 'special';
+      key: Exclude<RotatorSlotKey, 'message' | 'weather-message'>;
+      component: React.ComponentType<any>;
+    };
+
+function buildSlots(isRamadan: boolean): RotatorSlot[] {
+  return getRotatorSlotOrder(isRamadan).map((key): RotatorSlot => {
+    if (key === 'message') return { type: 'message', key }
+    if (key === 'weather-message') return { type: 'weather-message', key }
+
+    const componentMap: Record<
+      Exclude<RotatorSlotKey, 'message' | 'weather-message'>,
+      React.ComponentType<any>
+    > = {
+      welcome: Welcome,
+      'prayer-table': PrayerTable,
+      taraweh: Taraweh,
+      'date-time-weather': DateTimeWeather,
+      donation: Donation,
+      feedback: Feedback,
+    }
+
+    return {
+      type: 'special',
+      key,
+      component: componentMap[key],
+    }
+  })
+}
 
 interface WeatherData {
   temp: number;
@@ -56,9 +82,11 @@ export default function Rotator() {
   // Raw messages fetched from various sources
   const all = useMessages();
   // Prayer times from Firebase context
-  const { prayerTimes } = usePrayerTimesContext();
-  // Debug context for keyboard shortcuts (Key 2 advances to next slot)
-  const { rotatorAdvanceSignal } = useDebugContext();
+  const { prayerTimes, isRamadan, isFirstTenRamadanDays } = usePrayerTimesContext();
+  // Debug context for keyboard shortcuts
+  const { rotatorAdvanceSignal, ramadanPreviewActive } = useDebugContext();
+  const effectiveRamadan = isRamadan || ramadanPreviewActive;
+  const effectiveFirstTenRamadanDays = isFirstTenRamadanDays || ramadanPreviewActive;
   // Current + forecast weather data
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // Counter to trigger re-renders after prayer times +1min
@@ -67,6 +95,8 @@ export default function Rotator() {
   const valid = useValidMessages(all, prayerTimes, weatherData?.condition || null);
   // Filter messages that have weather conditions matching current weather
   const weatherMessages = useWeatherMessages(all, weatherData?.condition || null);
+  // Build slot order dynamically (Taraweh slot only during Ramadan)
+  const slots = useMemo(() => buildSlots(effectiveRamadan), [effectiveRamadan]);
 
   // Index of the current slot (cycles through `slots`)
   const [index, setIndex] = useState(0);
@@ -81,6 +111,11 @@ export default function Rotator() {
   // Refs for message text elements to apply custom animations
   const arabicTextRef = useRef<HTMLDivElement>(null);
   const englishTextRef = useRef<HTMLDivElement>(null);
+
+  // Keep index valid if slot count changes (e.g. Ramadan starts/ends)
+  useEffect(() => {
+    setIndex(prev => prev % slots.length);
+  }, [slots.length]);
 
   // ─── Schedule Re-Render After Jama‘at/Maghrib ─────────────────────────────────
   // Sets up a timeout for each prayer's jama‘at time +1 minute or maghrib +1 minute.
@@ -207,7 +242,10 @@ export default function Rotator() {
   // ─── Pick Random Message for "message" Slots ─────────────────────────────────
   // Whenever the slot index changes to a message, choose one valid at random.
   useEffect(() => {
-    if (slots[index].type === 'message') {
+    const slot = slots[index];
+    if (!slot) return;
+
+    if (slot.type === 'message') {
       if (valid.length > 0) {
         const random = Math.floor(Math.random() * valid.length);
         setCurrentMessage(valid[random]);
@@ -215,13 +253,16 @@ export default function Rotator() {
         setCurrentMessage(null);
       }
     }
-  }, [index, valid]);
+  }, [index, valid, slots]);
 
   // ─── Pick Random Weather Message for "weather-message" Slots ─────────────────
   // Whenever the slot index changes to a weather-message, choose one matching at random.
   // If no matching messages exist, skip to the next slot immediately.
   useEffect(() => {
-    if (slots[index].type === 'weather-message') {
+    const slot = slots[index];
+    if (!slot) return;
+
+    if (slot.type === 'weather-message') {
       if (weatherMessages.length > 0) {
         const random = Math.floor(Math.random() * weatherMessages.length);
         setCurrentWeatherMessage(weatherMessages[random]);
@@ -230,13 +271,15 @@ export default function Rotator() {
         setIndex(i => (i + 1) % slots.length);
       }
     }
-  }, [index, weatherMessages]);
+  }, [index, weatherMessages, slots]);
 
   // ─── Skip PrayerTable When All Prayers Have Passed ─────────────────────────────
   // After Isha is finished for the day, skip the PrayerTable slot entirely.
   useEffect(() => {
     const slot = slots[index];
-    if (slot.type === 'special' && slot.component === PrayerTable && prayerTimes) {
+    if (!slot) return;
+
+    if (slot.type === 'special' && (slot.key === 'prayer-table' || slot.key === 'taraweh') && prayerTimes) {
       const toMin = (t: string) => {
         const [h, m] = t.split(':').map(Number);
         return h * 60 + m;
@@ -244,7 +287,7 @@ export default function Rotator() {
       const now = new Date();
       const currentMin = now.getHours() * 60 + now.getMinutes();
 
-      // Check if all prayers have passed (Isha Jamaat is the last prayer)
+      // Check if all relevant prayers have passed (Taraweh is last during Ramadan)
       const allTimes = [
         toMin(prayerTimes.fajrJamaat),
         toMin(prayerTimes.dhuhrJamaat),
@@ -252,6 +295,9 @@ export default function Rotator() {
         toMin(prayerTimes.maghrib),
         toMin(prayerTimes.ishaJamaat),
       ];
+      if (effectiveRamadan) {
+        allTimes.push(toMin(addMinutesToTime(prayerTimes.ishaJamaat, 20)));
+      }
       const allPassed = allTimes.every(t => currentMin > t);
 
       if (allPassed) {
@@ -259,7 +305,7 @@ export default function Rotator() {
         setIndex(i => (i + 1) % slots.length);
       }
     }
-  }, [index, prayerTimes]);
+  }, [index, prayerTimes, slots, effectiveRamadan]);
 
   // ─── Advance Through Slots on Interval ───────────────────────────────────────
   // Every DISPLAY_MS, advance index by 1 (looping)
@@ -268,7 +314,7 @@ export default function Rotator() {
       setIndex(i => (i + 1) % slots.length);
     }, DISPLAY_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [slots.length]);
 
   // ─── Debug: Advance on Key 2 Press ─────────────────────────────────────────────
   // When rotatorAdvanceSignal changes (triggered by pressing "2"), advance to next slot
@@ -276,7 +322,7 @@ export default function Rotator() {
     if (rotatorAdvanceSignal > 0) {
       setIndex(i => (i + 1) % slots.length);
     }
-  }, [rotatorAdvanceSignal]);
+  }, [rotatorAdvanceSignal, slots.length]);
 
   // ─── Helper: Apply Animation to Element ───────────────────────────────────────
   // Applies GSAP animation based on the animation config
@@ -399,6 +445,8 @@ export default function Rotator() {
   // Applies custom animations to Arabic and English text when message changes
   useEffect(() => {
     const slot = slots[index];
+    if (!slot) return;
+
     const msg = slot.type === 'message' ? currentMessage : slot.type === 'weather-message' ? currentWeatherMessage : null;
 
     if (!msg) return;
@@ -431,7 +479,7 @@ export default function Rotator() {
     }, 100);
 
     return () => clearTimeout(timeout);
-  }, [index, currentMessage, currentWeatherMessage, applyAnimation]);
+  }, [index, currentMessage, currentWeatherMessage, applyAnimation, slots]);
 
   // ─── GSAP Entry/Exit Animation ───────────────────────────────────────────────
   // Runs on every change of `index` or `prayerRefresh` to replay the fade-in/progress/fade-out.
@@ -461,7 +509,9 @@ export default function Rotator() {
   }, [index, prayerRefresh]);
 
   // ─── Render Logic ───────────────────────────────────────────────────────────
-  const slot = slots[index];
+  const slot = slots[index] ?? slots[0];
+  if (!slot) return null;
+
   let content: React.ReactNode;
 
   // Helper to render a message (used by both 'message' and 'weather-message' slots)
@@ -517,15 +567,22 @@ export default function Rotator() {
     // Render a special component with its specific props
     const Special = slot.component as React.ComponentType<any>;
     const specialProps: Record<string, any> =
-      Special === DateTimeWeather
+      slot.key === 'date-time-weather'
         ? {
             temperature: weatherData?.temp ?? 0,
             condition: weatherData?.condition ?? 'Unknown',
             iconCode: weatherData?.iconCode ?? '01d',
             displayDuration: DISPLAY_MS,
           }
-        : Special === PrayerTable
+        : slot.key === 'prayer-table'
         ? { prayerTimes, displayDuration: DISPLAY_MS }
+        : slot.key === 'taraweh'
+        ? {
+            displayDuration: DISPLAY_MS,
+            tarawehTime: prayerTimes ? addMinutesToTime(prayerTimes.ishaJamaat, 20) : '--:--',
+          }
+        : slot.key === 'welcome'
+        ? { displayDuration: DISPLAY_MS, showRamadanGreeting: effectiveFirstTenRamadanDays }
         : { displayDuration: DISPLAY_MS };
 
     content = (

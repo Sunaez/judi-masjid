@@ -18,6 +18,14 @@ interface DebugContextValue {
   prayerOverlayTestSignal: number;
   testPrayerOverlay: () => void;
 
+  // Signal to force post-prayer table preview
+  postPrayerTableTestSignal: number;
+  testPostPrayerTable: () => void;
+
+  // Toggle Ramadan visual preview mode for quick testing
+  ramadanPreviewActive: boolean;
+  toggleRamadanPreview: () => void;
+
   // Current notification message (empty = hidden)
   notification: string;
 }
@@ -30,6 +38,8 @@ const KEYBINDS = [
   { key: '2', description: 'Skip to the next rotator section' },
   { key: '3', description: 'Test the prayer overlay (10s countdown + 5s in progress)' },
   { key: '4', description: 'Toggle between Light and Dark mode' },
+  { key: '5', description: 'Preview post-prayer table overlay (short test)' },
+  { key: '6', description: 'Toggle Ramadan preview visuals (short test mode)' },
   { key: 'H', description: 'Show/hide this help menu' },
 ];
 
@@ -41,6 +51,8 @@ const KEYBINDS = [
  * - 2: Advance to next rotator section
  * - 3: Force test prayer overlay
  * - 4: Toggle between light and dark mode
+ * - 5: Force short post-prayer table preview
+ * - 6: Toggle Ramadan preview visuals
  * - H: Show/hide keybinds help
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
@@ -48,6 +60,8 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   const [downtimeOverrideActive, setDowntimeOverrideActive] = useState<boolean>(false);
   const [rotatorAdvanceSignal, setRotatorAdvanceSignal] = useState(0);
   const [prayerOverlayTestSignal, setPrayerOverlayTestSignal] = useState(0);
+  const [postPrayerTableTestSignal, setPostPrayerTableTestSignal] = useState(0);
+  const [ramadanPreviewActive, setRamadanPreviewActive] = useState(false);
   const [notification, setNotification] = useState('');
   const [showHint, setShowHint] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
@@ -102,6 +116,19 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     showNotification('Prayer Overlay Test');
   }, [showNotification]);
 
+  const testPostPrayerTable = useCallback(() => {
+    setPostPrayerTableTestSignal(s => s + 1);
+    showNotification('Post-Prayer Table Test');
+  }, [showNotification]);
+
+  const toggleRamadanPreview = useCallback(() => {
+    setRamadanPreviewActive(prev => {
+      const next = !prev;
+      showNotification(next ? 'Ramadan Preview On' : 'Ramadan Preview Off');
+      return next;
+    });
+  }, [showNotification]);
+
   const toggleHelp = useCallback(() => {
     setShowHelp(prev => !prev);
     setShowHint(false); // Hide hint when help is toggled
@@ -124,6 +151,8 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     toggleDowntimeOverride,
     advanceRotator,
     testPrayerOverlay,
+    testPostPrayerTable,
+    toggleRamadanPreview,
     toggleTheme,
     toggleHelp,
     showHelp,
@@ -135,11 +164,22 @@ export function DebugProvider({ children }: { children: ReactNode }) {
       toggleDowntimeOverride,
       advanceRotator,
       testPrayerOverlay,
+      testPostPrayerTable,
+      toggleRamadanPreview,
       toggleTheme,
       toggleHelp,
       showHelp,
     };
-  }, [toggleDowntimeOverride, advanceRotator, testPrayerOverlay, toggleTheme, toggleHelp, showHelp]);
+  }, [
+    toggleDowntimeOverride,
+    advanceRotator,
+    testPrayerOverlay,
+    testPostPrayerTable,
+    toggleRamadanPreview,
+    toggleTheme,
+    toggleHelp,
+    showHelp,
+  ]);
 
   // Keyboard event handler - attached once, reads from ref
   useEffect(() => {
@@ -164,6 +204,12 @@ export function DebugProvider({ children }: { children: ReactNode }) {
         case '4':
           if (!handlers.showHelp) handlers.toggleTheme();
           break;
+        case '5':
+          if (!handlers.showHelp) handlers.testPostPrayerTable();
+          break;
+        case '6':
+          if (!handlers.showHelp) handlers.toggleRamadanPreview();
+          break;
         case 'h':
           handlers.toggleHelp();
           break;
@@ -182,6 +228,10 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     advanceRotator,
     prayerOverlayTestSignal,
     testPrayerOverlay,
+    postPrayerTableTestSignal,
+    testPostPrayerTable,
+    ramadanPreviewActive,
+    toggleRamadanPreview,
     notification,
   };
 

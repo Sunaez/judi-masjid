@@ -4,39 +4,13 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, useRef } from 'react';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesFromFirebase } from '@/app/hooks/usePrayerTimesFromFirebase';
-
-// Convert HH:MM to minutes since midnight
-function timeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
-/**
- * Checks if we're in or near Ramadan (Ramadan month, plus 1 day before and after).
- * Uses the Islamic calendar to detect the Hijri month.
- * Returns true during Ramadan to extend downtime start from 1hr to 3hrs after Isha.
- */
-function isRamadanPeriod(date: Date = new Date()): boolean {
-  // Get Hijri month number (1-12, where 9 = Ramadan)
-  const formatter = new Intl.DateTimeFormat('en-u-ca-islamic', {
-    month: 'numeric',
-  });
-  const hijriMonth = parseInt(formatter.format(date), 10);
-
-  // Check day before (might be end of Sha'ban = month 8)
-  const dayBefore = new Date(date);
-  dayBefore.setDate(dayBefore.getDate() - 1);
-  const monthBefore = parseInt(formatter.format(dayBefore), 10);
-
-  // Check day after (might be start of Shawwal = month 10)
-  const dayAfter = new Date(date);
-  dayAfter.setDate(dayAfter.getDate() + 1);
-  const monthAfter = parseInt(formatter.format(dayAfter), 10);
-
-  // If today is Ramadan (9), or yesterday was Ramadan, or tomorrow is Ramadan
-  // This handles the day before Ramadan starts and the day after Ramadan ends
-  return hijriMonth === 9 || monthBefore === 9 || monthAfter === 9;
-}
+import {
+  isFirstTenDaysOfRamadan,
+  isLastTenDaysOfRamadan,
+  isRamadanDate,
+  isRamadanPeriod,
+} from '@/lib/islamicDate';
+import { timeToMinutes } from '@/lib/prayerTimeUtils';
 
 interface PrayerTimesContextValue {
   prayerTimes: RawPrayerTimes | null;
@@ -46,8 +20,14 @@ interface PrayerTimesContextValue {
   currentMinutes: number;
   // Whether we're in downtime (X hrs after Isha to 1hr before Fajr)
   isDowntime: boolean;
-  // Whether we're in/near Ramadan (for UI indication)
+  // Whether today is in Ramadan
   isRamadan: boolean;
+  // Whether today is in/near Ramadan (used for downtime extension)
+  isRamadanPeriod: boolean;
+  // Whether today is one of the first 10 Ramadan days
+  isFirstTenRamadanDays: boolean;
+  // Whether today is one of the last 10 Ramadan days
+  isLastTenRamadanDays: boolean;
 }
 
 const PrayerTimesContext = createContext<PrayerTimesContextValue | undefined>(undefined);
@@ -64,8 +44,16 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
   // Track the current day to detect day changes for Ramadan recalculation
   const [currentDay, setCurrentDay] = useState(() => new Date().getDate());
 
-  // Check if we're in Ramadan period - recalculates when day changes
-  const isRamadan = useMemo(() => isRamadanPeriod(), [currentDay]);
+  // Recompute Ramadan flags when day changes
+  const { isRamadan, isRamadanPeriodActive, isFirstTenRamadanDays, isLastTenRamadanDays } = useMemo(() => {
+    const now = new Date();
+    return {
+      isRamadan: isRamadanDate(now),
+      isRamadanPeriodActive: isRamadanPeriod(now),
+      isFirstTenRamadanDays: isFirstTenDaysOfRamadan(now),
+      isLastTenRamadanDays: isLastTenDaysOfRamadan(now),
+    };
+  }, [currentDay]);
 
   // Ref to store the interval ID so we can clean it up properly
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,7 +99,7 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     // Downtime start:
     // - During Ramadan: 3 hours after Isha (mosque used longer for Taraweeh)
     // - Normal: 1 hour after Isha
-    const hoursAfterIsha = isRamadan ? 3 : 1;
+    const hoursAfterIsha = isRamadanPeriodActive ? 3 : 1;
     const downtimeStart = ishaMinutes + (hoursAfterIsha * 60);
     const downtimeEnd = fajrMinutes - 60; // Always 1hr before Fajr
 
@@ -133,7 +121,7 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
       // Same-day (unusual): downtime if current is between start and end
       return currentMinutes >= downtimeStart && currentMinutes < downtimeEnd;
     }
-  }, [times, currentMinutes, isRamadan]);
+  }, [times, currentMinutes, isRamadanPeriodActive]);
 
   const value: PrayerTimesContextValue = {
     prayerTimes: times,
@@ -142,6 +130,9 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     currentMinutes,
     isDowntime,
     isRamadan,
+    isRamadanPeriod: isRamadanPeriodActive,
+    isFirstTenRamadanDays,
+    isLastTenRamadanDays,
   };
 
   return (

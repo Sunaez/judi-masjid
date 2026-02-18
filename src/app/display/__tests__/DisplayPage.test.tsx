@@ -18,6 +18,11 @@ jest.mock('../Components/PrayerOverlay', () => ({
   default: () => <div data-testid="prayer-overlay">Prayer Overlay Component</div>,
 }));
 
+jest.mock('../Components/PostPrayerTableOverlay', () => ({
+  __esModule: true,
+  default: () => <div data-testid="post-prayer-overlay">Post Prayer Table Overlay</div>,
+}));
+
 jest.mock('../Components/DowntimeDisplay', () => ({
   __esModule: true,
   default: () => <div data-testid="downtime-display">Downtime Display Component</div>,
@@ -45,6 +50,27 @@ jest.mock('../context/PrayerTimesContext', () => ({
     error: null,
     currentMinutes: 720,
     isDowntime: mockIsDowntime,
+    isRamadan: false,
+    isRamadanPeriod: false,
+    isFirstTenRamadanDays: false,
+    isLastTenRamadanDays: false,
+  }),
+}));
+
+jest.mock('../context/DebugContext', () => ({
+  useDebugContext: () => ({
+    downtimeOverride: false,
+    downtimeOverrideActive: false,
+    toggleDowntimeOverride: jest.fn(),
+    rotatorAdvanceSignal: 0,
+    advanceRotator: jest.fn(),
+    prayerOverlayTestSignal: 0,
+    testPrayerOverlay: jest.fn(),
+    postPrayerTableTestSignal: 0,
+    testPostPrayerTable: jest.fn(),
+    ramadanPreviewActive: false,
+    toggleRamadanPreview: jest.fn(),
+    notification: '',
   }),
 }));
 
@@ -74,6 +100,12 @@ describe('Display Page', () => {
       mockIsDowntime = false;
       render(<Display />);
       expect(screen.getByTestId('prayer-overlay')).toBeInTheDocument();
+    });
+
+    it('should render PostPrayerTableOverlay in normal mode', () => {
+      mockIsDowntime = false;
+      render(<Display />);
+      expect(screen.getByTestId('post-prayer-overlay')).toBeInTheDocument();
     });
 
     it('should NOT render DowntimeDisplay in normal mode', () => {
@@ -106,6 +138,12 @@ describe('Display Page', () => {
       mockIsDowntime = true;
       render(<Display />);
       expect(screen.queryByTestId('prayer-overlay')).not.toBeInTheDocument();
+    });
+
+    it('should NOT render PostPrayerTableOverlay in downtime mode', () => {
+      mockIsDowntime = true;
+      render(<Display />);
+      expect(screen.queryByTestId('post-prayer-overlay')).not.toBeInTheDocument();
     });
   });
 

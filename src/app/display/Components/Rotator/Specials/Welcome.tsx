@@ -6,9 +6,10 @@ import { gsap } from 'gsap';
 
 interface WelcomeProps {
   displayDuration: number;
+  showRamadanGreeting?: boolean;
 }
 
-export default function Welcome({ displayDuration }: WelcomeProps) {
+export default function Welcome({ displayDuration, showRamadanGreeting = false }: WelcomeProps) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,12 +65,14 @@ export default function Welcome({ displayDuration }: WelcomeProps) {
         `-=${entryDur * 0.5}`
       );
 
-      // 4) Fade in Jummah time & link
+      // 4) Fade in Ramadan line (first 10 days only), Jummah time, and link
+      const ramadan = rootRef.current?.querySelector<HTMLElement>('.ramadan-row');
       const jumm = rootRef.current?.querySelector<HTMLElement>('.jummah-row');
       const link = rootRef.current?.querySelector<HTMLElement>('.link-row');
-      if (jumm && link) {
+      const details = [ramadan, jumm, link].filter(Boolean) as HTMLElement[];
+      if (details.length > 0) {
         tl.from(
-          [jumm, link],
+          details,
           {
             autoAlpha: 0,
             y: 20,
@@ -102,7 +105,7 @@ export default function Welcome({ displayDuration }: WelcomeProps) {
     }, rootRef);
 
     return () => ctx.revert();
-  }, [displayDuration]);
+  }, [displayDuration, showRamadanGreeting]);
 
   // words arrays
   const kurdishFirst  = ['بەخێر', 'بێن', 'بۆ'];
@@ -154,6 +157,13 @@ export default function Welcome({ displayDuration }: WelcomeProps) {
           <strong style={{ color: 'var(--accent-color)' }}>Al-judi Masjid</strong>
         </span>
       </div>
+
+      {/* Jummah time (spans both) */}
+      {showRamadanGreeting && (
+        <div className="line ramadan-row col-span-2 text-6xl font-bold uppercase tracking-wide">
+          <span style={{ color: 'var(--accent-color)' }}>Ramadan Mubarak</span>
+        </div>
+      )}
 
       {/* Jummah time (spans both) */}
       <div className="line jummah-row col-span-2 text-6xl font-semibold">

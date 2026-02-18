@@ -54,7 +54,7 @@ function TableSkeleton() {
 
 export default function PrayerTimesTable() {
   // Get prayer times from Firebase context
-  const { prayerTimes, isLoading, error } = usePrayerTimesContext()
+  const { prayerTimes, isLoading, error, isRamadan } = usePrayerTimesContext()
   const isError = !!error
 
   // Transform prayer times to table format (omit sunrise)
@@ -74,16 +74,16 @@ export default function PrayerTimesTable() {
   }, [prayerTimes])
 
   // Memoize month/year calculations
-  const { monthNum, year, monthName, fileName, filePath } = useMemo(() => {
+  const { year, monthName, fileName, filePath } = useMemo(() => {
     const now = new Date()
-    const monthNum = String(now.getMonth() + 1).padStart(2, '0')
     const year = now.getFullYear()
     const monthName = now.toLocaleString('default', { month: 'long' })
-    const fileName = `${monthNum}-${year}.jpg`
+    const monthNum = String(now.getMonth() + 1).padStart(2, '0')
+    const fileName = isRamadan ? `R-${year}.jpg` : `${monthNum}-${year}.jpg`
     const filePath = `/Timetables/${fileName}`
 
-    return { monthNum, year, monthName, fileName, filePath }
-  }, [])
+    return { year, monthName, fileName, filePath }
+  }, [isRamadan])
 
   // Memoize prayers array
   const prayers = useMemo(() => {
@@ -97,16 +97,6 @@ export default function PrayerTimesTable() {
       { name: 'Isha', start: times.ishaStart, jamaat: times.ishaJamaat, icon: 'icon-isha.svg' },
     ]
   }, [times])
-
-  // Download handler: triggers download of the computed file
-  const downloadTimetable = () => {
-    const link = document.createElement('a')
-    link.href = filePath
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   if (isError) {
     return (
@@ -182,14 +172,47 @@ export default function PrayerTimesTable() {
       </table>
 
       <div className="flex justify-center mt-4">
-        <button
-          onClick={downloadTimetable}
+        <a
+          href={filePath}
+          download={fileName}
           className="flex items-center px-4 py-2 bg-[var(--x-background-start)] text-[var(--x-text-color)] rounded-lg hover:px-6 hover:py-3 transition-all duration-200"
         >
           <IoDownload className="h-5 w-5 mr-2" />
-          <span>Download {monthName} {year} Timetable</span>
-        </button>
+          <span>
+            Download {isRamadan ? 'Ramadan' : monthName} {year} Timetable
+          </span>
+        </a>
       </div>
+
+      {isRamadan && (
+        <motion.div variants={rowVariants} className="mt-6">
+          <div className="rounded-2xl border border-[var(--secondary-color)] bg-[var(--secondary-color)]/20 p-4 text-center shadow-lg">
+            <p className="text-3xl font-bold text-[var(--accent-color)]">Ramadan Mubarak</p>
+            <p className="mt-2 text-base text-[var(--text-color)]">
+              View and download the Ramadan timetable directly below.
+            </p>
+          </div>
+
+          <div className="mt-4 flex justify-center">
+            <a
+              href={filePath}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 rounded-lg bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 transition-opacity duration-200"
+            >
+              Full View Ramadan Timetable
+            </a>
+          </div>
+
+          <a href={filePath} target="_blank" rel="noopener noreferrer" className="block mt-4">
+            <img
+              src={filePath}
+              alt={`Ramadan ${year} timetable`}
+              className="w-full rounded-xl border border-[var(--secondary-color)] object-contain"
+            />
+          </a>
+        </motion.div>
+      )}
     </motion.section>
   )
 }

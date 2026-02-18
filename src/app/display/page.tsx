@@ -6,6 +6,7 @@ import { gsap } from 'gsap';
 import Rotator from './Components/Rotator';
 import PrayerTimeline from './Components/PrayerTimeline';
 import PrayerOverlay from './Components/PrayerOverlay';
+import PostPrayerTableOverlay from './Components/PostPrayerTableOverlay';
 import DowntimeDisplay from './Components/DowntimeDisplay';
 import { usePrayerTimesContext } from './context/PrayerTimesContext';
 import { useDebugContext } from './context/DebugContext';
@@ -159,6 +160,7 @@ function DisplayContent() {
           {/* Overlay on top, spanning the full viewport */}
           <div className="absolute inset-0 w-full h-full pointer-events-none">
             <PrayerOverlay />
+            <PostPrayerTableOverlay />
           </div>
         </div>
       )}
