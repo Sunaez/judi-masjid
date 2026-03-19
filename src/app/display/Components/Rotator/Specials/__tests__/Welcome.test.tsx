@@ -17,13 +17,13 @@ jest.mock('gsap', () => ({
 }))
 
 describe('Display Welcome special', () => {
-  it('shows Ramadan Mubarak in first 10 days mode', () => {
-    render(<Welcome displayDuration={20000} showRamadanGreeting />)
-    expect(screen.getByText(/Ramadan Mubarak/i)).toBeInTheDocument()
+  it('shows the provided festive greeting', () => {
+    render(<Welcome displayDuration={20000} greetingText="Eid Mubarak" />)
+    expect(screen.getByText(/Eid Mubarak/i)).toBeInTheDocument()
   })
 
-  it('hides Ramadan line when not in first 10 days mode', () => {
-    render(<Welcome displayDuration={20000} showRamadanGreeting={false} />)
-    expect(screen.queryByText(/Ramadan Mubarak/i)).not.toBeInTheDocument()
+  it('hides the festive line when no greeting is provided', () => {
+    render(<Welcome displayDuration={20000} />)
+    expect(screen.queryByText(/Eid Mubarak/i)).not.toBeInTheDocument()
   })
 })

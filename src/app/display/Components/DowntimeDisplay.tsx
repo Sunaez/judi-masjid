@@ -168,9 +168,8 @@ export default function DowntimeDisplay() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-screen flex items-center justify-center p-12 relative"
+      className="relative flex h-full w-full items-center justify-center p-12"
       style={{
-        backgroundImage: 'linear-gradient(var(--background-start), var(--background-end))',
         color: 'var(--text-color)',
       }}
     >

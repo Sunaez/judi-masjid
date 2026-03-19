@@ -1,5 +1,6 @@
 import {
   getIslamicDateParts,
+  isEidAlFitrDate,
   isRamadanDate,
   isRamadanPeriod,
   isFirstTenDaysOfRamadan,
@@ -86,5 +87,17 @@ describe('islamicDate utilities', () => {
     expect(isLastTenDaysOfRamadan(new Date(2026, 1, 1))).toBe(false)
     expect(isLastTenDaysOfRamadan(new Date(2026, 1, 2))).toBe(true)
     expect(isLastTenDaysOfRamadan(new Date(2026, 1, 3))).toBe(false)
+  })
+
+  it('detects eid al-fitr for the first 3 days of shawwal', () => {
+    mockIslamicDateParts((date: Date) => {
+      if (date.getDate() === 1) return { day: 1, month: 10, year: 1447 }
+      if (date.getDate() === 2) return { day: 3, month: 10, year: 1447 }
+      return { day: 4, month: 10, year: 1447 }
+    })
+
+    expect(isEidAlFitrDate(new Date(2026, 2, 1))).toBe(true)
+    expect(isEidAlFitrDate(new Date(2026, 2, 2))).toBe(true)
+    expect(isEidAlFitrDate(new Date(2026, 2, 3))).toBe(false)
   })
 })

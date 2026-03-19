@@ -20,6 +20,7 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getRotatorSlotOrder, type RotatorSlotKey } from './slotConfig';
 import { addMinutesToTime } from '@/lib/prayerTimeUtils';
+import EidLanternBackdrop from '@/components/EidLanternBackdrop';
 
 // Environment variable keys for OpenWeather API
 const OPENWEATHER_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY!;
@@ -82,11 +83,16 @@ export default function Rotator() {
   // Raw messages fetched from various sources
   const all = useMessages();
   // Prayer times from Firebase context
-  const { prayerTimes, isRamadan, isFirstTenRamadanDays } = usePrayerTimesContext();
+  const { prayerTimes, isRamadan, isFirstTenRamadanDays, isEidAlFitr } = usePrayerTimesContext();
   // Debug context for keyboard shortcuts
   const { rotatorAdvanceSignal, ramadanPreviewActive } = useDebugContext();
   const effectiveRamadan = isRamadan || ramadanPreviewActive;
   const effectiveFirstTenRamadanDays = isFirstTenRamadanDays || ramadanPreviewActive;
+  const welcomeGreetingText = effectiveFirstTenRamadanDays
+    ? 'Ramadan Mubarak'
+    : isEidAlFitr
+    ? 'Eid Mubarak'
+    : undefined;
   // Current + forecast weather data
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // Counter to trigger re-renders after prayer times +1min
@@ -582,7 +588,7 @@ export default function Rotator() {
             tarawehTime: prayerTimes ? addMinutesToTime(prayerTimes.ishaJamaat, 20) : '--:--',
           }
         : slot.key === 'welcome'
-        ? { displayDuration: DISPLAY_MS, showRamadanGreeting: effectiveFirstTenRamadanDays }
+        ? { displayDuration: DISPLAY_MS, greetingText: welcomeGreetingText }
         : { displayDuration: DISPLAY_MS };
 
     content = (
@@ -596,15 +602,16 @@ export default function Rotator() {
   // Background wrapper is separate to prevent flash during content transitions
   return (
     <div
-      className="relative h-full w-full"
+      className="relative h-full w-full overflow-hidden"
       style={{
-        backgroundImage: 'linear-gradient(var(--background-start), var(--background-end))',
+        background: 'transparent',
         '--rotator-text-size': '3.5rem',
       } as React.CSSProperties}
     >
+      {isEidAlFitr && <EidLanternBackdrop className="opacity-85" />}
       <div
         ref={containerRef}
-        className="relative flex flex-col h-full w-full p-8"
+        className="relative z-10 flex flex-col h-full w-full p-8"
       >
         {content}
         <div ref={progressRef} className="absolute bottom-0 left-0 h-1 w-0 bg-accent" />

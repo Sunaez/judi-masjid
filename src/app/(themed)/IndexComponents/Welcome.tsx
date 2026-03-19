@@ -1,30 +1,29 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import gsap from 'gsap'
 import { IoChatbox } from 'react-icons/io5'
 
-// Split text into characters - memoized outside component
+import { usePrayerTimesContext } from '../../display/context/PrayerTimesContext'
+
 function splitToChars(text: string): string[] {
-  return text.split('').map(char => char === ' ' ? '\u00A0' : char)
+  return text.split('').map(char => (char === ' ' ? '\u00A0' : char))
 }
 
-// Split text into words - memoized outside component
 function splitToWords(text: string): string[] {
   return text.trim().split(/\s+/)
 }
 
 export default function Welcome() {
   const [fontsReady, setFontsReady] = useState(false)
+  const { isEidAlFitr } = usePrayerTimesContext()
 
-  // Pre-split text content - memoized
   const englishLine1 = useMemo(() => splitToChars('Welcome to'), [])
   const englishLine2 = useMemo(() => splitToChars('Al-judi Masjid'), [])
   const arabicLine1 = useMemo(() => splitToWords('بەخێر بێن بۆ'), [])
   const arabicLine2 = useMemo(() => splitToWords('مزگەوتی جودی'), [])
 
   useEffect(() => {
-    // Wait for fonts to load
     document.fonts.ready.then(() => {
       setFontsReady(true)
     })
@@ -33,23 +32,24 @@ export default function Welcome() {
   useEffect(() => {
     if (!fontsReady) return
 
-    // Animate all chars and feedback together
     const chars = document.querySelectorAll<HTMLSpanElement>('.char')
     const feedback = document.querySelector<HTMLDivElement>('.feedback-box')
+    const eidBadge = document.querySelector<HTMLDivElement>('.eid-badge')
+    const animatedExtras = [feedback, eidBadge].filter(Boolean)
 
     if (chars.length === 0 || !feedback) return
 
     const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
     tl.fromTo(
-      [...chars, feedback],
-      { opacity: 0, y: 20, scale: (i: number) => (i >= chars.length ? 0.8 : 1) },
+      [...chars, ...animatedExtras],
+      { opacity: 0, y: 20, scale: (index: number) => (index >= chars.length ? 0.8 : 1) },
       { opacity: 1, y: 0, scale: 1, duration: 1.2, stagger: 0.08 }
     )
 
     return () => {
       tl.kill()
     }
-  }, [fontsReady])
+  }, [fontsReady, isEidAlFitr])
 
   return (
     <div className={`flex-1 space-y-4 p-4 ${fontsReady ? 'opacity-100' : 'opacity-0'}`}>
@@ -96,14 +96,20 @@ export default function Welcome() {
         </div>
       </div>
 
-      <div className="feedback-box mt-6 bg-[var(--background-start)] dark:bg-[var(--background-end)] p-4 rounded-2xl shadow-lg text-center">
+      {isEidAlFitr && (
+        <div className="eid-badge inline-flex w-fit items-center rounded-full border border-[var(--accent-color)]/40 bg-[var(--secondary-color)]/20 px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--accent-color)] shadow-lg">
+          Eid Mubarak
+        </div>
+      )}
+
+      <div className="feedback-box mt-6 rounded-2xl bg-[var(--background-start)] p-4 text-center shadow-lg dark:bg-[var(--background-end)]">
         <a
           href="https://forms.gle/o2PUq1vq3QDomWKk9"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center mx-auto px-4 py-2 bg-[var(--accent-color)] text-[var(--background-end)] rounded-lg shadow transform transition-all duration-200 hover:scale-110"
+          className="mx-auto inline-flex items-center rounded-lg bg-[var(--accent-color)] px-4 py-2 text-[var(--background-end)] shadow transition-all duration-200 hover:scale-110"
         >
-          <IoChatbox className="w-5 h-5 mr-2" />
+          <IoChatbox className="mr-2 h-5 w-5" />
           Add feedback
         </a>
         <p className="mt-2 text-sm text-[var(--text-color)]">

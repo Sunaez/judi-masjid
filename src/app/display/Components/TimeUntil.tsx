@@ -71,7 +71,10 @@ const TimeUntil = memo(function TimeUntil({ eventName, eventTime }: TimeUntilPro
   const refs = useMemo(() => [hTR, hOR, mTR, mOR, sTR, sOR], [])
 
   return (
-    <div className="w-full bg-[var(--background-end)] text-[var(--text-color)] py-8">
+    <div
+      className="w-full text-[var(--text-color)] py-8"
+      style={{ backgroundColor: 'var(--background-end)' }}
+    >
       <div className="flex items-center justify-center space-x-6">
         {/* Label */}
         <div className="text-4xl md:text-5xl lg:text-6xl font-semibold">

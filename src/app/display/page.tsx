@@ -13,10 +13,21 @@ import { useDebugContext } from './context/DebugContext';
 
 // Transition duration in seconds
 const TRANSITION_DURATION = 1.2;
+const DISPLAY_BASE_WIDTH = 1920;
+const DISPLAY_BASE_HEIGHT = 1080;
+const ROTATOR_SECTION_HEIGHT_PERCENT = 65;
+const TIMELINE_SECTION_HEIGHT_PERCENT = 35;
+const ROTATOR_GRADIENT_HOLD_PERCENT = 18;
+const ROTATOR_GRADIENT_BLEND_END_PERCENT = 100;
+const ROTATOR_BOUNDARY_FADE_HEIGHT_PX = 160;
 
 function DisplayContent() {
   const { isLoading, isDowntime: contextDowntime } = usePrayerTimesContext();
   const { downtimeOverride, downtimeOverrideActive } = useDebugContext();
+  const [viewport, setViewport] = useState(() => ({
+    width: DISPLAY_BASE_WIDTH,
+    height: DISPLAY_BASE_HEIGHT,
+  }));
 
   // Use automatic time-based detection, but allow debug override when active
   const isDowntime = downtimeOverrideActive ? downtimeOverride : contextDowntime;
@@ -29,6 +40,20 @@ function DisplayContent() {
   const containerRef = useRef<HTMLDivElement>(null);
   const normalRef = useRef<HTMLDivElement>(null);
   const downtimeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
 
   // Initialize display mode once loading is complete
   useEffect(() => {
@@ -122,9 +147,8 @@ function DisplayContent() {
   if (isLoading) {
     return (
       <div
-        className="w-full h-screen flex items-center justify-center"
+        className="flex h-full w-full items-center justify-center"
         style={{
-          background: 'linear-gradient(var(--background-start), var(--background-end))',
           color: 'var(--text-color)',
         }}
       >
@@ -133,48 +157,99 @@ function DisplayContent() {
     );
   }
 
+  const scale = Math.min(
+    viewport.width / DISPLAY_BASE_WIDTH,
+    viewport.height / DISPLAY_BASE_HEIGHT
+  );
+  const stageWidth = DISPLAY_BASE_WIDTH * scale;
+  const stageHeight = DISPLAY_BASE_HEIGHT * scale;
+
   // Determine what to render based on current display mode and transition state
   const showNormal = displayMode === 'normal' || (isTransitioning && !isDowntime);
   const showDowntime = displayMode === 'downtime' || (isTransitioning && isDowntime);
 
   return (
-    <div ref={containerRef} className="relative w-full h-screen overflow-hidden">
-      {/* Normal mode display */}
-      {showNormal && (
+    <div className="relative h-full w-full overflow-hidden">
+      <div
+        ref={containerRef}
+        className="absolute left-1/2 top-1/2 overflow-hidden"
+        style={{
+          width: stageWidth,
+          height: stageHeight,
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
         <div
-          ref={normalRef}
-          id="app"
-          className="absolute inset-0 flex flex-col w-full h-screen overflow-hidden"
-          style={{ visibility: displayMode === 'normal' ? 'visible' : 'hidden' }}
+          className="origin-top-left"
+          style={{
+            width: DISPLAY_BASE_WIDTH,
+            height: DISPLAY_BASE_HEIGHT,
+            transform: `scale(${scale})`,
+          }}
         >
-          {/* Rotator: fixed 65vh height, full width */}
-          <div className="flex-none w-full h-[65vh] overflow-hidden">
-            <Rotator />
-          </div>
+          {/* Normal mode display */}
+          {showNormal && (
+            <div
+              ref={normalRef}
+              id="app"
+              className="absolute inset-0 flex h-full w-full flex-col overflow-hidden"
+              style={{
+                visibility: displayMode === 'normal' ? 'visible' : 'hidden',
+                backgroundColor: 'var(--background-end)',
+              }}
+            >
+              <div
+                className="relative w-full flex-none overflow-hidden"
+                style={{
+                  height: `${ROTATOR_SECTION_HEIGHT_PERCENT}%`,
+                  background: `linear-gradient(
+                    180deg,
+                    var(--background-start) 0%,
+                    var(--background-start) ${ROTATOR_GRADIENT_HOLD_PERCENT}%,
+                    var(--background-end) ${ROTATOR_GRADIENT_BLEND_END_PERCENT}%,
+                    var(--background-end) 100%
+                  )`,
+                }}
+              >
+                <Rotator />
+                <div
+                  className="pointer-events-none absolute inset-x-0 bottom-0"
+                  style={{
+                    height: `${ROTATOR_BOUNDARY_FADE_HEIGHT_PX}px`,
+                    background: 'linear-gradient(180deg, transparent 0%, var(--background-end) 100%)',
+                  }}
+                />
+              </div>
 
-          {/* PrayerTimeline: fixed 35vh height, full width, scroll if overflow */}
-          <div className="flex-none w-full h-[35vh] overflow-hidden">
-            <PrayerTimeline />
-          </div>
+              <div
+                className="w-full flex-none overflow-hidden"
+                style={{
+                  height: `${TIMELINE_SECTION_HEIGHT_PERCENT}%`,
+                  backgroundColor: 'var(--background-end)',
+                }}
+              >
+                <PrayerTimeline />
+              </div>
 
-          {/* Overlay on top, spanning the full viewport */}
-          <div className="absolute inset-0 w-full h-full pointer-events-none">
-            <PrayerOverlay />
-            <PostPrayerTableOverlay />
-          </div>
+              <div className="pointer-events-none absolute inset-0 h-full w-full">
+                <PrayerOverlay />
+                <PostPrayerTableOverlay />
+              </div>
+            </div>
+          )}
+
+          {/* Downtime mode display */}
+          {showDowntime && (
+            <div
+              ref={downtimeRef}
+              className="absolute inset-0 h-full w-full"
+              style={{ visibility: displayMode === 'downtime' ? 'visible' : 'hidden' }}
+            >
+              <DowntimeDisplay />
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Downtime mode display */}
-      {showDowntime && (
-        <div
-          ref={downtimeRef}
-          className="absolute inset-0"
-          style={{ visibility: displayMode === 'downtime' ? 'visible' : 'hidden' }}
-        >
-          <DowntimeDisplay />
-        </div>
-      )}
+      </div>
     </div>
   );
 }

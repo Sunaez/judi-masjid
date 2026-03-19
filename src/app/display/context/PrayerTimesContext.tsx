@@ -5,12 +5,16 @@ import React, { createContext, useContext, ReactNode, useState, useEffect, useMe
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesFromFirebase } from '@/app/hooks/usePrayerTimesFromFirebase';
 import {
+  isEidAlFitrDate,
   isFirstTenDaysOfRamadan,
   isLastTenDaysOfRamadan,
   isRamadanDate,
   isRamadanPeriod,
 } from '@/lib/islamicDate';
 import { timeToMinutes } from '@/lib/prayerTimeUtils';
+
+// Temporary preview flag so Eid visuals/messages can be reviewed outside 1-3 Shawwal.
+const FORCE_EID_AL_FITR_PREVIEW = false;
 
 interface PrayerTimesContextValue {
   prayerTimes: RawPrayerTimes | null;
@@ -28,6 +32,8 @@ interface PrayerTimesContextValue {
   isFirstTenRamadanDays: boolean;
   // Whether today is one of the last 10 Ramadan days
   isLastTenRamadanDays: boolean;
+  // Whether today is within Eid al-Fitr (1-3 Shawwal)
+  isEidAlFitr: boolean;
 }
 
 const PrayerTimesContext = createContext<PrayerTimesContextValue | undefined>(undefined);
@@ -45,13 +51,14 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
   const [currentDay, setCurrentDay] = useState(() => new Date().getDate());
 
   // Recompute Ramadan flags when day changes
-  const { isRamadan, isRamadanPeriodActive, isFirstTenRamadanDays, isLastTenRamadanDays } = useMemo(() => {
+  const { isRamadan, isRamadanPeriodActive, isFirstTenRamadanDays, isLastTenRamadanDays, isEidAlFitr } = useMemo(() => {
     const now = new Date();
     return {
       isRamadan: isRamadanDate(now),
       isRamadanPeriodActive: isRamadanPeriod(now),
       isFirstTenRamadanDays: isFirstTenDaysOfRamadan(now),
       isLastTenRamadanDays: isLastTenDaysOfRamadan(now),
+      isEidAlFitr: FORCE_EID_AL_FITR_PREVIEW || isEidAlFitrDate(now),
     };
   }, [currentDay]);
 
@@ -133,6 +140,7 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     isRamadanPeriod: isRamadanPeriodActive,
     isFirstTenRamadanDays,
     isLastTenRamadanDays,
+    isEidAlFitr,
   };
 
   return (

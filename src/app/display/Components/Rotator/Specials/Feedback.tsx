@@ -8,8 +8,6 @@ interface FeedbackProps {
   displayDuration: number;
 }
 
-const FEEDBACK_URL = 'https://your-mosque-website.com/feedback';
-
 export default function Feedback({ displayDuration }: FeedbackProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const linkRef = useRef<HTMLParagraphElement>(null);
@@ -60,9 +58,6 @@ export default function Feedback({ displayDuration }: FeedbackProps) {
     <div
       ref={containerRef}
       className="w-full h-full grid grid-cols-1 md:grid-cols-2 items-center p-12 gap-8"
-      style={{
-        backgroundImage: 'linear-gradient(var(--background-start), var(--background-end))',
-      }}
     >
       {/* Left column: heading + instruction */}
       <div className="flex flex-col justify-center items-center md:items-start space-y-4">

@@ -1,4 +1,6 @@
 const ISLAMIC_CALENDAR_LOCALE = 'en-u-ca-islamic'
+const RAMADAN_MONTH = 9
+const SHAWWAL_MONTH = 10
 
 export interface IslamicDateParts {
   day: number
@@ -35,7 +37,7 @@ export function getIslamicDateParts(date: Date = new Date()): IslamicDateParts |
 }
 
 export function isRamadanDate(date: Date = new Date()): boolean {
-  return getIslamicDateParts(date)?.month === 9
+  return getIslamicDateParts(date)?.month === RAMADAN_MONTH
 }
 
 export function isRamadanPeriod(date: Date = new Date()): boolean {
@@ -54,7 +56,7 @@ export function isFirstTenDaysOfRamadan(date: Date = new Date()): boolean {
   const hijriDate = getIslamicDateParts(date)
   if (!hijriDate) return false
 
-  return hijriDate.month === 9 && hijriDate.day >= 1 && hijriDate.day <= 10
+  return hijriDate.month === RAMADAN_MONTH && hijriDate.day >= 1 && hijriDate.day <= 10
 }
 
 export function isLastTenDaysOfRamadan(date: Date = new Date()): boolean {
@@ -62,5 +64,12 @@ export function isLastTenDaysOfRamadan(date: Date = new Date()): boolean {
   if (!hijriDate) return false
 
   // Ramadan month can be 29 or 30 days; "last 10" always starts from 21.
-  return hijriDate.month === 9 && hijriDate.day >= 21
+  return hijriDate.month === RAMADAN_MONTH && hijriDate.day >= 21
+}
+
+export function isEidAlFitrDate(date: Date = new Date()): boolean {
+  const hijriDate = getIslamicDateParts(date)
+  if (!hijriDate) return false
+
+  return hijriDate.month === SHAWWAL_MONTH && hijriDate.day >= 1 && hijriDate.day <= 3
 }

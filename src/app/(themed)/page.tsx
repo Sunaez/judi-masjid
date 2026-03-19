@@ -2,6 +2,9 @@
 
 import { motion } from 'motion/react'
 
+import EidLanternBackdrop from '@/components/EidLanternBackdrop'
+import { usePrayerTimesContext } from '../display/context/PrayerTimesContext'
+import EidMubarakIntro from './IndexComponents/EidMubarakIntro'
 import NavBar from './IndexComponents/NavBar'
 import Welcome from './IndexComponents/Welcome'
 import PrayerTimesTable from './IndexComponents/PrayerTimeTable'
@@ -10,13 +13,18 @@ import UsefulLinks from './IndexComponents/UsefulLinks'
 import Footer from './IndexComponents/Footer'
 
 export default function Home() {
+  const { isEidAlFitr } = usePrayerTimesContext()
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="flex flex-col"
-    >
+    <div className="relative overflow-hidden">
+      <EidMubarakIntro active={isEidAlFitr} />
+      {isEidAlFitr && <EidLanternBackdrop className="opacity-75" />}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="relative z-10 flex flex-col"
+      >
         <NavBar />
 
         {/* Title & Prayer Table */}
@@ -36,7 +44,8 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-      <Footer />
-    </motion.div>
+        <Footer />
+      </motion.div>
+    </div>
   )
 }

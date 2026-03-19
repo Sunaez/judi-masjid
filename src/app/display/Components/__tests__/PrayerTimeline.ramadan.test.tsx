@@ -61,6 +61,15 @@ describe('Display PrayerTimeline Ramadan extension', () => {
     expect(screen.getByText('21:30')).toBeInTheDocument()
   })
 
+  it('uses short prayer names on the timeline', () => {
+    render(<PrayerTimeline />)
+
+    expect(screen.getByText('Fajr')).toBeInTheDocument()
+    expect(screen.getByText('Sunrise')).toBeInTheDocument()
+    expect(screen.queryByText('Fajr Jamaat')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dhuhr Jamaat')).not.toBeInTheDocument()
+  })
+
   it('hides Taraweh event outside Ramadan', () => {
     mockIsRamadan = false
     render(<PrayerTimeline />)

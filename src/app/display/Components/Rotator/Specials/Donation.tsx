@@ -104,10 +104,6 @@ export default function Donation({ displayDuration }: DonationProps) {
     <div
       ref={rootRef}
       className="w-full h-full grid grid-cols-1 md:grid-cols-2 items-center p-12 gap-8"
-      style={{
-        backgroundImage:
-          'linear-gradient(var(--background-start), var(--background-end))',
-      }}
     >
       {/* Left column */}
       <div className="flex flex-col justify-center space-y-6">
