@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import EidLanternBackdrop from '@/components/EidLanternBackdrop'
 import { usePrayerTimesContext } from '../display/context/PrayerTimesContext'
 import EidMubarakIntro from './IndexComponents/EidMubarakIntro'
+import EidSalahNotice from './IndexComponents/EidSalahNotice'
 import NavBar from './IndexComponents/NavBar'
 import Welcome from './IndexComponents/Welcome'
 import PrayerTimesTable from './IndexComponents/PrayerTimeTable'
@@ -26,6 +27,7 @@ export default function Home() {
         className="relative z-10 flex flex-col"
       >
         <NavBar />
+        <EidSalahNotice />
 
         {/* Title & Prayer Table */}
         <main className="lg:flex gap-8 p-0">
