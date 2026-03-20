@@ -5,8 +5,6 @@ import { motion } from 'motion/react'
 
 const NOTICE_START_MS = Date.parse('2026-03-19T00:00:00Z')
 const NOTICE_END_MS = Date.parse('2026-03-21T00:00:00Z')
-const SUMMERFIELD_PARK_MAPS_URL =
-  'https://www.google.com/maps/search/?api=1&query=Summerfield+Park,+Birmingham+B16+0HG'
 
 function isNoticeActive(nowMs: number) {
   return nowMs >= NOTICE_START_MS && nowMs < NOTICE_END_MS
@@ -56,27 +54,13 @@ export default function EidSalahNotice() {
           </div>
 
           <p className="text-base leading-7 text-[var(--text-color)]">
-            The Eid salah will take place at 08:30AM at{' '}
-            <a
-              href={SUMMERFIELD_PARK_MAPS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-[var(--accent-color)] underline underline-offset-4 hover:opacity-80"
-            >
-              Summerfield Park, Birmingham B16 0HG
-            </a>
-            .
+            The Eid salah will take place at 08:30AM. Due to unforeseen
+            circumstances, the prayer will be held at the masjid instead.
           </p>
 
           <p className="text-base leading-7 text-[var(--text-color)]">
-            The prayer area will be the centre of the park, with brothers wearing high vis
-            vests to guide everyone to the correct location.
-          </p>
-
-          <p className="text-base leading-7 text-[var(--text-color)]">
-            <strong>
-              Everyone is kindly requested to bring their own prayer mats or rugs.
-            </strong>
+            This will be brothers only. There is no room for sisters, and we
+            apologise in advance.
           </p>
 
           <p className="text-base leading-7 text-[var(--text-color)]">
