@@ -10,6 +10,7 @@ import NavBar from './IndexComponents/NavBar'
 import Welcome from './IndexComponents/Welcome'
 import PrayerTimesTable from './IndexComponents/PrayerTimeTable'
 import PrayerTimeline from './IndexComponents/PrayerTimeline'
+import TimetableDownload from './IndexComponents/TimetableDownload'
 import UsefulLinks from './IndexComponents/UsefulLinks'
 import Footer from './IndexComponents/Footer'
 
@@ -39,6 +40,9 @@ export default function Home() {
         <section className="px-6 pb-8">
           <PrayerTimeline />
         </section>
+
+        {/* Prayer Timetable Download */}
+        <TimetableDownload />
 
         {/* Useful Links */}
         <section className="px-6 pb-8">

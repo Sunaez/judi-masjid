@@ -19,6 +19,10 @@ const SyncPrayerTimes = dynamic(
   () => import('./DashBoardComponents/SyncPrayerTimes'),
   { ssr: false }
 );
+const ManageTimetables = dynamic(
+  () => import('./DashBoardComponents/ManageTimetables'),
+  { ssr: false }
+);
 
 export default function ClientDashboard() {
   const [isMessageModalOpen, setMessageModalOpen] = useState(false);
@@ -30,6 +34,9 @@ export default function ClientDashboard() {
 
   const [isSyncModalOpen, setSyncModalOpen] = useState(false);
   const [syncChildIsClosing, setSyncChildIsClosing] = useState(false);
+
+  const [isTimetableModalOpen, setTimetableModalOpen] = useState(false);
+  const [timetableChildIsClosing, setTimetableChildIsClosing] = useState(false);
 
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -68,6 +75,17 @@ export default function ClientDashboard() {
   const handleSyncSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
   const handleSyncErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
 
+  const openTimetableModal = () => {
+    setTimetableChildIsClosing(false);
+    setTimetableModalOpen(true);
+  };
+  const handleTimetableChildClose = () => {
+    setTimetableChildIsClosing(false);
+    setTimetableModalOpen(false);
+  };
+  const handleTimetableSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
+  const handleTimetableErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
+
   const handleBackdropClick = () => {
     if (!messageChildIsClosing && isMessageModalOpen) {
       setMessageModalOpen(false);
@@ -78,6 +96,9 @@ export default function ClientDashboard() {
     }
     if (!syncChildIsClosing && isSyncModalOpen) {
       setSyncModalOpen(false);
+    }
+    if (!timetableChildIsClosing && isTimetableModalOpen) {
+      setTimetableModalOpen(false);
     }
   };
 
@@ -118,6 +139,27 @@ export default function ClientDashboard() {
               />
             </svg>
             Sync Prayer Times
+          </button>
+
+          <button
+            onClick={openTimetableModal}
+            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+              />
+            </svg>
+            Manage Timetables
           </button>
 
           <a
@@ -251,6 +293,37 @@ export default function ClientDashboard() {
                 setClosing={setSyncChildIsClosing}
                 onSuccess={handleSyncSuccessToast}
                 onError={handleSyncErrorToast}
+              />
+            </div>
+          </div>
+        )}
+
+        {isTimetableModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
+            onClick={handleBackdropClick}
+          >
+            <div
+              className="bg-[var(--background-end)] rounded-2xl shadow-2xl w-full sm:w-11/12 lg:w-4/5 xl:w-3/4 max-w-screen-xl max-h-[95vh] overflow-y-auto p-10"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-[var(--accent-color)]">
+                  Manage Timetables
+                </h2>
+                <button
+                  onClick={() => !timetableChildIsClosing && setTimetableModalOpen(false)}
+                  className="text-2xl font-bold text-[var(--text-color)] hover:opacity-70"
+                  aria-label="Close modal"
+                >
+                  &times;
+                </button>
+              </div>
+              <ManageTimetables
+                onClose={handleTimetableChildClose}
+                setClosing={setTimetableChildIsClosing}
+                onSuccess={handleTimetableSuccessToast}
+                onError={handleTimetableErrorToast}
               />
             </div>
           </div>

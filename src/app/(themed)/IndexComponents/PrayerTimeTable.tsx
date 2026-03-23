@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
 import { IoDownload } from 'react-icons/io5'
 import { RawPrayerTimes } from '../../FetchPrayerTimes'
 import { usePrayerTimesContext } from '../../display/context/PrayerTimesContext'
+import { getActiveTimetable, type TimetableFile } from '@/lib/firebase/timetableStorage'
 
 // 1. Container variants: animate section in, then stagger children
 const containerVariants = {
@@ -56,6 +57,16 @@ export default function PrayerTimesTable() {
   // Get prayer times from Firebase context
   const { prayerTimes, isLoading, error, isRamadan } = usePrayerTimesContext()
   const isError = !!error
+
+  // Fetch active timetable for download button
+  const [activeTimetable, setActiveTimetable] = useState<TimetableFile | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    getActiveTimetable()
+      .then((t) => { if (!cancelled) setActiveTimetable(t) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   // Transform prayer times to table format (omit sunrise)
   const times: TableTimes | null = useMemo(() => {
@@ -173,13 +184,13 @@ export default function PrayerTimesTable() {
 
       <div className="flex justify-center mt-4">
         <a
-          href={filePath}
-          download={fileName}
+          href={activeTimetable ? activeTimetable.imageData : filePath}
+          download={activeTimetable ? (activeTimetable.originalName || 'timetable.jpg') : fileName}
           className="flex items-center px-4 py-2 bg-[var(--x-background-start)] text-[var(--x-text-color)] rounded-lg hover:px-6 hover:py-3 transition-all duration-200"
         >
           <IoDownload className="h-5 w-5 mr-2" />
           <span>
-            Download {isRamadan ? 'Ramadan' : monthName} {year} Timetable
+            Download {activeTimetable ? activeTimetable.label : `${isRamadan ? 'Ramadan' : monthName} ${year} Timetable`}
           </span>
         </a>
       </div>
@@ -195,22 +206,21 @@ export default function PrayerTimesTable() {
 
           <div className="mt-4 flex justify-center">
             <a
-              href={filePath}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={activeTimetable ? activeTimetable.imageData : filePath}
+              download={activeTimetable ? (activeTimetable.originalName || 'timetable.jpg') : fileName}
               className="inline-flex items-center px-4 py-2 rounded-lg bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 transition-opacity duration-200"
             >
-              Full View Ramadan Timetable
+              Download Ramadan Timetable
             </a>
           </div>
 
-          <a href={filePath} target="_blank" rel="noopener noreferrer" className="block mt-4">
+          <div className="block mt-4">
             <img
-              src={filePath}
+              src={activeTimetable ? activeTimetable.imageData : filePath}
               alt={`Ramadan ${year} timetable`}
               className="w-full rounded-xl border border-[var(--secondary-color)] object-contain"
             />
-          </a>
+          </div>
         </motion.div>
       )}
     </motion.section>
