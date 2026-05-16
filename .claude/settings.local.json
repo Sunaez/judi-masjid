@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat \"/c/Users/kurdi/Documents/GitHub/judi-masjid/src/app/\\(themed\\)/admin/AdminComponents/NavBar.tsx\")"
+      "Bash(cat \"/c/Users/kurdi/Documents/GitHub/judi-masjid/src/app/\\(themed\\)/admin/AdminComponents/NavBar.tsx\")",
+      "Bash(node test-slideshow-api.js:*)"
     ]
   }
 }

@@ -2,6 +2,7 @@ import { readdir } from 'fs/promises';
 import path from 'path';
 import { NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const IMAGE_DIRECTORIES = ['slideshow', 'SlideShow'] as const;
@@ -75,6 +76,11 @@ export async function GET() {
     );
   } catch (error) {
     console.error('[slideshow-images] Failed to load images:', error);
+    console.error('[slideshow-images] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      cwd: process.cwd(),
+    });
     return NextResponse.json(
       { images: [] },
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
