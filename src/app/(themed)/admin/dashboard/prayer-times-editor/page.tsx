@@ -176,7 +176,7 @@ export default function PrayerTimesEditorPage() {
       (e as React.MouseEvent).preventDefault();
     }
 
-    let newSelection = new Set(selectedRows);
+    const newSelection = new Set(selectedRows);
 
     if (shiftKey && lastSelectedRow !== null && !isCheckbox) {
       // Shift+Click: Select range from last selected to current (only past dates)

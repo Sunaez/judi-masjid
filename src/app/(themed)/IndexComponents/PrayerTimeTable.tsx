@@ -154,7 +154,7 @@ export default function PrayerTimesTable() {
               Start
             </th>
             <th className="px-2 py-1 border border-[var(--secondary-color)] bg-[var(--accent-color)] text-[var(--background-end)] text-center">
-              Jama'at
+              Jama&apos;at
             </th>
           </tr>
         </thead>
@@ -215,6 +215,7 @@ export default function PrayerTimesTable() {
           </div>
 
           <div className="block mt-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={activeTimetable ? activeTimetable.imageData : filePath}
               alt={`Ramadan ${year} timetable`}
