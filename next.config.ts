@@ -3,6 +3,20 @@ import path from 'path'
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: __dirname,
+  turbopack: {
+    root: __dirname,
+    resolveAlias: {
+      '@public': path.resolve(__dirname, 'public'),
+    },
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+
   // expose the basePath/assetPrefix here if you need it later
   // basePath: '/my-app',
   // assetPrefix: '/my-app/',

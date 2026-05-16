@@ -23,6 +23,10 @@ const ManageTimetables = dynamic(
   () => import('./DashBoardComponents/ManageTimetables'),
   { ssr: false }
 );
+const ControlSlideshow = dynamic(
+  () => import('./DashBoardComponents/ControlSlideshow'),
+  { ssr: false }
+);
 
 export default function ClientDashboard() {
   const [isMessageModalOpen, setMessageModalOpen] = useState(false);
@@ -85,6 +89,8 @@ export default function ClientDashboard() {
   };
   const handleTimetableSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
   const handleTimetableErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
+  const handleSlideshowSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
+  const handleSlideshowErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
 
   const handleBackdropClick = () => {
     if (!messageChildIsClosing && isMessageModalOpen) {
@@ -202,6 +208,13 @@ export default function ClientDashboard() {
             {/* svg icon omitted for brevity */}
             Trello Board
           </a>
+        </div>
+
+        <div className="mb-8">
+          <ControlSlideshow
+            onSuccess={handleSlideshowSuccessToast}
+            onError={handleSlideshowErrorToast}
+          />
         </div>
 
         {isMessageModalOpen && (

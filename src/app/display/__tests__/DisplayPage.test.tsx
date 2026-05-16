@@ -1,6 +1,6 @@
 // src/app/display/__tests__/DisplayPage.test.tsx
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 // Mock all complex components
 jest.mock('../Components/Rotator', () => ({
@@ -28,9 +28,27 @@ jest.mock('../Components/DowntimeDisplay', () => ({
   default: () => <div data-testid="downtime-display">Downtime Display Component</div>,
 }));
 
+jest.mock('../Components/SlideshowOverlay', () => ({
+  __esModule: true,
+  default: () => <div data-testid="slideshow-overlay">SlideShow Overlay</div>,
+}));
+
 // Variable to control mock behavior
 let mockIsDowntime = false;
 let mockIsLoading = false;
+let mockSlideshowActive = false;
+
+jest.mock('@/lib/firebase/slideshowSettings', () => ({
+  subscribeSlideshowSettings: jest.fn((onChange) => {
+    onChange({
+      active: mockSlideshowActive,
+      startTime: mockSlideshowActive ? '12:00' : null,
+      endTime: mockSlideshowActive ? '13:00' : null,
+    });
+    return jest.fn();
+  }),
+  isSlideshowWindowActive: jest.fn(() => mockSlideshowActive),
+}));
 
 jest.mock('../context/PrayerTimesContext', () => ({
   usePrayerTimesContext: () => ({
@@ -81,69 +99,91 @@ describe('Display Page', () => {
   beforeEach(() => {
     mockIsDowntime = false;
     mockIsLoading = false;
+    mockSlideshowActive = false;
   });
 
   describe('Normal Mode', () => {
-    it('should render Rotator in normal mode', () => {
+    it('should render Rotator in normal mode', async () => {
       mockIsDowntime = false;
       render(<Display />);
-      expect(screen.getByTestId('rotator')).toBeInTheDocument();
+      expect(await screen.findByTestId('rotator')).toBeInTheDocument();
     });
 
-    it('should render PrayerTimeline in normal mode', () => {
+    it('should render PrayerTimeline in normal mode', async () => {
       mockIsDowntime = false;
       render(<Display />);
-      expect(screen.getByTestId('prayer-timeline')).toBeInTheDocument();
+      expect(await screen.findByTestId('prayer-timeline')).toBeInTheDocument();
     });
 
-    it('should render PrayerOverlay in normal mode', () => {
+    it('should render PrayerOverlay in normal mode', async () => {
       mockIsDowntime = false;
       render(<Display />);
-      expect(screen.getByTestId('prayer-overlay')).toBeInTheDocument();
+      expect(await screen.findByTestId('prayer-overlay')).toBeInTheDocument();
     });
 
-    it('should render PostPrayerTableOverlay in normal mode', () => {
+    it('should render PostPrayerTableOverlay in normal mode', async () => {
       mockIsDowntime = false;
       render(<Display />);
-      expect(screen.getByTestId('post-prayer-overlay')).toBeInTheDocument();
+      expect(await screen.findByTestId('post-prayer-overlay')).toBeInTheDocument();
     });
 
-    it('should NOT render DowntimeDisplay in normal mode', () => {
+    it('should NOT render DowntimeDisplay in normal mode', async () => {
       mockIsDowntime = false;
       render(<Display />);
+      await screen.findByTestId('rotator');
       expect(screen.queryByTestId('downtime-display')).not.toBeInTheDocument();
     });
   });
 
   describe('Downtime Mode', () => {
-    it('should render DowntimeDisplay in downtime mode', () => {
+    it('should render DowntimeDisplay in downtime mode', async () => {
       mockIsDowntime = true;
       render(<Display />);
-      expect(screen.getByTestId('downtime-display')).toBeInTheDocument();
+      expect(await screen.findByTestId('downtime-display')).toBeInTheDocument();
     });
 
-    it('should NOT render Rotator in downtime mode', () => {
+    it('should NOT render Rotator in downtime mode', async () => {
       mockIsDowntime = true;
       render(<Display />);
+      await screen.findByTestId('downtime-display');
       expect(screen.queryByTestId('rotator')).not.toBeInTheDocument();
     });
 
-    it('should NOT render PrayerTimeline in downtime mode', () => {
+    it('should NOT render PrayerTimeline in downtime mode', async () => {
       mockIsDowntime = true;
       render(<Display />);
+      await screen.findByTestId('downtime-display');
       expect(screen.queryByTestId('prayer-timeline')).not.toBeInTheDocument();
     });
 
-    it('should NOT render PrayerOverlay in downtime mode', () => {
+    it('should NOT render PrayerOverlay in downtime mode', async () => {
       mockIsDowntime = true;
       render(<Display />);
+      await screen.findByTestId('downtime-display');
       expect(screen.queryByTestId('prayer-overlay')).not.toBeInTheDocument();
     });
 
-    it('should NOT render PostPrayerTableOverlay in downtime mode', () => {
+    it('should NOT render PostPrayerTableOverlay in downtime mode', async () => {
       mockIsDowntime = true;
       render(<Display />);
+      await screen.findByTestId('downtime-display');
       expect(screen.queryByTestId('post-prayer-overlay')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('SlideShow Mode', () => {
+    it('should render only the slideshow overlay when schedule is active', async () => {
+      mockSlideshowActive = true;
+      render(<Display />);
+
+      expect(await screen.findByTestId('slideshow-overlay')).toBeInTheDocument();
+      expect(screen.queryByTestId('rotator')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('prayer-timeline')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('downtime-display')).not.toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
     });
   });
 

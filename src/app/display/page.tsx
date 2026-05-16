@@ -8,8 +8,14 @@ import PrayerTimeline from './Components/PrayerTimeline';
 import PrayerOverlay from './Components/PrayerOverlay';
 import PostPrayerTableOverlay from './Components/PostPrayerTableOverlay';
 import DowntimeDisplay from './Components/DowntimeDisplay';
+import SlideshowOverlay from './Components/SlideshowOverlay';
 import { usePrayerTimesContext } from './context/PrayerTimesContext';
 import { useDebugContext } from './context/DebugContext';
+import {
+  isSlideshowWindowActive,
+  subscribeSlideshowSettings,
+  type SlideshowSettings,
+} from '@/lib/firebase/slideshowSettings';
 
 // Transition duration in seconds
 const TRANSITION_DURATION = 1.2;
@@ -24,6 +30,10 @@ const ROTATOR_BOUNDARY_FADE_HEIGHT_PX = 160;
 function DisplayContent() {
   const { isLoading, isDowntime: contextDowntime } = usePrayerTimesContext();
   const { downtimeOverride, downtimeOverrideActive } = useDebugContext();
+  const [slideshowSettings, setSlideshowSettings] =
+    useState<SlideshowSettings | null>(null);
+  const [slideshowSettingsLoaded, setSlideshowSettingsLoaded] = useState(false);
+  const [slideshowNow, setSlideshowNow] = useState(() => new Date());
   const [viewport, setViewport] = useState(() => ({
     width: DISPLAY_BASE_WIDTH,
     height: DISPLAY_BASE_HEIGHT,
@@ -31,6 +41,10 @@ function DisplayContent() {
 
   // Use automatic time-based detection, but allow debug override when active
   const isDowntime = downtimeOverrideActive ? downtimeOverride : contextDowntime;
+  const isSlideshowActive = isSlideshowWindowActive(
+    slideshowSettings,
+    slideshowNow
+  );
 
   // Track which mode is currently displayed (allows for smooth transition)
   const [displayMode, setDisplayMode] = useState<'normal' | 'downtime' | null>(null);
@@ -40,6 +54,30 @@ function DisplayContent() {
   const containerRef = useRef<HTMLDivElement>(null);
   const normalRef = useRef<HTMLDivElement>(null);
   const downtimeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeSlideshowSettings(
+      (settings) => {
+        setSlideshowSettings(settings);
+        setSlideshowSettingsLoaded(true);
+      },
+      (error) => {
+        console.error('[Display] Failed to load slideshow settings:', error);
+        setSlideshowSettings(null);
+        setSlideshowSettingsLoaded(true);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setSlideshowNow(new Date());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const updateViewport = () => {
@@ -143,8 +181,12 @@ function DisplayContent() {
     return () => ctx.revert();
   }, [isDowntime, isLoading, displayMode]);
 
+  if (isSlideshowActive) {
+    return <SlideshowOverlay />;
+  }
+
   // Show loading state briefly
-  if (isLoading) {
+  if (!slideshowSettingsLoaded || isLoading) {
     return (
       <div
         className="flex h-full w-full items-center justify-center"
