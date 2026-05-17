@@ -9,6 +9,34 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
+const SLIDESHOW_STATE_REF = doc(db, 'state', 'slideshow');
+
+export async function saveSlideIndex(index: number): Promise<void> {
+  await setDoc(
+    SLIDESHOW_STATE_REF,
+    { slideIndex: index, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+export function subscribeSlideIndex(
+  onChange: (index: number) => void,
+  onError?: (error: FirestoreError) => void
+): Unsubscribe {
+  return onSnapshot(
+    SLIDESHOW_STATE_REF,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (typeof data.slideIndex === 'number' && data.slideIndex >= 0) {
+          onChange(data.slideIndex);
+        }
+      }
+    },
+    onError
+  );
+}
+
 export interface SlideshowSettings {
   active: boolean;
   startTime: string | null;
