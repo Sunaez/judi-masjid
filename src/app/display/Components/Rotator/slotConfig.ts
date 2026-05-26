@@ -1,5 +1,6 @@
 export type RotatorSlotKey =
   | 'welcome'
+  | 'eid-prayer'
   | 'prayer-table'
   | 'taraweh'
   | 'message'
@@ -8,11 +9,18 @@ export type RotatorSlotKey =
   | 'donation'
   | 'feedback'
 
-export function getRotatorSlotOrder(isRamadan: boolean): RotatorSlotKey[] {
+export function getRotatorSlotOrder(
+  isRamadan: boolean,
+  showEidAlAdhaPrayer: boolean = false
+): RotatorSlotKey[] {
   const slots: RotatorSlotKey[] = [
     'welcome',
     'prayer-table',
   ]
+
+  if (showEidAlAdhaPrayer) {
+    slots.splice(1, 0, 'eid-prayer')
+  }
 
   if (isRamadan) {
     slots.push('taraweh')

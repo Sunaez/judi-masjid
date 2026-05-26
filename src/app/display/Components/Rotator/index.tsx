@@ -10,6 +10,7 @@ import Welcome from './Specials/Welcome';
 import DateTimeWeather from './Specials/DateTimeWeather';
 import Donation from './Specials/Donation';
 import Feedback from './Specials/Feedback';
+import EidPrayer from './Specials/EidPrayer';
 import PrayerTable from './Specials/PrayerTable';
 import Taraweh from './Specials/Taraweh';
 import Footer from './Footer';
@@ -21,6 +22,11 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getRotatorSlotOrder, type RotatorSlotKey } from './slotConfig';
 import { addMinutesToTime } from '@/lib/prayerTimeUtils';
 import EidLanternBackdrop from '@/components/EidLanternBackdrop';
+import {
+  EID_AL_ADHA_NOTICE_END_MS,
+  EID_AL_ADHA_NOTICE_START_MS,
+  isEidAlAdhaPrayerNoticeActive,
+} from '@/lib/eidPrayerNotice';
 
 // Environment variable keys for OpenWeather API
 const OPENWEATHER_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY!;
@@ -46,8 +52,8 @@ type RotatorSlot =
       component: React.ComponentType<any>;
     };
 
-function buildSlots(isRamadan: boolean): RotatorSlot[] {
-  return getRotatorSlotOrder(isRamadan).map((key): RotatorSlot => {
+function buildSlots(isRamadan: boolean, showEidAlAdhaPrayer: boolean): RotatorSlot[] {
+  return getRotatorSlotOrder(isRamadan, showEidAlAdhaPrayer).map((key): RotatorSlot => {
     if (key === 'message') return { type: 'message', key }
     if (key === 'weather-message') return { type: 'weather-message', key }
 
@@ -56,6 +62,7 @@ function buildSlots(isRamadan: boolean): RotatorSlot[] {
       React.ComponentType<any>
     > = {
       welcome: Welcome,
+      'eid-prayer': EidPrayer,
       'prayer-table': PrayerTable,
       taraweh: Taraweh,
       'date-time-weather': DateTimeWeather,
@@ -97,12 +104,16 @@ export default function Rotator() {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // Counter to trigger re-renders after prayer times +1min
   const [prayerRefresh, setPrayerRefresh] = useState(0);
+  const [showEidAlAdhaPrayer, setShowEidAlAdhaPrayer] = useState(false);
   // Filter messages by validity (e.g. time-based conditions)
   const valid = useValidMessages(all, prayerTimes, weatherData?.condition || null);
   // Filter messages that have weather conditions matching current weather
   const weatherMessages = useWeatherMessages(all, weatherData?.condition || null);
   // Build slot order dynamically (Taraweh slot only during Ramadan)
-  const slots = useMemo(() => buildSlots(effectiveRamadan), [effectiveRamadan]);
+  const slots = useMemo(
+    () => buildSlots(effectiveRamadan, showEidAlAdhaPrayer),
+    [effectiveRamadan, showEidAlAdhaPrayer]
+  );
 
   // Index of the current slot (cycles through `slots`)
   const [index, setIndex] = useState(0);
@@ -122,6 +133,35 @@ export default function Rotator() {
   useEffect(() => {
     setIndex(prev => prev % slots.length);
   }, [slots.length]);
+
+  useEffect(() => {
+    const nowMs = Date.now();
+    const timeoutIds: number[] = [];
+
+    setShowEidAlAdhaPrayer(isEidAlAdhaPrayerNoticeActive(nowMs));
+
+    if (nowMs < EID_AL_ADHA_NOTICE_START_MS) {
+      timeoutIds.push(
+        window.setTimeout(
+          () => setShowEidAlAdhaPrayer(true),
+          EID_AL_ADHA_NOTICE_START_MS - nowMs
+        )
+      );
+    }
+
+    if (nowMs < EID_AL_ADHA_NOTICE_END_MS) {
+      timeoutIds.push(
+        window.setTimeout(
+          () => setShowEidAlAdhaPrayer(false),
+          EID_AL_ADHA_NOTICE_END_MS - nowMs
+        )
+      );
+    }
+
+    return () => {
+      timeoutIds.forEach(timeoutId => window.clearTimeout(timeoutId));
+    };
+  }, []);
 
   // ─── Schedule Re-Render After Jama‘at/Maghrib ─────────────────────────────────
   // Sets up a timeout for each prayer's jama‘at time +1 minute or maghrib +1 minute.
