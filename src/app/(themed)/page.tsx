@@ -16,12 +16,12 @@ import UsefulLinks from './IndexComponents/UsefulLinks'
 import Footer from './IndexComponents/Footer'
 
 export default function Home() {
-  const { isEidAlFitr } = usePrayerTimesContext()
+  const { isEid } = usePrayerTimesContext()
 
   return (
     <div className="relative overflow-hidden">
-      <EidMubarakIntro active={isEidAlFitr} />
-      {isEidAlFitr && <EidLanternBackdrop className="opacity-75" />}
+      <EidMubarakIntro active={isEid} />
+      {isEid && <EidLanternBackdrop className="opacity-75" />}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

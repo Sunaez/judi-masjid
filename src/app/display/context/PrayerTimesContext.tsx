@@ -11,6 +11,7 @@ import {
   isRamadanDate,
   isRamadanPeriod,
 } from '@/lib/islamicDate';
+import { isEidAlAdhaGreetingActive } from '@/lib/eidPrayerNotice';
 import { timeToMinutes } from '@/lib/prayerTimeUtils';
 
 // Temporary preview flag so Eid visuals/messages can be reviewed outside 1-3 Shawwal.
@@ -34,6 +35,10 @@ interface PrayerTimesContextValue {
   isLastTenRamadanDays: boolean;
   // Whether today is within Eid al-Fitr (1-3 Shawwal)
   isEidAlFitr: boolean;
+  // Whether the Eid al-Adha greeting should be shown
+  isEidAlAdha: boolean;
+  // Whether any Eid greeting should be shown
+  isEid: boolean;
 }
 
 const PrayerTimesContext = createContext<PrayerTimesContextValue | undefined>(undefined);
@@ -47,20 +52,14 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     return now.getHours() * 60 + now.getMinutes();
   });
 
-  // Track the current day to detect day changes for Ramadan recalculation
-  const [currentDay, setCurrentDay] = useState(() => new Date().getDate());
-
-  // Recompute Ramadan flags when day changes
-  const { isRamadan, isRamadanPeriodActive, isFirstTenRamadanDays, isLastTenRamadanDays, isEidAlFitr } = useMemo(() => {
-    const now = new Date();
-    return {
-      isRamadan: isRamadanDate(now),
-      isRamadanPeriodActive: isRamadanPeriod(now),
-      isFirstTenRamadanDays: isFirstTenDaysOfRamadan(now),
-      isLastTenRamadanDays: isLastTenDaysOfRamadan(now),
-      isEidAlFitr: FORCE_EID_AL_FITR_PREVIEW || isEidAlFitrDate(now),
-    };
-  }, [currentDay]);
+  const now = new Date();
+  const isRamadan = isRamadanDate(now);
+  const isRamadanPeriodActive = isRamadanPeriod(now);
+  const isFirstTenRamadanDays = isFirstTenDaysOfRamadan(now);
+  const isLastTenRamadanDays = isLastTenDaysOfRamadan(now);
+  const isEidAlFitr = FORCE_EID_AL_FITR_PREVIEW || isEidAlFitrDate(now);
+  const isEidAlAdha = isEidAlAdhaGreetingActive(now.getTime());
+  const isEid = isEidAlFitr || isEidAlAdha;
 
   // Ref to store the interval ID so we can clean it up properly
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,9 +69,6 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     const updateTime = () => {
       const now = new Date();
       setCurrentMinutes(now.getHours() * 60 + now.getMinutes());
-      // Check if day has changed (for Ramadan recalculation)
-      const newDay = now.getDate();
-      setCurrentDay(prev => prev !== newDay ? newDay : prev);
     };
 
     // Calculate ms until next minute
@@ -141,6 +137,8 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     isFirstTenRamadanDays,
     isLastTenRamadanDays,
     isEidAlFitr,
+    isEidAlAdha,
+    isEid,
   };
 
   return (

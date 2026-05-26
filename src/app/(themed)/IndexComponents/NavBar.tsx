@@ -1,7 +1,6 @@
 // src/app/(themed)/IndexComponents/NavBar.tsx
 'use client'
 
-import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
@@ -65,17 +64,9 @@ export default function NavBar() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1 }}
-      className="flex items-center justify-between bg-[var(--background-start)] px-6 py-2 border-b border-[var(--accent-color)]"
+      className="flex items-center justify-between gap-4 bg-[var(--background-start)] px-6 py-2 border-b border-[var(--accent-color)]"
     >
-      <div className="flex items-center space-x-4">
-        {/* Nav links */}
-        <Link href="/display/" className="px-3 py-1 rounded bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 text-sm">
-          Display
-        </Link>
-        <Link href="/admin/" className="px-3 py-1 rounded bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 text-sm">
-          Admin
-        </Link>
-
+      <div className="flex min-h-10 items-center">
         {/* Weather display with entry animation */}
         {isLoadingWeather ? (
           <div className="flex items-center space-x-2">

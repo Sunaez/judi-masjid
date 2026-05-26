@@ -90,14 +90,14 @@ export default function Rotator() {
   // Raw messages fetched from various sources
   const all = useMessages();
   // Prayer times from Firebase context
-  const { prayerTimes, isRamadan, isFirstTenRamadanDays, isEidAlFitr } = usePrayerTimesContext();
+  const { prayerTimes, isRamadan, isFirstTenRamadanDays, isEid } = usePrayerTimesContext();
   // Debug context for keyboard shortcuts
   const { rotatorAdvanceSignal, ramadanPreviewActive } = useDebugContext();
   const effectiveRamadan = isRamadan || ramadanPreviewActive;
   const effectiveFirstTenRamadanDays = isFirstTenRamadanDays || ramadanPreviewActive;
   const welcomeGreetingText = effectiveFirstTenRamadanDays
     ? 'Ramadan Mubarak'
-    : isEidAlFitr
+    : isEid
     ? 'Eid Mubarak'
     : undefined;
   // Current + forecast weather data
@@ -648,7 +648,7 @@ export default function Rotator() {
         '--rotator-text-size': '3.5rem',
       } as React.CSSProperties}
     >
-      {isEidAlFitr && <EidLanternBackdrop className="opacity-85" />}
+      {isEid && <EidLanternBackdrop className="opacity-85" />}
       <div
         ref={containerRef}
         className="relative z-10 flex flex-col h-full w-full p-8"

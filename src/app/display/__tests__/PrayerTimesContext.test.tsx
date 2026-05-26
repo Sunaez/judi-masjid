@@ -28,6 +28,7 @@ jest.mock('@/lib/islamicDate', () => ({
   isRamadanPeriod: () => false,
   isFirstTenDaysOfRamadan: () => false,
   isLastTenDaysOfRamadan: () => false,
+  isEidAlFitrDate: () => false,
 }))
 
 function TestComponent() {

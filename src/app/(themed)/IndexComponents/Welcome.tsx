@@ -16,7 +16,7 @@ function splitToWords(text: string): string[] {
 
 export default function Welcome() {
   const [fontsReady, setFontsReady] = useState(false)
-  const { isEidAlFitr } = usePrayerTimesContext()
+  const { isEid } = usePrayerTimesContext()
 
   const englishLine1 = useMemo(() => splitToChars('Welcome to'), [])
   const englishLine2 = useMemo(() => splitToChars('Al-judi Masjid'), [])
@@ -49,7 +49,7 @@ export default function Welcome() {
     return () => {
       tl.kill()
     }
-  }, [fontsReady, isEidAlFitr])
+  }, [fontsReady, isEid])
 
   return (
     <div className={`flex-1 space-y-4 p-4 ${fontsReady ? 'opacity-100' : 'opacity-0'}`}>
@@ -96,7 +96,7 @@ export default function Welcome() {
         </div>
       </div>
 
-      {isEidAlFitr && (
+      {isEid && (
         <div className="eid-badge inline-flex w-fit items-center rounded-full border border-[var(--accent-color)]/40 bg-[var(--secondary-color)]/20 px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--accent-color)] shadow-lg">
           Eid Mubarak
         </div>
