@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { motion } from 'motion/react'
 
 import {
@@ -71,6 +72,33 @@ export default function EidSalahNotice() {
               <p className="text-base leading-7 text-[var(--text-color)]">
                 Brothers and sisters are welcome.
               </p>
+
+              <div className="grid gap-4 rounded-2xl border border-[var(--accent-color)]/20 bg-[var(--background-end)]/35 p-4 sm:grid-cols-[132px_1fr] sm:items-center">
+                <div className="relative h-32 overflow-hidden rounded-xl border border-[var(--accent-color)]/15 bg-[var(--background-start)]">
+                  <Image
+                    src="/PrayerMat.jpeg"
+                    alt="Prayer mat"
+                    fill
+                    sizes="(min-width: 640px) 132px, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <p
+                    dir="rtl"
+                    className="text-right text-base leading-8 text-[var(--text-color)]"
+                  >
+                    برایان و خوشکانی بەڕێز، بۆ نوێژی جەژن لە پارکی سومەرفیڵد
+                    تکایە هەر یەکە و بەرماڵێك لەگەڵ خۆیدا بێنێ. کاتژمێر ٩
+                  </p>
+
+                  <p className="text-base leading-7 text-[var(--text-color)]">
+                    Dear brothers and sisters, for the Eid al-Adha prayer at
+                    Summerfield Park, please bring a prayer mat with you
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
