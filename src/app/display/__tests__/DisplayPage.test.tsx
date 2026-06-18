@@ -88,6 +88,8 @@ jest.mock('../context/DebugContext', () => ({
     testPostPrayerTable: jest.fn(),
     ramadanPreviewActive: false,
     toggleRamadanPreview: jest.fn(),
+    donationGoalPreviewSignal: 0,
+    previewDonationGoal: jest.fn(),
     notification: '',
   }),
 }));

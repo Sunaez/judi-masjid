@@ -92,7 +92,11 @@ export default function Rotator() {
   // Prayer times from Firebase context
   const { prayerTimes, isRamadan, isFirstTenRamadanDays, isEid } = usePrayerTimesContext();
   // Debug context for keyboard shortcuts
-  const { rotatorAdvanceSignal, ramadanPreviewActive } = useDebugContext();
+  const {
+    rotatorAdvanceSignal,
+    ramadanPreviewActive,
+    donationGoalPreviewSignal,
+  } = useDebugContext();
   const effectiveRamadan = isRamadan || ramadanPreviewActive;
   const effectiveFirstTenRamadanDays = isFirstTenRamadanDays || ramadanPreviewActive;
   const welcomeGreetingText = effectiveFirstTenRamadanDays
@@ -354,13 +358,14 @@ export default function Rotator() {
   }, [index, prayerTimes, slots, effectiveRamadan]);
 
   // ─── Advance Through Slots on Interval ───────────────────────────────────────
-  // Every DISPLAY_MS, advance index by 1 (looping)
+  // Advance after DISPLAY_MS. Resetting on index changes gives manual previews
+  // their full display duration.
   useEffect(() => {
-    const interval = setInterval(() => {
+    const timeout = window.setTimeout(() => {
       setIndex(i => (i + 1) % slots.length);
     }, DISPLAY_MS);
-    return () => clearInterval(interval);
-  }, [slots.length]);
+    return () => window.clearTimeout(timeout);
+  }, [index, slots.length]);
 
   // ─── Debug: Advance on Key 2 Press ─────────────────────────────────────────────
   // When rotatorAdvanceSignal changes (triggered by pressing "2"), advance to next slot
@@ -369,6 +374,19 @@ export default function Rotator() {
       setIndex(i => (i + 1) % slots.length);
     }
   }, [rotatorAdvanceSignal, slots.length]);
+
+  // Debug: jump directly to the donation goal slide on "I".
+  useEffect(() => {
+    if (!donationGoalPreviewSignal) return;
+
+    const donationIndex = slots.findIndex(
+      slot => slot.type === 'special' && slot.key === 'donation'
+    );
+
+    if (donationIndex >= 0) {
+      setIndex(donationIndex);
+    }
+  }, [donationGoalPreviewSignal, slots]);
 
   // ─── Helper: Apply Animation to Element ───────────────────────────────────────
   // Applies GSAP animation based on the animation config
@@ -552,7 +570,7 @@ export default function Rotator() {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [index, prayerRefresh]);
+  }, [index, prayerRefresh, donationGoalPreviewSignal]);
 
   // ─── Render Logic ───────────────────────────────────────────────────────────
   const slot = slots[index] ?? slots[0];
@@ -633,7 +651,14 @@ export default function Rotator() {
 
     content = (
       <div className="flex-1 flex items-center justify-center p-8">
-        <Special {...specialProps} />
+        <Special
+          key={
+            slot.key === 'donation'
+              ? `donation-${donationGoalPreviewSignal}`
+              : slot.key
+          }
+          {...specialProps}
+        />
       </div>
     );
   }

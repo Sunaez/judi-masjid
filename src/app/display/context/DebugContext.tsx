@@ -26,6 +26,10 @@ interface DebugContextValue {
   ramadanPreviewActive: boolean;
   toggleRamadanPreview: () => void;
 
+  // Signal to jump the rotator to the donation goal slide
+  donationGoalPreviewSignal: number;
+  previewDonationGoal: () => void;
+
   // Current notification message (empty = hidden)
   notification: string;
 }
@@ -40,6 +44,7 @@ const KEYBINDS = [
   { key: '4', description: 'Toggle between Light and Dark mode' },
   { key: '5', description: 'Preview post-prayer table overlay (short test)' },
   { key: '6', description: 'Toggle Ramadan preview visuals (short test mode)' },
+  { key: 'I', description: 'Jump to the donation goal slide' },
   { key: 'H', description: 'Show/hide this help menu' },
 ];
 
@@ -53,6 +58,7 @@ const KEYBINDS = [
  * - 4: Toggle between light and dark mode
  * - 5: Force short post-prayer table preview
  * - 6: Toggle Ramadan preview visuals
+ * - I: Jump to the donation goal slide
  * - H: Show/hide keybinds help
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
@@ -62,6 +68,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   const [prayerOverlayTestSignal, setPrayerOverlayTestSignal] = useState(0);
   const [postPrayerTableTestSignal, setPostPrayerTableTestSignal] = useState(0);
   const [ramadanPreviewActive, setRamadanPreviewActive] = useState(false);
+  const [donationGoalPreviewSignal, setDonationGoalPreviewSignal] = useState(0);
   const [notification, setNotification] = useState('');
   const [showHint, setShowHint] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
@@ -129,6 +136,11 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     });
   }, [showNotification]);
 
+  const previewDonationGoal = useCallback(() => {
+    setDonationGoalPreviewSignal(signal => signal + 1);
+    showNotification('Donation Goal Slide');
+  }, [showNotification]);
+
   const toggleHelp = useCallback(() => {
     setShowHelp(prev => !prev);
     setShowHint(false); // Hide hint when help is toggled
@@ -153,6 +165,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     testPrayerOverlay,
     testPostPrayerTable,
     toggleRamadanPreview,
+    previewDonationGoal,
     toggleTheme,
     toggleHelp,
     showHelp,
@@ -166,6 +179,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
       testPrayerOverlay,
       testPostPrayerTable,
       toggleRamadanPreview,
+      previewDonationGoal,
       toggleTheme,
       toggleHelp,
       showHelp,
@@ -176,6 +190,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     testPrayerOverlay,
     testPostPrayerTable,
     toggleRamadanPreview,
+    previewDonationGoal,
     toggleTheme,
     toggleHelp,
     showHelp,
@@ -210,6 +225,9 @@ export function DebugProvider({ children }: { children: ReactNode }) {
         case '6':
           if (!handlers.showHelp) handlers.toggleRamadanPreview();
           break;
+        case 'i':
+          if (!handlers.showHelp) handlers.previewDonationGoal();
+          break;
         case 'h':
           handlers.toggleHelp();
           break;
@@ -232,6 +250,8 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     testPostPrayerTable,
     ramadanPreviewActive,
     toggleRamadanPreview,
+    donationGoalPreviewSignal,
+    previewDonationGoal,
     notification,
   };
 

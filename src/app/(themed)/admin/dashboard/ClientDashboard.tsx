@@ -27,6 +27,10 @@ const ControlSlideshow = dynamic(
   () => import('./DashBoardComponents/ControlSlideshow'),
   { ssr: false }
 );
+const DonationSettings = dynamic(
+  () => import('./DashBoardComponents/DonationSettings'),
+  { ssr: false }
+);
 
 export default function ClientDashboard() {
   const [isMessageModalOpen, setMessageModalOpen] = useState(false);
@@ -91,6 +95,8 @@ export default function ClientDashboard() {
   const handleTimetableErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
   const handleSlideshowSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
   const handleSlideshowErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
+  const handleDonationSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
+  const handleDonationErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
 
   const handleBackdropClick = () => {
     if (!messageChildIsClosing && isMessageModalOpen) {
@@ -214,6 +220,13 @@ export default function ClientDashboard() {
           <ControlSlideshow
             onSuccess={handleSlideshowSuccessToast}
             onError={handleSlideshowErrorToast}
+          />
+        </div>
+
+        <div className="mb-8">
+          <DonationSettings
+            onSuccess={handleDonationSuccessToast}
+            onError={handleDonationErrorToast}
           />
         </div>
 
