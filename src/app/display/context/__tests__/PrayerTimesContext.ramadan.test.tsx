@@ -33,6 +33,7 @@ jest.mock('@/lib/islamicDate', () => ({
   isRamadanPeriod: () => mockIsRamadanPeriod,
   isFirstTenDaysOfRamadan: () => mockIsFirstTen,
   isLastTenDaysOfRamadan: () => mockIsLastTen,
+  isEidAlFitrDate: () => false,
 }))
 
 function ContextProbe() {

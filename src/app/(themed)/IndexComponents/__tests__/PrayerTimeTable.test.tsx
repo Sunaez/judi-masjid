@@ -20,6 +20,10 @@ jest.mock('motion/react', () => {
   }
 })
 
+jest.mock('@/lib/firebase/timetableStorage', () => ({
+  getActiveTimetable: jest.fn(() => Promise.resolve(null)),
+}))
+
 const basePrayerTimes = {
   fajrStart: '05:00',
   fajrJamaat: '05:30',

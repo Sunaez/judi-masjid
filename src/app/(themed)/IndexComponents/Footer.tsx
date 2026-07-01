@@ -100,7 +100,7 @@ export default function Footer() {
           </div>
 
           <div className="border-t border-[var(--background-end)]/20 pt-4 text-sm opacity-70">
-            Website/TV screen: alanddazad4@gmail.com
+            Al-Judi Masjid
           </div>
         </div>
       </div>

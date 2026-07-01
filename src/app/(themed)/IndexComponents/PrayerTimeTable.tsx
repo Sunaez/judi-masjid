@@ -214,6 +214,17 @@ export default function PrayerTimesTable() {
             </a>
           </div>
 
+          <div className="mt-4 flex justify-center">
+            <a
+              href={activeTimetable ? activeTimetable.imageData : filePath}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 rounded-lg border border-[var(--secondary-color)] text-[var(--text-color)] hover:bg-[var(--secondary-color)]/20 transition-colors duration-200"
+            >
+              Full View Ramadan Timetable
+            </a>
+          </div>
+
           <div className="block mt-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

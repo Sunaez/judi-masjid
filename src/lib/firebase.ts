@@ -11,13 +11,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
+const app = getApps()[0] ?? initializeApp(firebaseConfig);
 
-// Auth instance
-export const auth: Auth = getAuth();
+// Auth reads browser globals and validates API keys during initialization.
+// Keep server prerendering from touching it; client code receives the real Auth.
+export const auth: Auth =
+  typeof window === 'undefined' ? (null as unknown as Auth) : getAuth(app);
 
 // Firestore instance
-export const db: Firestore = getFirestore();
+export const db: Firestore = getFirestore(app);
 
