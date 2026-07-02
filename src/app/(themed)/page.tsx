@@ -1,14 +1,10 @@
 'use client'
 
-import Image from 'next/image'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import {
   Building2,
   CalendarDays,
-  Check,
-  Copy,
-  HeartHandshake,
   Mail,
   MapPin,
   Phone,
@@ -26,17 +22,31 @@ import TimetableDownload from './IndexComponents/TimetableDownload'
 import UsefulLinks from './IndexComponents/UsefulLinks'
 import Footer from './IndexComponents/Footer'
 import QuranAndDonation from './IndexComponents/QuranAndDonation'
+import DonationOptions from './IndexComponents/DonationOptions'
 
-const DONATION_URL =
-  'https://pay.sumup.com/b2c/Q7IJZ8CO?utm_campaign=pdf&utm_medium=print&utm_source=qr'
-const DONATION_IMAGE_URL =
-  'https://bluemoji.io/cdn-proxy/646218c67da47160c64a84d5/66b3eac64fa4ba1531cd262e_37.png'
+const sectionIds = [
+  'home',
+  'prayer-timetable',
+  'useful-links',
+  'donate',
+  'contact',
+] satisfies SiteSectionId[]
 
-const bankDetails = [
-  { label: 'Account name', value: 'Al-Judi Masjid' },
-  { label: 'Account number', value: '89886445' },
-  { label: 'Sort code', value: '51-70-32' },
-]
+function isSiteSectionId(value: string): value is SiteSectionId {
+  return sectionIds.includes(value as SiteSectionId)
+}
+
+function getSectionFromLocation(): SiteSectionId {
+  const hash = window.location.hash.replace('#', '')
+
+  return isSiteSectionId(hash) ? hash : 'home'
+}
+
+function getSectionUrl(section: SiteSectionId) {
+  const baseUrl = `${window.location.pathname}${window.location.search}`
+
+  return section === 'home' ? baseUrl : `${baseUrl}#${section}`
+}
 
 const contactCards = [
   {
@@ -82,38 +92,6 @@ function SectionShell({
         {children}
       </div>
     </section>
-  )
-}
-
-function CopyBankDetailButton({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
-    } catch {
-      setCopied(false)
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      aria-label={`Copy ${label}`}
-      className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 text-sm font-semibold text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
-    >
-      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      {copied ? 'Copied' : 'Copy'}
-    </button>
   )
 }
 
@@ -175,61 +153,7 @@ function PrayerTimetableSection() {
 function DonateSection() {
   return (
     <SectionShell eyebrow="Support the masjid" title="Donate">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="flex min-h-[320px] items-center justify-center rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-8 shadow-lg">
-          <Image
-            src={DONATION_IMAGE_URL}
-            alt="Donation work in progress"
-            width={256}
-            height={256}
-            className="h-48 w-48 object-contain md:h-64 md:w-64"
-            unoptimized
-          />
-        </div>
-
-        <div className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-6 shadow-lg">
-          <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[var(--accent-color)] text-[var(--background-end)]">
-            <HeartHandshake className="h-6 w-6" />
-          </div>
-
-          <h2 className="mt-5 text-2xl font-bold text-[var(--text-color)] md:text-3xl">
-            This part is currently a work in progress.
-          </h2>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--text-color)]">
-            In the meantime, donations can be made by bank transfer using the details
-            below, or through the current secure SumUp page.
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {bankDetails.map(detail => (
-              <div
-                key={detail.label}
-                className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-start)] p-4"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                  {detail.label}
-                </p>
-                <p className="mt-2 text-lg font-bold text-[var(--accent-color)]">
-                  {detail.value}
-                </p>
-                <div className="mt-4">
-                  <CopyBankDetailButton label={detail.label} value={detail.value} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <a
-            href={DONATION_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--accent-color)] px-5 py-3 font-semibold text-[var(--background-end)] transition hover:-translate-y-0.5 hover:shadow-lg"
-          >
-            Donate with SumUp
-            <HeartHandshake className="h-5 w-5" />
-          </a>
-        </div>
-      </div>
+      <DonationOptions variant="full" />
     </SectionShell>
   )
 }
@@ -296,8 +220,32 @@ function renderSection(activeSection: SiteSectionId) {
 export default function HomePage() {
   const { isEid } = usePrayerTimesContext()
   const [activeSection, setActiveSection] = useState<SiteSectionId>('home')
+
+  useEffect(() => {
+    const syncSectionFromLocation = () => {
+      setActiveSection(getSectionFromLocation())
+    }
+
+    syncSectionFromLocation()
+    window.addEventListener('hashchange', syncSectionFromLocation)
+    window.addEventListener('popstate', syncSectionFromLocation)
+
+    return () => {
+      window.removeEventListener('hashchange', syncSectionFromLocation)
+      window.removeEventListener('popstate', syncSectionFromLocation)
+    }
+  }, [])
+
   const handleSectionChange = (section: SiteSectionId) => {
     setActiveSection(section)
+
+    const nextUrl = getSectionUrl(section)
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+    if (currentUrl !== nextUrl) {
+      window.history.pushState({ section }, '', nextUrl)
+    }
+
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     })

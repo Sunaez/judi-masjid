@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
-import { useEffect, useState, type ComponentType } from 'react'
+import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import { IoMoon, IoSunny } from 'react-icons/io5'
 import { AnimatePresence, motion } from 'motion/react'
@@ -66,6 +66,17 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
   const [weather, setWeather] = useState<Weather | null>(null)
   const [isLoadingWeather, setIsLoadingWeather] = useState(true)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const drawerRef = useRef<HTMLDivElement>(null)
+
+  const closeMenu = useCallback((restoreFocus = true) => {
+    setIsMenuOpen(false)
+
+    if (restoreFocus && typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => menuButtonRef.current?.focus())
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -102,51 +113,86 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsMenuOpen(false)
+        event.preventDefault()
+        closeMenu()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const focusableElements = Array.from(
+        drawerRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      ).filter(element => !element.hasAttribute('disabled'))
+
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
       }
     }
 
     document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', handleKeyDown)
+    const focusFrame = window.requestAnimationFrame(() => {
+      closeButtonRef.current?.focus()
+    })
 
     return () => {
+      window.cancelAnimationFrame(focusFrame)
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isMenuOpen])
+  }, [closeMenu, isMenuOpen])
 
-  if (!mounted) return null
-
-  const currentTheme = theme === 'system' ? systemTheme : theme
-  const toggleTheme = () => setTheme(currentTheme === 'dark' ? 'light' : 'dark')
+  const currentTheme = mounted
+    ? theme === 'system'
+      ? systemTheme
+      : theme
+    : undefined
+  const displayTheme = currentTheme ?? 'light'
+  const toggleTheme = () => setTheme(displayTheme === 'dark' ? 'light' : 'dark')
   const selectSection = (section: SiteSectionId) => {
     onSectionChange(section)
-    setIsMenuOpen(false)
+    closeMenu()
   }
+  const weatherTemp = weather
+    ? Math.round(Number.isFinite(weather.temp) ? weather.temp : weather.forecastTemp)
+    : null
+  const weatherCondition = weather
+    ? weather.condition || weather.forecastCondition || 'Unknown'
+    : ''
+  const weatherTemperatureLabel = weatherTemp === null ? '' : `${weatherTemp}\u00B0C`
   const weatherSummary = weather
-    ? `${Math.round(weather.forecastTemp)} C, ${weather.forecastCondition}`
+    ? `${weatherTemperatureLabel}, ${weatherCondition}`
     : isLoadingWeather
       ? 'Loading weather'
       : 'Weather unavailable'
 
-  const menuOverlay = createPortal(
+  const menuOverlay = mounted ? createPortal(
     <AnimatePresence>
       {isMenuOpen && (
         <motion.div
-          id="site-section-menu"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Site navigation"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           className="fixed inset-0 z-[100] text-[var(--text-color)]"
         >
-          <motion.button
-            type="button"
-            aria-label="Close menu"
-            onClick={() => setIsMenuOpen(false)}
+          <motion.div
+            aria-hidden="true"
+            onClick={() => closeMenu()}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -155,6 +201,11 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
           />
 
           <motion.div
+            id="site-section-menu"
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Site navigation"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -173,8 +224,9 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
               </button>
 
               <button
+                ref={closeButtonRef}
                 type="button"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => closeMenu()}
                 aria-label="Close menu"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:bg-[var(--background-start)]"
               >
@@ -191,7 +243,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
                     key={id}
                     type="button"
                     onClick={() => selectSection(id)}
-                    aria-current={isActive ? 'page' : undefined}
+                    aria-current={isActive ? 'true' : undefined}
                     initial={{ opacity: 0, x: -18 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.05 + 0.04 * index, duration: 0.22 }}
@@ -235,7 +287,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
                     key={href}
                     href={href}
                     className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 font-semibold text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={() => closeMenu()}
                   >
                     <Icon className="h-5 w-5" />
                     {label}
@@ -248,7 +300,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
       )}
     </AnimatePresence>,
     document.body
-  )
+  ) : null
 
   return (
     <>
@@ -258,9 +310,10 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
         transition={{ duration: 0.5, delay: 0.1 }}
         className="sticky top-0 z-40 border-b border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6"
       >
-        <nav className="relative mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 md:gap-4">
+        <nav className="relative mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-4">
           <div className="flex min-w-0 items-center gap-3 justify-self-start">
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setIsMenuOpen(open => !open)}
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
@@ -274,7 +327,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
             <button
               type="button"
               onClick={() => selectSection('home')}
-              className="min-w-0 text-left"
+              className="hidden min-w-0 text-left min-[360px]:block"
             >
               <span className="block truncate text-lg font-bold leading-tight text-[var(--accent-color)] md:text-xl">
                 Al Judi Masjid
@@ -295,17 +348,17 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
               <>
                 <Image
                   src={`https://openweathermap.org/img/wn/${weather.iconCode}@2x.png`}
-                  alt={weather.forecastCondition}
+                  alt={weatherCondition}
                   width={36}
                   height={36}
-                  className="h-9 w-9 shrink-0"
+                  className="hidden h-9 w-9 shrink-0 min-[360px]:block"
                   unoptimized
                 />
                 <span className="whitespace-nowrap font-semibold">
-                  {Math.round(weather.forecastTemp)} C
+                  {weatherTemperatureLabel}
                 </span>
                 <span className="hidden max-w-32 truncate capitalize sm:inline md:max-w-44">
-                  {weather.forecastCondition}
+                  {weatherCondition}
                 </span>
                 <span className="hidden whitespace-nowrap text-sm italic opacity-70 lg:inline">
                   At Al Judi Masjid
@@ -327,7 +380,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
             className="justify-self-end rounded-full p-2 transition hover:bg-[var(--background-end)]"
             aria-label="Toggle theme"
           >
-            {currentTheme === 'dark'
+            {displayTheme === 'dark'
               ? <IoSunny size={24} className="text-[var(--yellow)]" />
               : <IoMoon size={24} className="text-[var(--accent-color)]" />
             }

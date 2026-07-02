@@ -5,6 +5,7 @@ import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firest
 
 import type { ConditionData, MessageData } from '@/app/display/Components/Rotator/types'
 import { db } from '@/lib/firebase'
+import DonationOptions from './DonationOptions'
 
 const londonDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/London',
@@ -96,7 +97,7 @@ export default function QuranAndDonation() {
 
   return (
     <section className="px-6 pb-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[minmax(0,0.88fr)_minmax(420px,1fr)]">
         <article
           className="relative overflow-hidden rounded-lg border border-[var(--secondary-color)] p-6 shadow-xl"
           style={{
@@ -155,6 +156,8 @@ export default function QuranAndDonation() {
             )}
           </div>
         </article>
+
+        <DonationOptions />
       </div>
     </section>
   )
