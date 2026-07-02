@@ -151,7 +151,7 @@ export default function Welcome({ displayDuration, greetingText }: WelcomeProps)
 
       <div className="line jummah-row col-span-2 text-6xl font-semibold">
         Masjid Jummah time is at{' '}
-        <strong style={{ color: 'var(--accent-color)' }}>12:45</strong>
+        <strong style={{ color: 'var(--accent-color)' }}>13:45</strong>
       </div>
 
       <div
