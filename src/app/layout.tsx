@@ -18,6 +18,11 @@ const zain = Zain({
 export const metadata: Metadata = {
   title: 'Al-Judi Masjid',
   description: 'Kiosk display & admin for Al-Judi Masjid',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/Icons/favicon.png',
+  },
 }
 
 export default function RootLayout({

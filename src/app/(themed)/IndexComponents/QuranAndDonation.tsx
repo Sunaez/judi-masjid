@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 
 import type { ConditionData, MessageData } from '@/app/display/Components/Rotator/types'
 import { db } from '@/lib/firebase'
@@ -46,11 +46,12 @@ export default function QuranAndDonation() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     const messagesQuery = query(collection(db, 'messages'), orderBy('createdAt', 'asc'))
 
-    const unsubscribe = onSnapshot(
-      messagesQuery,
-      async snapshot => {
+    async function loadQuranMessages() {
+      try {
+        const snapshot = await getDocs(messagesQuery)
         const quranDocs = snapshot.docs.filter(docSnap => {
           const data = docSnap.data() as MessageData
           return data.sourceType === 'quran' && Boolean(data.quran)
@@ -71,19 +72,26 @@ export default function QuranAndDonation() {
           })
         )
 
-        setMessages(
-          loadedMessages.filter(message => isUnconditionalMessage(message.conditions))
-        )
-        setLoading(false)
-      },
-      error => {
+        if (!cancelled) {
+          setMessages(
+            loadedMessages.filter(message => isUnconditionalMessage(message.conditions))
+          )
+          setLoading(false)
+        }
+      } catch (error) {
         console.error('[homepage] Failed to load Quran messages:', error)
-        setMessages([])
-        setLoading(false)
+        if (!cancelled) {
+          setMessages([])
+          setLoading(false)
+        }
       }
-    )
+    }
 
-    return () => unsubscribe()
+    loadQuranMessages()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const quranOfTheDay = useMemo(() => getQuranOfTheDay(messages), [messages])

@@ -1,8 +1,7 @@
 // src/app/IndexComponents/TimeUntil.tsx
 'use client'
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
-import gsap from 'gsap'
+import { useState, useEffect, useMemo } from 'react'
 import { usePrayerTimesContext } from '../../display/context/PrayerTimesContext'
 
 type TimeUntilProps = {
@@ -18,6 +17,23 @@ const M_TENS = [0, 1, 2, 3, 4, 5]
 type PrayerEvent = {
   name: string
   time: Date
+}
+
+function DigitColumn({ pool, digit }: { pool: number[]; digit: number }) {
+  return (
+    <div className="h-[1em] overflow-hidden">
+      <ul
+        className="m-0 p-0 transition-transform duration-300 ease-out motion-reduce:transition-none"
+        style={{ transform: `translateY(-${digit}em)` }}
+      >
+        {pool.map(d => (
+          <li key={d} className="h-[1em] leading-[1em]">
+            {d}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 export default function TimeUntil({ eventName, eventTime }: TimeUntilProps = {}) {
@@ -69,63 +85,18 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps = {})
   const diffMs = currentEventTime ? currentEventTime.getTime() - now.getTime() : 0
 
   // 3) compute HH:MM:SS & split - memoized (always call, even if diffMs <= 0)
-  const { H, M, S, ht, ho, mt, mo, st, so } = useMemo(() => {
+  const { ht, ho, mt, mo, st, so } = useMemo(() => {
     const totalS = Math.max(0, Math.floor(diffMs / 1000)) // Clamp to 0
-    const H      = Math.floor(totalS / 3600)
-    const M      = Math.floor((totalS % 3600) / 60)
-    const S      = totalS % 60
+    const H = Math.floor(totalS / 3600)
+    const M = Math.floor((totalS % 3600) / 60)
+    const S = totalS % 60
     const pad2   = (n: number) => n.toString().padStart(2, '0')
     const [ht, ho] = pad2(H).split('').map(Number)
     const [mt, mo] = pad2(M).split('').map(Number)
     const [st, so] = pad2(S).split('').map(Number)
 
-    return { H, M, S, ht, ho, mt, mo, st, so }
+    return { ht, ho, mt, mo, st, so }
   }, [diffMs])
-
-  // 4) refs for each digit column
-  const hTR = useRef<HTMLUListElement>(null!)
-  const hOR = useRef<HTMLUListElement>(null!)
-  const mTR = useRef<HTMLUListElement>(null!)
-  const mOR = useRef<HTMLUListElement>(null!)
-  const sTR = useRef<HTMLUListElement>(null!)
-  const sOR = useRef<HTMLUListElement>(null!)
-
-  // Keep track of previous values to only animate when changed
-  const prevValues = useRef({ ht, ho, mt, mo, st, so })
-  const isFirstRender = useRef(true)
-
-  // 5) Set initial positions on mount, then animate on change
-  useLayoutEffect(() => {
-    const slide = (ref: React.RefObject<HTMLUListElement>, digit: number, prevDigit: number, isFirst: boolean) => {
-      if (!ref.current) return
-
-      if (isFirst) {
-        // On first render, set position immediately without animation
-        gsap.set(ref.current, { y: `-${digit}em` })
-      } else if (digit !== prevDigit) {
-        // Only animate if the digit actually changed
-        gsap.to(ref.current, {
-          y: `-${digit}em`,
-          duration: 0.4,
-          ease: 'power1.out',
-        })
-      }
-    }
-
-    const prev = prevValues.current
-    const isFirst = isFirstRender.current
-
-    slide(hTR, ht, prev.ht, isFirst)
-    slide(hOR, ho, prev.ho, isFirst)
-    slide(mTR, mt, prev.mt, isFirst)
-    slide(mOR, mo, prev.mo, isFirst)
-    slide(sTR, st, prev.st, isFirst)
-    slide(sOR, so, prev.so, isFirst)
-
-    // Update previous values and mark that first render is complete
-    prevValues.current = { ht, ho, mt, mo, st, so }
-    isFirstRender.current = false
-  }, [ht, ho, mt, mo, st, so])
 
   // 6) Handle loading, error, and no next prayer states (only in auto mode)
   if (autoMode && isLoading) {
@@ -167,23 +138,15 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps = {})
         {/* Clock */}
         <div className="inline-flex font-mono text-2xl md:text-3xl lg:text-4xl overflow-hidden">
           {[
-            { ref: hTR, pool: H_TENS, idx: 0 },
-            { ref: hOR, pool: DIGITS, idx: 1 },
-            { ref: mTR, pool: M_TENS, idx: 2 },
-            { ref: mOR, pool: DIGITS, idx: 3 },
-            { ref: sTR, pool: M_TENS, idx: 4 },
-            { ref: sOR, pool: DIGITS, idx: 5 },
-          ].map(({ ref, pool, idx }) => (
+            { digit: ht, pool: H_TENS, idx: 0 },
+            { digit: ho, pool: DIGITS, idx: 1 },
+            { digit: mt, pool: M_TENS, idx: 2 },
+            { digit: mo, pool: DIGITS, idx: 3 },
+            { digit: st, pool: M_TENS, idx: 4 },
+            { digit: so, pool: DIGITS, idx: 5 },
+          ].map(({ digit, pool, idx }) => (
             <div key={idx} className="flex items-center">
-              <div className="h-[1em] overflow-hidden">
-                <ul ref={ref} className="m-0 p-0">
-                  {pool.map(d => (
-                    <li key={d} className="h-[1em] leading-[1em]">
-                      {d}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <DigitColumn pool={pool} digit={digit} />
               {(idx === 1 || idx === 3) && (
                 <div className="px-1 select-none">:</div>
               )}

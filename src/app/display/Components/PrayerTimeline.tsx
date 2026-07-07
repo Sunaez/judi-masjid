@@ -17,22 +17,23 @@ const ICON_MAP: Record<string, string> = {
   Taraweh: '/Icons/white-taraweh.webp',
 }
 
-const PRE_EVENT_HOURS = 1
-const POST_EVENT_HOURS = 1
+const PRE_EVENT_HOURS = 0.5
+const POST_EVENT_HOURS = 0.5
 const MIN_ISHA_TARAWEH_GAP_PERCENT = 4
 const MAX_EVENT_LEFT_PERCENT = 99.5
-const BAR_HEIGHT = 76
+const BAR_HEIGHT = 90
 const BAR_TOP_PERCENT = 100
 const BAR_Y_OFFSET_PX = 0
 const BAR_BG_COLOR = 'var(--secondary-color)'
 const BAR_FILL_COLOR = 'var(--accent-color)'
 const BAR_BORDER_RADIUS = BAR_HEIGHT
-const ICON_SIZE_MOBILE = 70
-const WRAPPER_MOBILE = 72
-const LABEL_ABOVE_GAP = 16
+const ICON_SIZE_MOBILE = 100
+const WRAPPER_MOBILE = 75
+const LABEL_ABOVE_GAP =13
 const LABEL_BELOW_GAP = 0
-const TICK_INTERVAL = 1000
+const TICK_INTERVAL = 2000
 const SCROLL_THRESHOLD = 5
+const UNPADDED_HOUR_EVENTS = new Set(['Fajr', 'Sunrise'])
 
 type Event = {
   name: string
@@ -46,6 +47,12 @@ function toDate(timeString: string): Date {
   const date = new Date()
   date.setHours(hours, minutes, 0, 0)
   return date
+}
+
+function formatEventTime(event: Event): string {
+  if (!UNPADDED_HOUR_EVENTS.has(event.name)) return event.timeString
+
+  return event.timeString.replace(/^0(?=\d:)/, '')
 }
 
 function buildEvents(prayerTimes: NonNullable<ReturnType<typeof usePrayerTimesContext>['prayerTimes']>, includeTaraweh: boolean): Event[] {
@@ -224,6 +231,7 @@ const PrayerTimeline = memo(function PrayerTimeline() {
           />
 
           {events.map(event => {
+            const displayTime = formatEventTime(event)
             const isAbove =
               event.type === 'jamaat' ||
               event.type === 'sunrise' ||
@@ -240,7 +248,7 @@ const PrayerTimeline = memo(function PrayerTimeline() {
                 {isAbove && (
                   <div style={{ marginBottom: LABEL_ABOVE_GAP, textAlign: 'center' }}>
                     <div className="text-3xl font-bold">{event.name}</div>
-                    <div className="text-4xl font-normal">{event.timeString}</div>
+                    <div className="text-4xl font-normal">{displayTime}</div>
                   </div>
                 )}
 
@@ -268,7 +276,7 @@ const PrayerTimeline = memo(function PrayerTimeline() {
                 {!isAbove && (
                   <div style={{ marginTop: LABEL_BELOW_GAP, textAlign: 'center' }}>
                     <div className="text-3xl font-semibold">{event.name}</div>
-                    <div className="text-4xl font-bold">{event.timeString}</div>
+                    <div className="text-4xl font-bold">{displayTime}</div>
                   </div>
                 )}
               </div>
