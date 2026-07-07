@@ -3,7 +3,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Mail, MapPin, Monitor, Phone, ShieldCheck } from 'lucide-react'
+import { ExternalLink, Mail, MapPin, Monitor, Phone, ShieldCheck } from 'lucide-react'
 
 const accessLinks = [
   {
@@ -37,6 +37,12 @@ const contactItems = [
     Icon: Mail,
   },
 ]
+
+const charity = {
+  name: 'SANDWELL AND BIRMINGHAM KURDISH COMMUNITY',
+  number: '1170258',
+  href: 'https://register-of-charities.charitycommission.gov.uk/en/charity-search/-/charity-details/5084852/full-print',
+}
 
 export default function Footer() {
   return (
@@ -99,8 +105,29 @@ export default function Footer() {
             ))}
           </div>
 
+          <div className="rounded-lg border border-[var(--background-end)]/20 bg-[var(--background-end)]/10 p-4">
+            <p className="text-sm font-semibold uppercase opacity-70">
+              Registered charity
+            </p>
+            <p className="mt-2 text-base font-semibold leading-6">
+              {charity.name}
+            </p>
+            <p className="mt-1 text-sm opacity-80">
+              Charity number: {charity.number}
+            </p>
+            <a
+              href={charity.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold underline-offset-4 transition hover:underline"
+            >
+              View Charity Commission record
+              <ExternalLink size={16} aria-hidden="true" />
+            </a>
+          </div>
+
           <div className="border-t border-[var(--background-end)]/20 pt-4 text-sm opacity-70">
-            Al-Judi Masjid
+            Al-Judi Masjid is operated by {charity.name}.
           </div>
         </div>
       </div>

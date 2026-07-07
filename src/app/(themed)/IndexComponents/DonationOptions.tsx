@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import {
   Check,
   ChevronRight,
@@ -12,42 +12,30 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 
+import {
+  MIN_DONATION_AMOUNT,
+  bankDetails,
+  donationFrequencyOptions,
+  donationFunds,
+  presetDonationAmounts,
+  sanitizeDonationAmountInput,
+  type DonationFrequency,
+  type DonationFund,
+} from '@/lib/donations'
+
 const DONATION_URL =
   'https://pay.sumup.com/b2c/Q7IJZ8CO?utm_campaign=pdf&utm_medium=print&utm_source=qr'
 
-const presetAmounts = [10, 25, 50, 100]
+const amountFormatter = new Intl.NumberFormat('en-GB', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+})
 
-const frequencyOptions = [
-  { id: 'once', label: 'One-off' },
-  { id: 'monthly', label: 'Monthly' },
-] as const
-
-const donationFunds = [
-  {
-    id: 'general',
-    label: 'General donation',
-    description: 'Support the daily running costs of the masjid.',
-  },
-  {
-    id: 'maintenance',
-    label: 'Masjid upkeep',
-    description: 'Help maintain prayer spaces and facilities.',
-  },
-  {
-    id: 'community',
-    label: 'Community work',
-    description: 'Contribute towards classes, events, and local support.',
-  },
-] as const
-
-const bankDetails = [
-  { label: 'Account name', value: 'Al-Judi Masjid' },
-  { label: 'Account number', value: '89886445' },
-  { label: 'Sort code', value: '51-70-32' },
-]
-
-type Frequency = (typeof frequencyOptions)[number]['id']
-type DonationFund = (typeof donationFunds)[number]['id']
+interface CheckoutSessionResponse {
+  sessionId?: string
+  url?: string
+  error?: string
+}
 
 function CopyBankDetailButton({
   label,
@@ -85,7 +73,7 @@ function AmountLabel({ amount }: { amount: number }) {
   return (
     <>
       <span aria-hidden="true">&pound;</span>
-      {amount}
+      {amountFormatter.format(amount)}
     </>
   )
 }
@@ -97,33 +85,120 @@ export default function DonationOptions({
 }) {
   const [selectedAmount, setSelectedAmount] = useState(25)
   const [customAmount, setCustomAmount] = useState('')
-  const [frequency, setFrequency] = useState<Frequency>('once')
+  const [frequency, setFrequency] = useState<DonationFrequency>('once')
   const [selectedFund, setSelectedFund] = useState<DonationFund>('general')
-  const [checkoutPreviewed, setCheckoutPreviewed] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
+  const [redirecting, setRedirecting] = useState(false)
+  const [showWorkInProgressNotice, setShowWorkInProgressNotice] = useState(true)
+  const lastNoticeTapTime = useRef(0)
 
   const donationAmount = useMemo(() => {
+    if (!customAmount.trim()) {
+      return selectedAmount
+    }
+
     const customValue = Number(customAmount)
-    return customAmount.trim() && Number.isFinite(customValue) && customValue > 0
+    return Number.isFinite(customValue) && customValue > 0
       ? customValue
-      : selectedAmount
+      : 0
   }, [customAmount, selectedAmount])
 
   const fund = donationFunds.find(item => item.id === selectedFund) ?? donationFunds[0]
-  const canPreviewCheckout = donationAmount > 0
+  const canStartCheckout = donationAmount >= MIN_DONATION_AMOUNT && !redirecting
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const donationStatus = params.get('donation')
+
+    if (donationStatus === 'success') {
+      setCheckoutStatus('Thank you. Stripe has confirmed your donation flow.')
+    }
+
+    if (donationStatus === 'cancelled') {
+      setCheckoutStatus('Your Stripe checkout was cancelled. No payment was taken.')
+    }
+  }, [])
+
+  const resetCheckoutMessages = () => {
+    setCheckoutError(null)
+    setCheckoutStatus(null)
+  }
 
   const handlePresetAmount = (amount: number) => {
     setSelectedAmount(amount)
     setCustomAmount('')
-    setCheckoutPreviewed(false)
+    resetCheckoutMessages()
   }
 
   const handleCustomAmount = (value: string) => {
-    setCustomAmount(value.replace(/[^\d]/g, ''))
-    setCheckoutPreviewed(false)
+    setCustomAmount(sanitizeDonationAmountInput(value))
+    resetCheckoutMessages()
+  }
+
+  const handleStripeCheckout = async () => {
+    resetCheckoutMessages()
+    setRedirecting(true)
+
+    try {
+      const response = await fetch('/api/stripe/checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: donationAmount,
+          frequency,
+          fund: selectedFund,
+        }),
+      })
+      const data = (await response
+        .json()
+        .catch(() => ({}))) as CheckoutSessionResponse
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error ?? 'Unable to start Stripe Checkout.')
+      }
+
+      window.location.assign(data.url)
+    } catch (error) {
+      setCheckoutError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to start Stripe Checkout. Please try again.'
+      )
+      setRedirecting(false)
+    }
+  }
+
+  const dismissWorkInProgressNotice = () => {
+    setShowWorkInProgressNotice(false)
+  }
+
+  const handleNoticePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'mouse') {
+      return
+    }
+
+    const now = Date.now()
+
+    if (now - lastNoticeTapTime.current < 450) {
+      dismissWorkInProgressNotice()
+      lastNoticeTapTime.current = 0
+      return
+    }
+
+    lastNoticeTapTime.current = now
   }
 
   return (
-    <article className="overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-xl">
+    <article className="relative overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-xl">
+      <div
+        className={`transition duration-300 ${
+          showWorkInProgressNotice ? 'pointer-events-none select-none blur-sm' : ''
+        }`}
+        aria-hidden={showWorkInProgressNotice}
+      >
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.86fr)]">
         <div className="p-5 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -141,8 +216,9 @@ export default function DonationOptions({
           </div>
 
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)] md:text-base">
-            Choose a donation amount and purpose. This Stripe checkout preview shows
-            how card donations can be collected safely once connected.
+            Choose a donation amount and purpose. Stripe Checkout will show the
+            best available payment methods for each donor, including cards,
+            Apple Pay, Google Pay, PayPal, Link, and eligible bank methods.
           </p>
 
           <div className="mt-6">
@@ -150,7 +226,7 @@ export default function DonationOptions({
               Donation amount
             </p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {presetAmounts.map(amount => {
+              {presetDonationAmounts.map(amount => {
                 const isActive = customAmount === '' && selectedAmount === amount
 
                 return (
@@ -194,7 +270,7 @@ export default function DonationOptions({
                 Frequency
               </p>
               <div className="mt-3 grid grid-cols-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-start)] p-1">
-                {frequencyOptions.map(option => {
+                {donationFrequencyOptions.map(option => {
                   const isActive = frequency === option.id
 
                   return (
@@ -203,7 +279,7 @@ export default function DonationOptions({
                       type="button"
                       onClick={() => {
                         setFrequency(option.id)
-                        setCheckoutPreviewed(false)
+                        resetCheckoutMessages()
                       }}
                       className={`h-10 rounded-md text-sm font-semibold transition ${
                         isActive
@@ -232,7 +308,7 @@ export default function DonationOptions({
                       type="button"
                       onClick={() => {
                         setSelectedFund(option.id)
-                        setCheckoutPreviewed(false)
+                        resetCheckoutMessages()
                       }}
                       className={`rounded-lg border p-3 text-left transition ${
                         isActive
@@ -263,7 +339,7 @@ export default function DonationOptions({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-75">
-                Stripe checkout
+                Stripe hosted checkout
               </p>
               <h3 className="mt-1 text-xl font-bold">Al Judi Masjid</h3>
             </div>
@@ -290,13 +366,23 @@ export default function DonationOptions({
               <div className="flex items-center gap-3">
                 <CreditCard className="h-5 w-5 opacity-85" />
                 <div>
-                  <p className="text-sm font-semibold">Card payment</p>
-                  <p className="text-xs opacity-75">Visa, Mastercard, Apple Pay</p>
+                  <p className="text-sm font-semibold">Flexible payment methods</p>
+                  <p className="text-xs opacity-75">
+                    Cards, Apple Pay, Google Pay, PayPal, Link, bank
+                  </p>
                 </div>
               </div>
-              <div className="mt-4 grid grid-cols-[1fr_64px] gap-2 text-sm opacity-75">
-                <span>4242 4242 4242 4242</span>
-                <span className="text-right">12/28</span>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                {['Card', 'Apple Pay', 'Google Pay', 'PayPal', 'Bank'].map(
+                  method => (
+                    <span
+                      key={method}
+                      className="rounded-full border border-[var(--x-secondary-color)] px-3 py-1"
+                    >
+                      {method}
+                    </span>
+                  )
+                )}
               </div>
             </div>
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--x-secondary-color)] pt-4 text-sm">
@@ -308,7 +394,7 @@ export default function DonationOptions({
           <div className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
             <div className="flex items-center gap-2 rounded-md border border-[var(--x-secondary-color)] px-3 py-2 text-sm">
               <ShieldCheck className="h-4 w-4" />
-              <span>Encrypted checkout</span>
+              <span>Dynamic payment methods</span>
             </div>
             <div className="flex items-center gap-2 rounded-md border border-[var(--x-secondary-color)] px-3 py-2 text-sm">
               <ReceiptText className="h-4 w-4" />
@@ -322,21 +408,29 @@ export default function DonationOptions({
 
           <button
             type="button"
-            disabled={!canPreviewCheckout}
-            onClick={() => setCheckoutPreviewed(true)}
+            disabled={!canStartCheckout}
+            onClick={handleStripeCheckout}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--x-accent-color)] px-5 py-3 font-semibold text-[var(--x-background-end)] transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Preview secure Stripe checkout
+            {redirecting ? 'Opening Stripe Checkout...' : 'Donate securely with Stripe'}
             <ChevronRight className="h-5 w-5" />
           </button>
 
-          {checkoutPreviewed && (
+          {checkoutError && (
+            <p
+              role="alert"
+              className="mt-3 rounded-md border border-[var(--x-secondary-color)] bg-[var(--x-background-end)] px-3 py-2 text-sm"
+            >
+              {checkoutError}
+            </p>
+          )}
+
+          {checkoutStatus && (
             <p
               role="status"
               className="mt-3 rounded-md border border-[var(--x-secondary-color)] bg-[var(--x-background-end)] px-3 py-2 text-sm"
             >
-              Stripe preview ready for {fund.label.toLowerCase()}. No payment has
-              been taken.
+              {checkoutStatus}
             </p>
           )}
 
@@ -346,7 +440,7 @@ export default function DonationOptions({
             rel="noopener noreferrer"
             className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--x-secondary-color)] px-5 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:bg-[var(--x-background-end)]"
           >
-            Donate now with current secure link
+            Backup donation link
             <HeartHandshake className="h-4 w-4" />
           </a>
         </div>
@@ -383,6 +477,36 @@ export default function DonationOptions({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      </div>
+
+      {showWorkInProgressNotice && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Donation section is currently being worked on. Double click or double tap to dismiss."
+          onDoubleClick={dismissWorkInProgressNotice}
+          onPointerUp={handleNoticePointerUp}
+          onKeyDown={event => {
+            if (['Enter', ' ', 'Escape'].includes(event.key)) {
+              event.preventDefault()
+              dismissWorkInProgressNotice()
+            }
+          }}
+          className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center bg-[var(--background-end)]/65 p-6 text-center backdrop-blur-sm"
+        >
+          <div className="max-w-md rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)]/95 p-6 text-[var(--text-color)] shadow-2xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+              Donations
+            </p>
+            <h2 className="mt-3 text-2xl font-bold leading-tight text-[var(--accent-color)]">
+              This section is currently being worked on
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+              Double click or double tap this notice to dismiss it.
+            </p>
           </div>
         </div>
       )}
