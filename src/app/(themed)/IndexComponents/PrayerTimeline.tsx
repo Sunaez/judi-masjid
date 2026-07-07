@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
@@ -216,7 +216,7 @@ export default function PrayerTimeline() {
       </div>
 
       <p className="mt-4 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-        • Maghrib and Isha are prayed at the Athaan
+        <span aria-hidden="true">&bull;</span> Maghrib and Isha are prayed at the Athaan
       </p>
 
       <div className="mt-6 flex flex-col items-center space-y-2">

@@ -1,4 +1,4 @@
-// src/app/(themed)/admin/dashboard/ClientDashboard.tsx
+﻿// src/app/(themed)/admin/dashboard/ClientDashboard.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -114,19 +114,26 @@ export default function ClientDashboard() {
     }
   };
 
+  const actionClass = "inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent-color)] px-4 py-3 text-center text-sm font-semibold text-[var(--background-end)] transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-start)]";
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen lg:pl-64">
       <NavBar />
 
-      <div className="flex-grow bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)] p-6">
-        <h1 className="text-4xl font-bold text-[var(--accent-color)] mb-8">
-          Admin Dashboard
-        </h1>
+      <main className="min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)] p-4 sm:p-6 lg:p-8">
+        <div className="mb-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+            Masjid tools
+          </p>
+          <h1 className="mt-2 text-3xl font-bold text-[var(--accent-color)] sm:text-4xl">
+            Admin Dashboard
+          </h1>
+        </div>
 
-        <div className="flex items-center space-x-4 mb-6">
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <button
             onClick={openMessageModal}
-            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+            className={actionClass}
           >
             {/* svg icon omitted for brevity */}
             Add Message
@@ -134,7 +141,7 @@ export default function ClientDashboard() {
 
           <button
             onClick={openSyncModal}
-            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+            className={actionClass}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -155,7 +162,7 @@ export default function ClientDashboard() {
 
           <button
             onClick={openTimetableModal}
-            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+            className={actionClass}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -176,7 +183,7 @@ export default function ClientDashboard() {
 
           <a
             href="/admin/dashboard/prayer-times-editor"
-            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+            className={actionClass}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -199,7 +206,7 @@ export default function ClientDashboard() {
             href="https://docs.google.com/spreadsheets/d/1TqARmQOth6B1BEA8wx-EHGJY-bgEeCtYDHqeYTRmISc/edit?usp=sharing"
             target="_blank"
             rel="noopener noreferrer"
-            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+            className={actionClass}
           >
             {/* svg icon omitted for brevity */}
             Manage timetable Spreadsheet
@@ -209,7 +216,7 @@ export default function ClientDashboard() {
             href="https://trello.com/b/9jKqsYXt"
             target="_blank"
             rel="noopener noreferrer"
-            className="py-3 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition flex items-center"
+            className={actionClass}
           >
             {/* svg icon omitted for brevity */}
             Trello Board
@@ -236,7 +243,7 @@ export default function ClientDashboard() {
             onClick={handleBackdropClick}
           >
             <div
-              className="bg-[var(--background-end)] rounded-2xl shadow-2xl w-full sm:w-11/12 lg:w-4/5 xl:w-3/4 max-w-screen-xl max-h-[95vh] overflow-y-auto p-10"
+              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-screen-xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-4/5 lg:p-8 xl:w-3/4"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
@@ -245,10 +252,10 @@ export default function ClientDashboard() {
                 </h2>
                 <button
                   onClick={() => !messageChildIsClosing && setMessageModalOpen(false)}
-                  className="text-2xl font-bold text-[var(--text-color)] hover:opacity-70"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
                   aria-label="Close modal"
                 >
-                  ×
+                  &times;
                 </button>
               </div>
               <AddMessage
@@ -267,7 +274,7 @@ export default function ClientDashboard() {
             onClick={handleBackdropClick}
           >
             <div
-              className="bg-[var(--background-end)] rounded-2xl shadow-2xl w-full sm:w-11/12 lg:w-4/5 xl:w-3/4 max-w-screen-xl max-h-[95vh] overflow-y-auto p-10"
+              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-screen-xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-4/5 lg:p-8 xl:w-3/4"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
@@ -276,10 +283,10 @@ export default function ClientDashboard() {
                 </h2>
                 <button
                   onClick={() => !animChildIsClosing && handleAnimChildClose()}
-                  className="text-2xl font-bold text-[var(--text-color)] hover:opacity-70"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
                   aria-label="Close modal"
                 >
-                  ×
+                  &times;
                 </button>
               </div>
               <AddAnimation
@@ -299,7 +306,7 @@ export default function ClientDashboard() {
             onClick={handleBackdropClick}
           >
             <div
-              className="bg-[var(--background-end)] rounded-2xl shadow-2xl w-full sm:w-11/12 lg:w-3/5 max-w-3xl max-h-[95vh] overflow-y-auto p-10"
+              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-3/5 lg:p-8"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
@@ -308,10 +315,10 @@ export default function ClientDashboard() {
                 </h2>
                 <button
                   onClick={() => !syncChildIsClosing && setSyncModalOpen(false)}
-                  className="text-2xl font-bold text-[var(--text-color)] hover:opacity-70"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
                   aria-label="Close modal"
                 >
-                  ×
+                  &times;
                 </button>
               </div>
               <SyncPrayerTimes
@@ -330,7 +337,7 @@ export default function ClientDashboard() {
             onClick={handleBackdropClick}
           >
             <div
-              className="bg-[var(--background-end)] rounded-2xl shadow-2xl w-full sm:w-11/12 lg:w-4/5 xl:w-3/4 max-w-screen-xl max-h-[95vh] overflow-y-auto p-10"
+              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-screen-xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-4/5 lg:p-8 xl:w-3/4"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
@@ -339,7 +346,7 @@ export default function ClientDashboard() {
                 </h2>
                 <button
                   onClick={() => !timetableChildIsClosing && setTimetableModalOpen(false)}
-                  className="text-2xl font-bold text-[var(--text-color)] hover:opacity-70"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
                   aria-label="Close modal"
                 >
                   &times;
@@ -369,7 +376,7 @@ export default function ClientDashboard() {
           </h2>
           <MessageList onAddAnimation={openAnimModal} />
         </div>
-      </div>
+      </main>
     </div>
   );
 }

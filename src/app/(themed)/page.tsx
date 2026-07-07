@@ -79,7 +79,7 @@ function SectionShell({
   children: ReactNode
 }) {
   return (
-    <section className="px-6 py-8">
+    <section className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
@@ -98,13 +98,17 @@ function SectionShell({
 function HomeSection() {
   return (
     <>
-      <main className="gap-8 p-0 lg:flex">
-        <Welcome />
-        <PrayerTimesTable />
+      <main className="px-4 pb-6 pt-5 sm:px-6 lg:px-8 lg:pt-8">
+        <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(380px,0.74fr)] xl:items-stretch">
+          <Welcome />
+          <PrayerTimesTable />
+        </div>
       </main>
 
-      <section className="px-6 pb-8">
-        <PrayerTimeline />
+      <section className="px-4 pb-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-4 py-2 shadow-lg sm:px-6">
+          <PrayerTimeline />
+        </div>
       </section>
 
       <QuranAndDonation />
@@ -132,7 +136,7 @@ function PrayerTimetableSection() {
               </p>
             </div>
           </div>
-          <PrayerTimesTable />
+          <PrayerTimesTable variant="inline" />
         </div>
 
         <div className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-4 shadow-lg">
@@ -260,7 +264,7 @@ export default function HomePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative z-10 flex min-h-screen flex-col"
+        className="relative z-10 flex min-h-screen flex-col lg:pl-72"
       >
         <NavBar activeSection={activeSection} onSectionChange={handleSectionChange} />
         <EidSalahNotice />

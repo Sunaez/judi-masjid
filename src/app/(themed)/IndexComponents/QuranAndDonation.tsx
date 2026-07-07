@@ -96,13 +96,13 @@ export default function QuranAndDonation() {
     : null
 
   return (
-    <section className="px-6 pb-8">
+    <section className="px-4 pb-8 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[minmax(0,0.88fr)_minmax(420px,1fr)]">
         <article
           className="relative overflow-hidden rounded-lg border border-[var(--secondary-color)] p-6 shadow-xl"
           style={{
             background:
-              'linear-gradient(135deg, color-mix(in srgb, var(--background-start) 78%, white), color-mix(in srgb, var(--background-end) 92%, var(--accent-color) 8%))',
+              'linear-gradient(135deg, var(--background-start), var(--background-end))',
           }}
         >
           <div

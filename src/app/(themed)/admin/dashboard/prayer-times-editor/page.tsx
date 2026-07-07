@@ -1,9 +1,8 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getPrayerTimesByMonth, batchSavePrayerTimes } from "@/lib/firebase/prayerTimes";
-import type { RawPrayerTimes } from "@/app/FetchPrayerTimes";
 import NavBar from "../../AdminComponents/NavBar";
 import Notification from "../DashBoardComponents/Notification";
 
@@ -408,10 +407,6 @@ export default function PrayerTimesEditorPage() {
     await handleSaveAndExit();
   };
 
-  const handleDiscardAndExit = () => {
-    setExitModalOpen(true);
-  };
-
   const isFriday = (dateStr: string): boolean => {
     try {
       const [day, month, year] = dateStr.split("/").map(Number);
@@ -450,18 +445,23 @@ export default function PrayerTimesEditorPage() {
   const archivedCount = prayerTimes.filter(row => row.archived).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)]">
+    <div className="min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)] lg:pl-64">
       <NavBar />
 
-      <div className="flex-grow p-6">
+      <main className="min-h-screen p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-[var(--text-color)]">
-              Local Prayer Times Editor
-            </h1>
+          <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                Timetable data
+              </p>
+              <h1 className="mt-2 text-3xl font-bold text-[var(--text-color)]">
+                Local Prayer Times Editor
+              </h1>
+            </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-[var(--text-color)] cursor-pointer">
                 <input
                   type="checkbox"
@@ -477,7 +477,7 @@ export default function PrayerTimesEditorPage() {
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="px-3 py-2 bg-[var(--background-end)] text-[var(--text-color)] border border-[var(--secondary-color)] focus:outline-none focus:border-[var(--accent-color)]"
+                  className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 text-[var(--text-color)] focus:border-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]/30"
                 >
                   {years.map((year) => (
                     <option key={year} value={year}>
@@ -489,7 +489,7 @@ export default function PrayerTimesEditorPage() {
 
               <button
                 onClick={addNewRow}
-                className="px-4 py-2 bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 transition-opacity font-medium"
+                className="min-h-10 rounded-lg bg-[var(--accent-color)] px-4 py-2 font-medium text-[var(--background-end)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
               >
                 + Add Row
               </button>
@@ -497,23 +497,25 @@ export default function PrayerTimesEditorPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !hasChanges}
-                className="px-5 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label={saving ? "Saving..." : "Save"}
+                className="min-h-10 rounded-lg bg-green-600 px-5 py-2 font-medium text-white transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? "Saving..." : "💾 Save"}
+                {saving ? "Saving..." : "Save"}
               </button>
 
               <button
                 onClick={handleExit}
-                className="px-5 py-2 bg-[var(--accent-color)] text-[var(--background-end)] hover:opacity-90 transition-opacity font-medium"
+                aria-label="Back"
+                className="min-h-10 rounded-lg bg-[var(--accent-color)] px-5 py-2 font-medium text-[var(--background-end)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
               >
-                ← Back
+                Back
               </button>
             </div>
           </div>
 
           {/* Selection Actions */}
           {selectedRows.size > 0 && (
-            <div className="flex items-center gap-3 mb-4 p-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700">
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-blue-300 bg-blue-100 p-3 dark:border-blue-700 dark:bg-blue-900/20">
               <span className="text-[var(--text-color)] font-medium">
                 {selectedRows.size} row(s) selected
               </span>
@@ -537,7 +539,7 @@ export default function PrayerTimesEditorPage() {
               </button>
               <button
                 onClick={() => setSelectedRows(new Set())}
-                className="ml-auto px-3 py-1.5 bg-gray-500 text-white hover:bg-gray-600 transition-colors text-sm font-medium"
+                className="px-3 py-1.5 text-sm font-medium text-white transition-colors bg-gray-500 rounded-lg hover:bg-gray-600 sm:ml-auto"
               >
                 Clear Selection
               </button>
@@ -545,14 +547,14 @@ export default function PrayerTimesEditorPage() {
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700">
+            <div className="mb-4 rounded-lg border border-red-400 bg-red-100 p-3 text-red-700">
               {error}
             </div>
           )}
         </div>
 
         {/* Table Container */}
-        <div className="bg-[var(--background-end)] border border-[var(--secondary-color)] shadow-lg overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-lg">
           {loading ? (
             <div className="flex items-center justify-center h-96">
               <div className="text-[var(--text-color)] text-lg">Loading prayer times...</div>
@@ -566,7 +568,7 @@ export default function PrayerTimesEditorPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-auto max-h-[calc(100vh-320px)] custom-scrollbar">
+            <div className="max-h-[calc(100vh-360px)] overflow-auto custom-scrollbar lg:max-h-[calc(100vh-280px)]">
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-[var(--accent-color)] text-[var(--background-end)]">
@@ -662,12 +664,12 @@ export default function PrayerTimesEditorPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {/* Exit Warning Modal */}
       {exitModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-[var(--background-end)] border-2 border-[var(--secondary-color)] shadow-2xl p-8 max-w-md w-full">
+          <div className="mx-4 w-[calc(100%-2rem)] max-w-md rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-2xl sm:p-8">
             <h3 className="text-2xl font-bold text-[var(--text-color)] mb-4">
               Unsaved Changes
             </h3>
@@ -678,21 +680,24 @@ export default function PrayerTimesEditorPage() {
               <button
                 onClick={handleSaveAndExitFromModal}
                 disabled={saving}
-                className="w-full px-6 py-3 bg-green-600 text-white hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+                aria-label="Save Changes & Exit"
+                className="w-full rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
               >
-                💾 Save Changes & Exit
+                Save Changes &amp; Exit
               </button>
               <button
                 onClick={handleExitWithoutSaving}
-                className="w-full px-6 py-3 bg-red-600 text-white hover:bg-red-700 transition-colors font-medium"
+                aria-label="Discard Changes & Exit"
+                className="w-full rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition-colors hover:bg-red-700"
               >
-                🗑️ Discard Changes & Exit
+                Discard Changes &amp; Exit
               </button>
               <button
                 onClick={() => setExitModalOpen(false)}
-                className="w-full px-6 py-3 bg-gray-500 text-white hover:bg-gray-600 transition-colors font-medium"
+                aria-label="Cancel and continue editing"
+                className="w-full rounded-lg bg-gray-500 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-600"
               >
-                ← Cancel (Continue Editing)
+                Cancel (Continue Editing)
               </button>
             </div>
           </div>

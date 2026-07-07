@@ -60,6 +60,128 @@ const accessLinks = [
   { href: '/display/', label: 'Display', Icon: Monitor },
 ]
 
+function ThemeToggle({
+  displayTheme,
+  onToggle,
+}: {
+  displayTheme: string
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:bg-[var(--background-end)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+      aria-label="Toggle theme"
+    >
+      {displayTheme === 'dark'
+        ? <IoSunny size={24} className="text-[var(--yellow)]" />
+        : <IoMoon size={24} className="text-[var(--accent-color)]" />
+      }
+    </button>
+  )
+}
+
+function WeatherStatus({
+  weather,
+  isLoadingWeather,
+  weatherCondition,
+  weatherSummary,
+  weatherTemperatureLabel,
+  variant,
+}: {
+  weather: Weather | null
+  isLoadingWeather: boolean
+  weatherCondition: string
+  weatherSummary: string
+  weatherTemperatureLabel: string
+  variant: 'header' | 'sidebar'
+}) {
+  if (variant === 'header') {
+    return (
+      <div
+        className="flex min-h-10 min-w-0 items-center justify-center gap-2 justify-self-center rounded-lg px-2 text-sm text-[var(--text-color)] md:text-base"
+        aria-label={weatherSummary}
+      >
+        {isLoadingWeather ? (
+          <>
+            <div className="h-8 w-8 animate-pulse rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
+            <div className="hidden h-4 w-32 animate-pulse rounded sm:block" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
+          </>
+        ) : weather ? (
+          <>
+            <Image
+              src={`https://openweathermap.org/img/wn/${weather.iconCode}@2x.png`}
+              alt={weatherCondition}
+              width={36}
+              height={36}
+              className="hidden h-9 w-9 shrink-0 min-[360px]:block"
+              unoptimized
+            />
+            <span className="whitespace-nowrap font-semibold">
+              {weatherTemperatureLabel}
+            </span>
+            <span className="hidden max-w-32 truncate capitalize sm:inline md:max-w-44">
+              {weatherCondition}
+            </span>
+          </>
+        ) : (
+          <>
+            <CloudSun className="h-6 w-6 shrink-0 text-[var(--accent-color)]" />
+            <span className="hidden whitespace-nowrap font-medium sm:inline">
+              Weather unavailable
+            </span>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-4 shadow-sm"
+      aria-label={weatherSummary}
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+        Local weather
+      </p>
+      {isLoadingWeather ? (
+        <div className="mt-3 flex items-center gap-3">
+          <div className="h-10 w-10 animate-pulse rounded-md" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-4 w-20 animate-pulse rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
+            <div className="h-3 w-28 animate-pulse rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
+          </div>
+        </div>
+      ) : weather ? (
+        <div className="mt-3 flex items-center gap-3">
+          <Image
+            src={`https://openweathermap.org/img/wn/${weather.iconCode}@2x.png`}
+            alt={weatherCondition}
+            width={44}
+            height={44}
+            className="h-11 w-11 shrink-0"
+            unoptimized
+          />
+          <div className="min-w-0">
+            <p className="text-2xl font-bold leading-none text-[var(--accent-color)]">
+              {weatherTemperatureLabel}
+            </p>
+            <p className="mt-1 truncate text-sm capitalize text-[var(--text-muted)]">
+              {weatherCondition}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-3 text-[var(--text-color)]">
+          <CloudSun className="h-8 w-8 shrink-0 text-[var(--accent-color)]" />
+          <span className="text-sm font-medium">Weather unavailable</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function NavBar({ activeSection, onSectionChange }: NavBarProps) {
   const { theme, systemTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -156,6 +278,22 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
     }
   }, [closeMenu, isMenuOpen])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)')
+    const handleChange = () => {
+      if (mediaQuery.matches) {
+        setIsMenuOpen(false)
+      }
+    }
+
+    handleChange()
+    mediaQuery.addEventListener('change', handleChange)
+
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
   const currentTheme = mounted
     ? theme === 'system'
       ? systemTheme
@@ -163,9 +301,9 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
     : undefined
   const displayTheme = currentTheme ?? 'light'
   const toggleTheme = () => setTheme(displayTheme === 'dark' ? 'light' : 'dark')
-  const selectSection = (section: SiteSectionId) => {
+  const selectSection = (section: SiteSectionId, restoreFocus = true) => {
     onSectionChange(section)
-    closeMenu()
+    closeMenu(restoreFocus)
   }
   const weatherTemp = weather
     ? Math.round(Number.isFinite(weather.temp) ? weather.temp : weather.forecastTemp)
@@ -188,7 +326,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-[100] text-[var(--text-color)]"
+          className="fixed inset-0 z-[100] text-[var(--text-color)] lg:hidden"
         >
           <motion.div
             aria-hidden="true"
@@ -308,7 +446,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="sticky top-0 z-40 border-b border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6"
+        className="sticky top-0 z-40 border-b border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6 lg:hidden"
       >
         <nav className="relative mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-4">
           <div className="flex min-w-0 items-center gap-3 justify-self-start">
@@ -336,57 +474,120 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
           </div>
 
           <div
-            className="flex min-h-10 min-w-0 items-center justify-center gap-2 justify-self-center rounded-lg px-2 text-sm text-[var(--text-color)] md:text-base"
-            aria-label={weatherSummary}
+            className="contents"
           >
-            {isLoadingWeather ? (
-              <>
-                <div className="h-8 w-8 animate-pulse rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
-                <div className="hidden h-4 w-32 animate-pulse rounded sm:block" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
-              </>
-            ) : weather ? (
-              <>
-                <Image
-                  src={`https://openweathermap.org/img/wn/${weather.iconCode}@2x.png`}
-                  alt={weatherCondition}
-                  width={36}
-                  height={36}
-                  className="hidden h-9 w-9 shrink-0 min-[360px]:block"
-                  unoptimized
-                />
-                <span className="whitespace-nowrap font-semibold">
-                  {weatherTemperatureLabel}
-                </span>
-                <span className="hidden max-w-32 truncate capitalize sm:inline md:max-w-44">
-                  {weatherCondition}
-                </span>
-                <span className="hidden whitespace-nowrap text-sm italic opacity-70 lg:inline">
-                  At Al Judi Masjid
-                </span>
-              </>
-            ) : (
-              <>
-                <CloudSun className="h-6 w-6 shrink-0 text-[var(--accent-color)]" />
-                <span className="hidden whitespace-nowrap font-medium sm:inline">
-                  Weather unavailable
-                </span>
-              </>
-            )}
+            <WeatherStatus
+              weather={weather}
+              isLoadingWeather={isLoadingWeather}
+              weatherCondition={weatherCondition}
+              weatherSummary={weatherSummary}
+              weatherTemperatureLabel={weatherTemperatureLabel}
+              variant="header"
+            />
           </div>
 
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="justify-self-end rounded-full p-2 transition hover:bg-[var(--background-end)]"
-            aria-label="Toggle theme"
-          >
-            {displayTheme === 'dark'
-              ? <IoSunny size={24} className="text-[var(--yellow)]" />
-              : <IoMoon size={24} className="text-[var(--accent-color)]" />
-            }
-          </button>
+          <div className="justify-self-end">
+            <ThemeToggle displayTheme={displayTheme} onToggle={toggleTheme} />
+          </div>
         </nav>
       </motion.header>
+
+      <motion.aside
+        initial={{ opacity: 0, x: -18 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.42, delay: 0.08 }}
+        className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-5 shadow-xl backdrop-blur-md lg:flex"
+        aria-label="Primary navigation"
+      >
+        <button
+          type="button"
+          onClick={() => selectSection('home', false)}
+          className="rounded-lg p-2 text-left transition hover:bg-[var(--background-end)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+        >
+          <span className="block text-2xl font-bold leading-tight text-[var(--accent-color)]">
+            Al Judi Masjid
+          </span>
+          <span className="mt-1 block text-sm text-[var(--text-muted)]">
+            Prayer times and community access
+          </span>
+        </button>
+
+        <div className="mt-5">
+          <WeatherStatus
+            weather={weather}
+            isLoadingWeather={isLoadingWeather}
+            weatherCondition={weatherCondition}
+            weatherSummary={weatherSummary}
+            weatherTemperatureLabel={weatherTemperatureLabel}
+            variant="sidebar"
+          />
+        </div>
+
+        <nav className="mt-5 flex min-h-0 flex-1 flex-col gap-2" aria-label="Site sections">
+          {menuItems.map(({ id, label, Icon }) => {
+            const isActive = id === activeSection
+
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => selectSection(id, false)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`group relative flex min-h-12 items-center gap-3 rounded-lg px-3 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] ${
+                  isActive
+                    ? 'bg-[var(--accent-color)] text-[var(--background-end)] shadow-lg'
+                    : 'text-[var(--text-color)] hover:bg-[var(--background-end)] hover:shadow-sm'
+                }`}
+              >
+                {isActive && (
+                  <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[var(--yellow)]" />
+                )}
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${
+                    isActive
+                      ? 'bg-[var(--background-end)] text-[var(--accent-color)]'
+                      : 'bg-[var(--background-end)] text-[var(--accent-color)]'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1 truncate font-semibold">
+                  {label}
+                </span>
+                <ArrowRight
+                  className={`h-4 w-4 shrink-0 transition ${
+                    isActive
+                      ? 'opacity-100'
+                      : 'opacity-30 group-hover:translate-x-1 group-hover:opacity-100'
+                  }`}
+                />
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="mt-4 border-t border-[var(--secondary-color)] pt-4">
+          <div className="grid grid-cols-2 gap-2">
+            {accessLinks.map(({ href, label, Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 text-sm font-semibold text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              >
+                <Icon className="h-5 w-5" />
+                {label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2">
+            <span className="text-sm font-semibold text-[var(--text-color)]">
+              Theme
+            </span>
+            <ThemeToggle displayTheme={displayTheme} onToggle={toggleTheme} />
+          </div>
+        </div>
+      </motion.aside>
       {menuOverlay}
     </>
   )

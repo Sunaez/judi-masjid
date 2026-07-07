@@ -53,7 +53,11 @@ function TableSkeleton() {
   )
 }
 
-export default function PrayerTimesTable() {
+export default function PrayerTimesTable({
+  variant = 'card',
+}: {
+  variant?: 'card' | 'inline'
+}) {
   // Get prayer times from Firebase context
   const { prayerTimes, isLoading, error, isRamadan } = usePrayerTimesContext()
   const isError = !!error
@@ -111,7 +115,7 @@ export default function PrayerTimesTable() {
 
   if (isError) {
     return (
-      <section className="flex-1 p-4 min-h-[50vh] flex items-center justify-center">
+      <section className={`${variant === 'card' ? 'min-h-full rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6' : 'p-0'} flex items-center justify-center`}>
         <div className="text-center text-red-500">
           <p className="text-xl mb-2">Failed to load prayer times</p>
           <p className="text-sm">Please try refreshing the page</p>
@@ -122,7 +126,7 @@ export default function PrayerTimesTable() {
 
   if (isLoading || !times) {
     return (
-      <section className="flex-1 p-4 min-h-[50vh]">
+      <section className={variant === 'card' ? 'min-h-full rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6' : 'p-0'}>
         <TableSkeleton />
       </section>
     )
@@ -133,60 +137,57 @@ export default function PrayerTimesTable() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="flex-1 p-4 min-h-[50vh]"
+      className={variant === 'card' ? 'min-h-full rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6' : 'p-0'}
     >
-      <h2 className="text-2xl mb-4 text-center">Prayer Times</h2>
+      <h2 className="mb-4 text-center text-2xl font-bold text-[var(--text-color)]">
+        Prayer Times
+      </h2>
 
-      <table
-        className="
-          w-full table-auto border-collapse
-          bg-[var(--secondary-color)]/20
-          rounded-lg shadow-lg
-          shadow-[0_8px_16px_rgba(173,184,187,0.3)]
-        "
-      >
-        <thead>
-          <tr>
-            <th className="px-2 py-1 border border-[var(--secondary-color)] bg-[var(--secondary-color)] text-center">
-              Prayer
-            </th>
-            <th className="px-2 py-1 border border-[var(--secondary-color)] text-center">
-              Start
-            </th>
-            <th className="px-2 py-1 border border-[var(--secondary-color)] bg-[var(--accent-color)] text-[var(--background-end)] text-center">
-              Jama&apos;at
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {prayers.map(({ name, start, jamaat, icon }) => (
-            <motion.tr key={name} variants={rowVariants}>
-              <td className="py-1 border border-[var(--secondary-color)] flex items-center justify-center space-x-2 bg-[var(--secondary-color)]">
-                <Image
-                  src={`/Icons/${icon}`}
-                  alt={`${name} icon`}
-                  width={24}
-                  height={24}
-                  className="h-6 w-6"
-                />
-                <span className="font-medium">{name}</span>
-              </td>
-              <td className="py-1 border border-[var(--secondary-color)] text-center">
-                {start}
-              </td>
-              <td className="py-1 border border-[var(--secondary-color)] text-center bg-[var(--accent-color)] text-[var(--background-end)]">
-                {jamaat}
-              </td>
-            </motion.tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="overflow-hidden rounded-lg border border-[var(--secondary-color)] shadow-lg shadow-[0_8px_16px_rgba(173,184,187,0.24)]">
+        <table className="w-full table-auto border-collapse bg-[var(--secondary-color)]/20 text-sm sm:text-base">
+          <thead>
+            <tr>
+              <th className="border-b border-r border-[var(--secondary-color)] bg-[var(--secondary-color)] px-2 py-3 text-center font-bold">
+                Prayer
+              </th>
+              <th className="border-b border-r border-[var(--secondary-color)] px-2 py-3 text-center font-bold">
+                Start
+              </th>
+              <th className="border-b border-[var(--secondary-color)] bg-[var(--accent-color)] px-2 py-3 text-center font-bold text-[var(--background-end)]">
+                Jama&apos;at
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {prayers.map(({ name, start, jamaat, icon }) => (
+              <motion.tr key={name} variants={rowVariants}>
+                <td className="flex items-center justify-center space-x-2 border-r border-t border-[var(--secondary-color)] bg-[var(--secondary-color)] px-2 py-3">
+                  <Image
+                    src={`/Icons/${icon}`}
+                    alt={`${name} icon`}
+                    width={24}
+                    height={24}
+                    className="h-6 w-6"
+                  />
+                  <span className="font-medium">{name}</span>
+                </td>
+                <td className="border-r border-t border-[var(--secondary-color)] px-2 py-3 text-center font-semibold">
+                  {start}
+                </td>
+                <td className="border-t border-[var(--secondary-color)] bg-[var(--accent-color)] px-2 py-3 text-center font-semibold text-[var(--background-end)]">
+                  {jamaat}
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="flex justify-center mt-4">
         <a
           href={activeTimetable ? activeTimetable.imageData : filePath}
           download={activeTimetable ? (activeTimetable.originalName || 'timetable.jpg') : fileName}
-          className="flex items-center px-4 py-2 bg-[var(--x-background-start)] text-[var(--x-text-color)] rounded-lg hover:px-6 hover:py-3 transition-all duration-200"
+          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--x-background-start)] px-4 py-2 font-semibold text-[var(--x-text-color)] transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
         >
           <IoDownload className="h-5 w-5 mr-2" />
           <span>

@@ -29,8 +29,8 @@ const TimetableDownload: React.FC = () => {
 
   return (
     <>
-      <section className="py-8 px-6">
-        <div className="rounded-2xl border border-[var(--secondary-color)] bg-[var(--background-end)] dark:bg-[var(--x-background-start)] overflow-hidden shadow-md">
+      <section className="px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-md dark:bg-[var(--x-background-start)]">
           {/* Header */}
           <div className="px-6 py-4 border-b border-[var(--secondary-color)] flex items-center justify-between">
             <div className="flex items-center gap-3">
