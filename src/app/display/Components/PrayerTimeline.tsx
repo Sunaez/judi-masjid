@@ -17,9 +17,9 @@ const ICON_MAP: Record<string, string> = {
   Taraweh: '/Icons/white-taraweh.webp',
 }
 
-const PRE_EVENT_HOURS = 0.5
-const POST_EVENT_HOURS = 0.5
-const MIN_ISHA_TARAWEH_GAP_PERCENT = 4
+const PRE_EVENT_HOURS = 0.6
+const POST_EVENT_HOURS = 0.6
+const MIN_ISHA_TARAWEH_GAP_PERCENT = 5
 const MAX_EVENT_LEFT_PERCENT = 99.5
 const BAR_HEIGHT = 90
 const BAR_TOP_PERCENT = 100
@@ -29,7 +29,7 @@ const BAR_FILL_COLOR = 'var(--accent-color)'
 const BAR_BORDER_RADIUS = BAR_HEIGHT
 const ICON_SIZE_MOBILE = 100
 const WRAPPER_MOBILE = 75
-const LABEL_ABOVE_GAP =13
+const LABEL_ABOVE_GAP = 13
 const LABEL_BELOW_GAP = 0
 const TICK_INTERVAL = 2000
 const SCROLL_THRESHOLD = 5

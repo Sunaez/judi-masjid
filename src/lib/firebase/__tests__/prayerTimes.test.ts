@@ -2,6 +2,7 @@ import {
   batchSavePrayerTimes,
   getPrayerTimesByDate,
   getTodayDateString,
+  getTomorrowDateString,
   savePrayerTimes,
   syncFromCSV,
 } from '../prayerTimes'
@@ -54,6 +55,13 @@ describe('prayerTimes firebase service', () => {
 
   it('returns DD/MM/YYYY from getTodayDateString', () => {
     expect(getTodayDateString()).toMatch(/^\d{2}\/\d{2}\/\d{4}$/)
+  })
+
+  it('formats today and tomorrow from a reference date', () => {
+    const referenceDate = new Date(2024, 0, 15, 23, 30, 0)
+
+    expect(getTodayDateString(referenceDate)).toBe('15/01/2024')
+    expect(getTomorrowDateString(referenceDate)).toBe('16/01/2024')
   })
 
   it('throws friendly error when getPrayerTimesByDate fails', async () => {

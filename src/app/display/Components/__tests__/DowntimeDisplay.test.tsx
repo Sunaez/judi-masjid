@@ -1,6 +1,6 @@
 // src/app/display/Components/__tests__/DowntimeDisplay.test.tsx
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 
 // Mock Firebase
 jest.mock('@/lib/firebase', () => ({
@@ -10,20 +10,20 @@ jest.mock('@/lib/firebase', () => ({
 jest.mock('firebase/firestore', () => ({
   doc: jest.fn(),
   getDoc: jest.fn(() => Promise.resolve({
-    exists: () => true,
-    data: () => ({
-      temp: 15,
-      condition: 'Clear',
-      iconCode: '01d',
-    }),
+    exists: () => false,
+    data: () => ({}),
   })),
 }));
 
 // Mock getPrayerTimesByDate to return null (fallback to Next Fajr)
-jest.mock('@/lib/firebase/prayerTimes', () => ({
-  getPrayerTimesByDate: jest.fn(() => Promise.resolve(null)),
-  getTomorrowDateString: jest.fn(() => '16/01/2024'),
-}));
+jest.mock('@/lib/firebase/prayerTimes', () => {
+  const actual = jest.requireActual('@/lib/firebase/prayerTimes');
+
+  return {
+    ...actual,
+    getPrayerTimesByDate: jest.fn(() => Promise.resolve(null)),
+  };
+});
 
 // Mock prayer times context
 const mockPrayerTimes = {
@@ -52,6 +52,16 @@ jest.mock('../../context/PrayerTimesContext', () => ({
 
 // Import after mocking
 import DowntimeDisplay from '../DowntimeDisplay';
+import { getPrayerTimesByDate } from '@/lib/firebase/prayerTimes';
+
+const mockGetPrayerTimesByDate = getPrayerTimesByDate as jest.MockedFunction<
+  typeof getPrayerTimesByDate
+>;
+
+beforeEach(() => {
+  mockGetPrayerTimesByDate.mockClear();
+  mockGetPrayerTimesByDate.mockImplementation(() => new Promise(() => {}));
+});
 
 describe('DowntimeDisplay', () => {
   const RealDate = global.Date;
@@ -99,6 +109,14 @@ describe('DowntimeDisplay', () => {
     expect(screen.getByText("Tomorrow's Prayer Times")).toBeInTheDocument();
   });
 
+  it('should fetch tomorrow\'s prayer times before midnight', async () => {
+    render(<DowntimeDisplay />);
+
+    await waitFor(() => {
+      expect(mockGetPrayerTimesByDate).toHaveBeenCalledWith('16/01/2024');
+    });
+  });
+
   it('should have proper background styling with CSS variables', () => {
     const { container } = render(<DowntimeDisplay />);
     const mainDiv = container.firstChild as HTMLElement;
@@ -132,6 +150,16 @@ describe('DowntimeDisplay - After Midnight', () => {
     render(<DowntimeDisplay />);
     expect(screen.getByText("Today's Prayer Times")).toBeInTheDocument();
   });
+
+  it('should fetch today\'s prayer times after midnight', async () => {
+    render(<DowntimeDisplay />);
+
+    await waitFor(() => {
+      expect(mockGetPrayerTimesByDate).toHaveBeenCalledWith('16/01/2024');
+    });
+
+    expect(mockGetPrayerTimesByDate).not.toHaveBeenCalledWith('17/01/2024');
+  });
 });
 
 describe('DowntimeDisplay - Time Updates', () => {
@@ -151,11 +179,16 @@ describe('DowntimeDisplay - Time Updates', () => {
     expect(screen.getByText('23:30')).toBeInTheDocument();
 
     // Advance time by 30 seconds
-    jest.advanceTimersByTime(30000);
+    act(() => {
+      jest.advanceTimersByTime(30000);
+    });
+
     const newDate = new Date(2024, 0, 15, 23, 30, 30);
     jest.setSystemTime(newDate);
 
     // Force a re-render by advancing timers
-    jest.advanceTimersByTime(1000);
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
   });
 });

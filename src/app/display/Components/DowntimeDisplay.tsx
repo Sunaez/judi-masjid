@@ -6,7 +6,11 @@ import { gsap } from 'gsap';
 import { usePrayerTimesContext } from '../context/PrayerTimesContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { getPrayerTimesByDate, getTomorrowDateString } from '@/lib/firebase/prayerTimes';
+import {
+  getPrayerTimesByDate,
+  getTodayDateString,
+  getTomorrowDateString,
+} from '@/lib/firebase/prayerTimes';
 import type { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import IslamicBackdrop from './IslamicBackdrop';
 
@@ -35,8 +39,7 @@ export default function DowntimeDisplay() {
   const { prayerTimes, isRamadan } = usePrayerTimesContext();
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [nextDayPrayerTimes, setNextDayPrayerTimes] = useState<RawPrayerTimes | null>(null);
-  const [nextDayDateLabel, setNextDayDateLabel] = useState<string>('');
+  const [displayPrayerTimes, setDisplayPrayerTimes] = useState<RawPrayerTimes | null>(null);
 
   // Refs for GSAP animations
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,6 +55,20 @@ export default function DowntimeDisplay() {
   // Determine if we're past midnight (showing "today's" times instead of "tomorrow's")
   // After midnight, the "next day" times are actually today's times
   const isAfterMidnight = now.getHours() < 12; // Before noon means we crossed midnight
+  const prayerTimesDateString = isAfterMidnight
+    ? getTodayDateString(now)
+    : getTomorrowDateString(now);
+  const prayerTimesDate = new Date(now);
+
+  if (!isAfterMidnight) {
+    prayerTimesDate.setDate(prayerTimesDate.getDate() + 1);
+  }
+
+  const prayerTimesDateLabel = prayerTimesDate.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+  });
 
   // Entry animation
   useEffect(() => {
@@ -117,31 +134,30 @@ export default function DowntimeDisplay() {
     return () => clearInterval(interval);
   }, [fetchWeather]);
 
-  // Fetch next day's prayer times
+  // Fetch the prayer table date shown on screen.
   useEffect(() => {
-    async function fetchNextDayTimes() {
-      try {
-        const tomorrowDate = getTomorrowDateString();
-        const times = await getPrayerTimesByDate(tomorrowDate);
-        setNextDayPrayerTimes(times);
+    let isCancelled = false;
 
-        // Create a nice label for the date
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        setNextDayDateLabel(
-          tomorrow.toLocaleDateString('en-GB', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'short',
-          })
-        );
+    async function fetchDisplayPrayerTimes() {
+      try {
+        const times = await getPrayerTimesByDate(prayerTimesDateString);
+        if (!isCancelled) {
+          setDisplayPrayerTimes(times);
+        }
       } catch (error) {
-        console.error('[DowntimeDisplay] Failed to fetch next day prayer times:', error);
+        console.error('[DowntimeDisplay] Failed to fetch display prayer times:', error);
+        if (!isCancelled) {
+          setDisplayPrayerTimes(null);
+        }
       }
     }
 
-    fetchNextDayTimes();
-  }, []);
+    fetchDisplayPrayerTimes();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [prayerTimesDateString]);
 
   // Format time - larger display
   const time = now.toLocaleTimeString('en-GB', {
@@ -245,14 +261,14 @@ export default function DowntimeDisplay() {
           </div>
 
           {/* Date label */}
-          {nextDayDateLabel && (
+          {prayerTimesDateLabel && (
             <div className="text-3xl opacity-60 mb-10 text-center">
-              {nextDayDateLabel}
+              {prayerTimesDateLabel}
             </div>
           )}
 
           {/* Prayer times grid - vertical layout for larger display */}
-          {nextDayPrayerTimes ? (
+          {displayPrayerTimes ? (
             <div className="flex flex-col gap-5">
               {PRAYER_ORDER.map(({ key, label }) => (
                 <div
@@ -267,7 +283,7 @@ export default function DowntimeDisplay() {
                     {label}
                   </span>
                   <span className="text-5xl font-bold">
-                    {nextDayPrayerTimes[key as keyof RawPrayerTimes]}
+                    {displayPrayerTimes[key as keyof RawPrayerTimes]}
                   </span>
                 </div>
               ))}

@@ -1,6 +1,9 @@
 import type { RawPrayerTimes } from '@/app/FetchPrayerTimes'
 
 const MINUTES_PER_DAY = 24 * 60
+const NORMAL_DOWNTIME_DELAY_MINUTES = 60
+const RAMADAN_DOWNTIME_DELAY_MINUTES = 3 * 60
+const DOWNTIME_END_BUFFER_MINUTES = 60
 
 export interface JamaatRow {
   name: string
@@ -38,6 +41,37 @@ export function minutesToTime(minutes: number): string {
 
 export function addMinutesToTime(time: string, minutesToAdd: number): string {
   return minutesToTime(timeToMinutes(time) + minutesToAdd)
+}
+
+export function isInDowntimeWindow(
+  prayerTimes: Pick<RawPrayerTimes, 'ishaJamaat' | 'fajrJamaat'> | null,
+  currentMinutes: number,
+  isRamadanPeriod: boolean
+): boolean {
+  if (!prayerTimes) return false
+
+  const delayAfterIsha = isRamadanPeriod
+    ? RAMADAN_DOWNTIME_DELAY_MINUTES
+    : NORMAL_DOWNTIME_DELAY_MINUTES
+
+  const downtimeStart = timeToMinutes(prayerTimes.ishaJamaat) + delayAfterIsha
+  let downtimeEnd = timeToMinutes(prayerTimes.fajrJamaat) - DOWNTIME_END_BUFFER_MINUTES
+
+  if (downtimeEnd <= downtimeStart) {
+    downtimeEnd += MINUTES_PER_DAY
+  }
+
+  if (downtimeEnd <= downtimeStart) {
+    return false
+  }
+
+  const normalizedCurrentMinutes = normalizeMinutes(currentMinutes)
+  const nextDayCurrentMinutes = normalizedCurrentMinutes + MINUTES_PER_DAY
+
+  return (
+    (normalizedCurrentMinutes >= downtimeStart && normalizedCurrentMinutes < downtimeEnd) ||
+    (nextDayCurrentMinutes >= downtimeStart && nextDayCurrentMinutes < downtimeEnd)
+  )
 }
 
 export function getJamaatRows(prayerTimes: RawPrayerTimes, includeTaraweh: boolean): JamaatRow[] {

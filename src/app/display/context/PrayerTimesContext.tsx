@@ -12,7 +12,7 @@ import {
   isRamadanPeriod,
 } from '@/lib/islamicDate';
 import { isEidAlAdhaGreetingActive } from '@/lib/eidPrayerNotice';
-import { timeToMinutes } from '@/lib/prayerTimeUtils';
+import { isInDowntimeWindow } from '@/lib/prayerTimeUtils';
 
 // Temporary preview flag so Eid visuals/messages can be reviewed outside 1-3 Shawwal.
 const FORCE_EID_AL_FITR_PREVIEW = false;
@@ -94,36 +94,7 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
 
   // Calculate if we're in downtime
   const isDowntime = useMemo(() => {
-    if (!times) return false;
-
-    const ishaMinutes = timeToMinutes(times.ishaJamaat);
-    const fajrMinutes = timeToMinutes(times.fajrJamaat);
-
-    // Downtime start:
-    // - During Ramadan: 3 hours after Isha (mosque used longer for Taraweeh)
-    // - Normal: 1 hour after Isha
-    const hoursAfterIsha = isRamadanPeriodActive ? 3 : 1;
-    const downtimeStart = ishaMinutes + (hoursAfterIsha * 60);
-    const downtimeEnd = fajrMinutes - 60; // Always 1hr before Fajr
-
-    // Handle overnight case (Isha is in evening, Fajr is early morning)
-    // e.g., Isha at 21:00 (1260 min), Fajr at 05:30 (330 min)
-    // Normal: Downtime 22:00 to 04:30
-    // Ramadan: Downtime 00:00 to 04:30
-    // We use < for end boundary so that at exactly 1hr before Fajr, we exit downtime
-    if (downtimeStart > downtimeEnd || downtimeStart >= 1440) {
-      // Overnight or past midnight: handle wrap-around
-      const adjustedStart = downtimeStart >= 1440 ? downtimeStart - 1440 : downtimeStart;
-      if (downtimeStart >= 1440) {
-        // Start is past midnight (e.g., 00:00 for Ramadan with late Isha)
-        return currentMinutes >= adjustedStart && currentMinutes < downtimeEnd;
-      }
-      // Overnight: downtime if current >= start OR current < end
-      return currentMinutes >= downtimeStart || currentMinutes < downtimeEnd;
-    } else {
-      // Same-day (unusual): downtime if current is between start and end
-      return currentMinutes >= downtimeStart && currentMinutes < downtimeEnd;
-    }
+    return isInDowntimeWindow(times, currentMinutes, isRamadanPeriodActive);
   }, [times, currentMinutes, isRamadanPeriodActive]);
 
   const value: PrayerTimesContextValue = {
