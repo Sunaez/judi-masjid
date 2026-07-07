@@ -1,15 +1,80 @@
 // src/app/display/ThemeProvider.tsx
 'use client'
 
-import { useEffect, useRef, useState, ReactNode, useMemo } from 'react'
+import { useCallback, useEffect, useRef, useState, ReactNode, useMemo } from 'react'
 import gsap from 'gsap'
 import { usePrayerTimesContext } from './context/PrayerTimesContext'
 
-// Helper to convert "HH:MM" to Date for today - moved outside component
-const toToday = (hhmm: string): Date => {
-  const [h, m] = hhmm.split(':').map(Number)
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m)
+const DAY_MS = 24 * 60 * 60 * 1000
+const MINUTE_MS = 60 * 1000
+const BOUNDARY_BUFFER_MS = 1000
+
+export function timeStringToMinutes(hhmm: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim())
+  if (!match) return null
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null
+  }
+
+  return hours * 60 + minutes
+}
+
+function getMinutesSinceMidnight(date: Date): number {
+  return date.getHours() * 60 + date.getMinutes()
+}
+
+function getMsSinceMidnight(date: Date): number {
+  return (
+    date.getHours() * 60 * 60 * 1000 +
+    date.getMinutes() * 60 * 1000 +
+    date.getSeconds() * 1000 +
+    date.getMilliseconds()
+  )
+}
+
+export function shouldUseLightThemeAt(
+  now: Date,
+  sunriseMinutes: number,
+  maghribMinutes: number
+): boolean {
+  const currentMinutes = getMinutesSinceMidnight(now)
+
+  if (sunriseMinutes <= maghribMinutes) {
+    return currentMinutes >= sunriseMinutes && currentMinutes < maghribMinutes
+  }
+
+  // Defensive fallback for unusual schedules where the light window crosses midnight.
+  return currentMinutes >= sunriseMinutes || currentMinutes < maghribMinutes
+}
+
+export function getMsUntilNextThemeBoundary(
+  now: Date,
+  sunriseMinutes: number,
+  maghribMinutes: number
+): number {
+  const currentMs = getMsSinceMidnight(now)
+  const sunriseMs = sunriseMinutes * MINUTE_MS
+  const maghribMs = maghribMinutes * MINUTE_MS
+
+  const boundaries =
+    sunriseMinutes <= maghribMinutes
+      ? [sunriseMs, maghribMs, sunriseMs + DAY_MS]
+      : [maghribMs, sunriseMs, maghribMs + DAY_MS]
+
+  const nextBoundary = boundaries.find(boundary => boundary > currentMs) ?? boundaries[0] + DAY_MS
+
+  return Math.max(BOUNDARY_BUFFER_MS, nextBoundary - currentMs + BOUNDARY_BUFFER_MS)
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -35,30 +100,85 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => { tl.kill() }
   }, [])
 
-  // Memoize theme times to avoid recalculation
-  const { sunrise, maghrib } = useMemo(() => {
-    if (!times) return { sunrise: null, maghrib: null }
+  const themeTimes = useMemo(() => {
+    if (!times) return null
+
+    const sunriseMinutes = timeStringToMinutes(times.sunrise)
+    const maghribMinutes = timeStringToMinutes(times.maghrib)
+
+    if (sunriseMinutes === null || maghribMinutes === null) return null
+
     return {
-      sunrise: toToday(times.sunrise),
-      maghrib: toToday(times.maghrib),
+      sunriseMinutes,
+      maghribMinutes,
     }
   }, [times])
 
-  // once we have prayer times, pick theme & tear down loader
-  useEffect(() => {
-    if (!times || !sunrise || !maghrib) return
+  const applyTheme = useCallback((now = new Date()) => {
+    if (!themeTimes) return
 
-    const now = new Date()
+    const useLightTheme = shouldUseLightThemeAt(
+      now,
+      themeTimes.sunriseMinutes,
+      themeTimes.maghribMinutes
+    )
     const html = document.documentElement
 
-    // midnight -> sunrise: DARK
-    // sunrise -> maghrib: LIGHT
-    // maghrib -> midnight: DARK
-    if (now < sunrise || now >= maghrib) {
-      html.classList.add('dark')
-    } else {
-      html.classList.remove('dark')
+    // sunrise -> Maghrib: light. Maghrib -> sunrise: dark.
+    html.classList.toggle('dark', !useLightTheme)
+  }, [themeTimes])
+
+  useEffect(() => {
+    if (!themeTimes) return
+
+    let boundaryTimeout: number | null = null
+
+    const clearBoundaryTimeout = () => {
+      if (boundaryTimeout !== null) {
+        window.clearTimeout(boundaryTimeout)
+        boundaryTimeout = null
+      }
     }
+
+    const scheduleNextBoundary = () => {
+      clearBoundaryTimeout()
+
+      const now = new Date()
+      applyTheme(now)
+
+      boundaryTimeout = window.setTimeout(
+        scheduleNextBoundary,
+        getMsUntilNextThemeBoundary(
+          now,
+          themeTimes.sunriseMinutes,
+          themeTimes.maghribMinutes
+        )
+      )
+    }
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        scheduleNextBoundary()
+      }
+    }
+
+    scheduleNextBoundary()
+    const fallbackInterval = window.setInterval(() => applyTheme(), MINUTE_MS)
+
+    window.addEventListener('focus', scheduleNextBoundary)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearBoundaryTimeout()
+      window.clearInterval(fallbackInterval)
+      window.removeEventListener('focus', scheduleNextBoundary)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [themeTimes, applyTheme])
+
+  // Once we have prayer times, tear down loader.
+  useEffect(() => {
+    if (!times || ready) return
 
     // tear down loader animation
     tlRef.current?.kill()
@@ -73,7 +193,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       setReady(true)
     }
-  }, [times, sunrise, maghrib])
+  }, [times, ready])
 
   // Show error state
   if (error && !isLoading) {

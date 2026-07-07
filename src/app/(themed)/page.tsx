@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
-import { motion } from 'motion/react'
+import dynamic from 'next/dynamic'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Building2,
   CalendarDays,
@@ -10,19 +10,40 @@ import {
   Phone,
 } from 'lucide-react'
 
-import EidLanternBackdrop from '@/components/EidLanternBackdrop'
 import { usePrayerTimesContext } from '../display/context/PrayerTimesContext'
-import EidMubarakIntro from './IndexComponents/EidMubarakIntro'
 import EidSalahNotice from './IndexComponents/EidSalahNotice'
 import NavBar, { type SiteSectionId } from './IndexComponents/NavBar'
 import Welcome from './IndexComponents/Welcome'
 import PrayerTimesTable from './IndexComponents/PrayerTimeTable'
 import PrayerTimeline from './IndexComponents/PrayerTimeline'
-import TimetableDownload from './IndexComponents/TimetableDownload'
-import UsefulLinks from './IndexComponents/UsefulLinks'
-import Footer from './IndexComponents/Footer'
-import QuranAndDonation from './IndexComponents/QuranAndDonation'
-import DonationOptions from './IndexComponents/DonationOptions'
+
+const EidLanternBackdrop = dynamic(() => import('@/components/EidLanternBackdrop'), {
+  loading: () => null,
+})
+
+const EidMubarakIntro = dynamic(() => import('./IndexComponents/EidMubarakIntro'), {
+  loading: () => null,
+})
+
+const TimetableDownload = dynamic(() => import('./IndexComponents/TimetableDownload'), {
+  loading: () => null,
+})
+
+const UsefulLinks = dynamic(() => import('./IndexComponents/UsefulLinks'), {
+  loading: () => <SectionLoadingState />,
+})
+
+const Footer = dynamic(() => import('./IndexComponents/Footer'), {
+  loading: () => null,
+})
+
+const QuranAndDonation = dynamic(() => import('./IndexComponents/QuranAndDonation'), {
+  loading: () => <SectionLoadingState />,
+})
+
+const DonationOptions = dynamic(() => import('./IndexComponents/DonationOptions'), {
+  loading: () => <SectionLoadingState />,
+})
 
 const sectionIds = [
   'home',
@@ -46,6 +67,59 @@ function getSectionUrl(section: SiteSectionId) {
   const baseUrl = `${window.location.pathname}${window.location.search}`
 
   return section === 'home' ? baseUrl : `${baseUrl}#${section}`
+}
+
+function SectionLoadingState() {
+  return (
+    <div className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-lg">
+      <div className="h-5 w-32 animate-pulse rounded bg-[var(--skeleton-bg)]" />
+      <div className="mt-4 h-24 animate-pulse rounded bg-[var(--skeleton-bg)]" />
+    </div>
+  )
+}
+
+function LazyOnVisible({
+  children,
+  minHeight = 0,
+  rootMargin = '720px',
+}: {
+  children: ReactNode
+  minHeight?: number
+  rootMargin?: string
+}) {
+  const markerRef = useRef<HTMLDivElement>(null)
+  const [shouldRender, setShouldRender] = useState(false)
+
+  useEffect(() => {
+    if (shouldRender) return
+
+    const marker = markerRef.current
+    if (!marker) return
+
+    if (!('IntersectionObserver' in window)) {
+      const timeoutId = globalThis.setTimeout(() => setShouldRender(true), 600)
+      return () => globalThis.clearTimeout(timeoutId)
+    }
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          setShouldRender(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin }
+    )
+
+    observer.observe(marker)
+    return () => observer.disconnect()
+  }, [rootMargin, shouldRender])
+
+  return (
+    <div ref={markerRef} style={!shouldRender && minHeight ? { minHeight } : undefined}>
+      {shouldRender ? children : null}
+    </div>
+  )
 }
 
 const contactCards = [
@@ -111,9 +185,13 @@ function HomeSection() {
         </div>
       </section>
 
-      <QuranAndDonation />
+      <LazyOnVisible minHeight={480}>
+        <QuranAndDonation />
+      </LazyOnVisible>
 
-      <TimetableDownload />
+      <LazyOnVisible minHeight={320}>
+        <TimetableDownload />
+      </LazyOnVisible>
     </>
   )
 }
@@ -257,15 +335,10 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <EidMubarakIntro active={isEid} />
+      {isEid && <EidMubarakIntro active />}
       {isEid && <EidLanternBackdrop className="opacity-75" />}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative z-10 flex min-h-screen flex-col lg:pl-72"
-      >
+      <div className="relative z-10 flex min-h-screen flex-col lg:pl-72">
         <NavBar activeSection={activeSection} onSectionChange={handleSectionChange} />
         <EidSalahNotice />
 
@@ -273,8 +346,12 @@ export default function HomePage() {
           {renderSection(activeSection)}
         </div>
 
-        {activeSection === 'home' && <Footer />}
-      </motion.div>
+        {activeSection === 'home' && (
+          <LazyOnVisible minHeight={260}>
+            <Footer />
+          </LazyOnVisible>
+        )}
+      </div>
     </div>
   )
 }

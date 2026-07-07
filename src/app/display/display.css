@@ -29,7 +29,217 @@ body {
   height: 100dvh;
   overflow: hidden;
   font-family: var(--font-poppins), sans-serif;
-  background: linear-gradient(180deg, var(--background-start) 0%, var(--background-end) 100%);
+  --background-start: #4e4837;
+  --background-end: #f7ede0;
+  --text-color: #2d1d17;
+  --accent-color: #9f1f26;
+  --secondary-color: #d7bea1;
+  --yellow: #c79d55;
+  --static-light-background-start: #ead8c1;
+  --static-light-background-end: #fbf3e8;
+  --static-light-text-color: #2d1d17;
+  --static-light-accent-color: #9f1f26;
+  --static-light-secondary-color: #d7bea1;
+  --static-dark-background-start: #12324a;
+  --static-dark-background-end: #071b2b;
+  --static-dark-text-color: #eaf6ff;
+  --static-dark-accent-color: #8fc7ee;
+  --static-dark-secondary-color: #355f78;
+  --overlay-dark: rgba(45, 29, 23, 0.08);
+  --overlay-darkest: rgba(24, 12, 10, 0.88);
+  --shadow-color: rgba(66, 34, 24, 0.2);
+  --prayer-overlay-bg: rgba(251, 243, 232, 0.9);
+  --phone-reminder-bg: rgba(215, 190, 161, 0.78);
+  --display-ornament-color: #9f1f26;
+  --display-pattern-color: rgba(159, 31, 38, 0.26);
+  --display-star-opacity: 0.17;
+  --display-arch-fill-opacity: 0.06;
+  --display-arch-line-opacity: 0.38;
+  --display-small-arch-opacity: 0.31;
+  --display-rotator-surface: linear-gradient(
+    180deg,
+    rgba(251, 243, 232, 0.9) 0%,
+    rgba(250, 238, 222, 0.82) 46%,
+    rgba(238, 218, 195, 0.88) 100%
+  );
+  --display-timeline-surface: linear-gradient(
+    180deg,
+    rgba(246, 231, 213, 0.92) 0%,
+    rgba(251, 243, 232, 0.96) 100%
+  );
+  --display-timeline-panel: transparent;
+  --display-timeuntil-surface: rgba(251, 243, 232, 0.86);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(159, 31, 37, 0.74) 0, transparent 24%),
+    radial-gradient(circle at 86% 18%, rgba(199, 157, 85, 0.19) 0, transparent 24%),
+    linear-gradient(180deg, var(--background-start) 0%, var(--background-end) 100%);
+}
+
+html.dark .display-root {
+  --background-start: #12324a;
+  --background-end: #071b2b;
+  --text-color: #eaf6ff;
+  --accent-color: #67b4e6;
+  --secondary-color: #355f78;
+  --yellow: #d6ad67;
+  --static-light-background-start: #ead8c1;
+  --static-light-background-end: #fbf3e8;
+  --static-light-text-color: #2d1d17;
+  --static-light-accent-color: #9f1f26;
+  --static-light-secondary-color: #d7bea1;
+  --static-dark-background-start: #12324a;
+  --static-dark-background-end: #071b2b;
+  --static-dark-text-color: #eaf6ff;
+  --static-dark-accent-color: #8fc7ee;
+  --static-dark-secondary-color: #355f78;
+  --overlay-dark: rgba(5, 18, 31, 0.3);
+  --overlay-darkest: rgba(5, 18, 31, 0.9);
+  --shadow-color: rgba(0, 0, 0, 0.35);
+  --prayer-overlay-bg: rgba(7, 27, 43, 0.9);
+  --phone-reminder-bg: rgba(53, 95, 120, 0.58);
+  --display-ornament-color: #a7d8f3;
+  --display-pattern-color: rgba(167, 216, 243, 0.24);
+  --display-star-opacity: 0.2;
+  --display-arch-fill-opacity: 0.055;
+  --display-arch-line-opacity: 0.34;
+  --display-small-arch-opacity: 0.28;
+  --display-rotator-surface: linear-gradient(
+    180deg,
+    rgba(18, 50, 74, 0.88) 0%,
+    rgba(11, 37, 59, 0.86) 48%,
+    rgba(7, 27, 43, 0.9) 100%
+  );
+  --display-timeline-surface: linear-gradient(
+    180deg,
+    rgba(11, 37, 59, 0.92) 0%,
+    rgba(7, 27, 43, 0.96) 100%
+  );
+  --display-timeuntil-surface: rgba(7, 27, 43, 0.86);
+}
+
+.display-screen-normal,
+.display-downtime-screen {
+  isolation: isolate;
+}
+
+.display-screen-normal {
+  background:
+    radial-gradient(ellipse at 50% -16%, rgba(255, 248, 239, 0.5) 0, transparent 42%),
+    linear-gradient(180deg, var(--background-start), var(--background-end));
+}
+
+html.dark .display-screen-normal {
+  background:
+    radial-gradient(ellipse at 50% -14%, rgba(103, 180, 230, 0.16) 0, transparent 42%),
+    linear-gradient(180deg, var(--background-start), var(--background-end));
+}
+
+.display-rotator-section,
+.display-timeline-section {
+  z-index: 1;
+}
+
+.display-timeline-section {
+  box-shadow: inset 0 1px 0 rgba(159, 31, 38, 0.18);
+}
+
+html.dark .display-timeline-section {
+  box-shadow: inset 0 1px 0 rgba(37, 109, 154, 0.18);
+}
+
+.display-timeline-panel {
+  backdrop-filter: blur(1px);
+}
+
+.display-time-until {
+  box-shadow: inset 0 1px 0 rgba(159, 31, 38, 0.12);
+}
+
+html.dark .display-time-until {
+  box-shadow: inset 0 1px 0 rgba(37, 109, 154, 0.12);
+}
+
+.display-root .bg-accent {
+  background-color: var(--accent-color);
+}
+
+.islamic-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--display-ornament-color);
+}
+
+.islamic-backdrop::before,
+.islamic-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.islamic-backdrop::before {
+  background-image:
+    linear-gradient(30deg, transparent calc(50% - 1.5px), var(--display-pattern-color) 50%, transparent calc(50% + 1.5px)),
+    linear-gradient(150deg, transparent calc(50% - 1.5px), var(--display-pattern-color) 50%, transparent calc(50% + 1.5px)),
+    radial-gradient(circle, var(--display-pattern-color) 1.8px, transparent 2px);
+  background-position: center;
+  background-size: 128px 128px, 128px 128px, 64px 64px;
+  opacity: 0.68;
+}
+
+.islamic-backdrop::after {
+  background:
+    radial-gradient(ellipse at 50% 10%, transparent 0, rgba(251, 243, 232, 0.2) 42%, rgba(251, 243, 232, 0.72) 100%),
+    linear-gradient(90deg, rgba(251, 243, 232, 0.78) 0%, transparent 20%, transparent 80%, rgba(251, 243, 232, 0.78) 100%);
+}
+
+html.dark .islamic-backdrop::after {
+  background:
+    radial-gradient(ellipse at 50% 10%, transparent 0, rgba(7, 27, 43, 0.18) 42%, rgba(7, 27, 43, 0.78) 100%),
+    linear-gradient(90deg, rgba(7, 27, 43, 0.76) 0%, transparent 20%, transparent 80%, rgba(7, 27, 43, 0.76) 100%);
+}
+
+.islamic-backdrop-svg {
+  position: absolute;
+  inset: -1% 0 0;
+  width: 100%;
+  height: 102%;
+}
+
+.islamic-star-field polygon {
+  fill: currentColor;
+  opacity: var(--display-star-opacity);
+}
+
+.islamic-arch-fill path {
+  fill: currentColor;
+  opacity: var(--display-arch-fill-opacity);
+}
+
+.islamic-arch-lines path,
+.islamic-small-arches path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.islamic-arch-lines path {
+  opacity: var(--display-arch-line-opacity);
+  stroke-width: 5;
+}
+
+.islamic-small-arches path {
+  opacity: var(--display-small-arch-opacity);
+  stroke-width: 4;
+}
+
+.islamic-backdrop-downtime {
+  opacity: 0.8;
 }
 
 /* (1) Centered container for the GSAP loader */

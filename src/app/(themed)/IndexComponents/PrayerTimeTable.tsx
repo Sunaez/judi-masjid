@@ -1,41 +1,11 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { motion } from 'motion/react'
 import Image from 'next/image'
-import { IoDownload } from 'react-icons/io5'
+import { Download } from 'lucide-react'
 import { RawPrayerTimes } from '../../FetchPrayerTimes'
 import { usePrayerTimesContext } from '../../display/context/PrayerTimesContext'
 import { getActiveTimetable, type TimetableFile } from '@/lib/firebase/timetableStorage'
-
-// 1. Container variants: animate section in, then stagger children
-const containerVariants = {
-  hidden: { opacity: 0, x: 20 },
-  show: {
-    opacity: 1,
-    x: 0,
-    transition: {
-      duration: 0.6,
-      when: 'beforeChildren',
-      delayChildren: 0.4,
-      staggerChildren: 0.15,
-    },
-  },
-}
-
-// 2. Row variants: fade & slide up each row
-const rowVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      type: 'spring',
-      stiffness: 200,
-      damping: 20,
-    },
-  },
-}
 
 type TableTimes = Omit<RawPrayerTimes, 'sunrise'>
 
@@ -66,10 +36,26 @@ export default function PrayerTimesTable({
   const [activeTimetable, setActiveTimetable] = useState<TimetableFile | null>(null)
   useEffect(() => {
     let cancelled = false
-    getActiveTimetable()
-      .then((t) => { if (!cancelled) setActiveTimetable(t) })
-      .catch(() => {})
-    return () => { cancelled = true }
+    const loadActiveTimetable = () => {
+      getActiveTimetable()
+        .then((t) => { if (!cancelled) setActiveTimetable(t) })
+        .catch(() => {})
+    }
+
+    let cleanupIdleTask: () => void
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(loadActiveTimetable, { timeout: 3000 })
+      cleanupIdleTask = () => window.cancelIdleCallback(idleId)
+    } else {
+      const timeoutId = globalThis.setTimeout(loadActiveTimetable, 1200)
+      cleanupIdleTask = () => globalThis.clearTimeout(timeoutId)
+    }
+
+    return () => {
+      cancelled = true
+      cleanupIdleTask()
+    }
   }, [])
 
   // Transform prayer times to table format (omit sunrise)
@@ -133,10 +119,7 @@ export default function PrayerTimesTable({
   }
 
   return (
-    <motion.section
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
+    <section
       className={variant === 'card' ? 'min-h-full rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6' : 'p-0'}
     >
       <h2 className="mb-4 text-center text-2xl font-bold text-[var(--text-color)]">
@@ -160,7 +143,7 @@ export default function PrayerTimesTable({
           </thead>
           <tbody>
             {prayers.map(({ name, start, jamaat, icon }) => (
-              <motion.tr key={name} variants={rowVariants}>
+              <tr key={name}>
                 <td className="flex items-center justify-center space-x-2 border-r border-t border-[var(--secondary-color)] bg-[var(--secondary-color)] px-2 py-3">
                   <Image
                     src={`/Icons/${icon}`}
@@ -177,7 +160,7 @@ export default function PrayerTimesTable({
                 <td className="border-t border-[var(--secondary-color)] bg-[var(--accent-color)] px-2 py-3 text-center font-semibold text-[var(--background-end)]">
                   {jamaat}
                 </td>
-              </motion.tr>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -189,7 +172,7 @@ export default function PrayerTimesTable({
           download={activeTimetable ? (activeTimetable.originalName || 'timetable.jpg') : fileName}
           className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--x-background-start)] px-4 py-2 font-semibold text-[var(--x-text-color)] transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
         >
-          <IoDownload className="h-5 w-5 mr-2" />
+          <Download className="h-5 w-5 mr-2" />
           <span>
             Download {activeTimetable ? activeTimetable.label : `${isRamadan ? 'Ramadan' : monthName} ${year} Timetable`}
           </span>
@@ -197,7 +180,7 @@ export default function PrayerTimesTable({
       </div>
 
       {isRamadan && (
-        <motion.div variants={rowVariants} className="mt-6">
+        <div className="mt-6">
           <div className="rounded-2xl border border-[var(--secondary-color)] bg-[var(--secondary-color)]/20 p-4 text-center shadow-lg">
             <p className="text-3xl font-bold text-[var(--accent-color)]">Ramadan Mubarak</p>
             <p className="mt-2 text-base text-[var(--text-color)]">
@@ -231,11 +214,13 @@ export default function PrayerTimesTable({
             <img
               src={activeTimetable ? activeTimetable.imageData : filePath}
               alt={`Ramadan ${year} timetable`}
+              loading="lazy"
+              decoding="async"
               className="w-full rounded-xl border border-[var(--secondary-color)] object-contain"
             />
           </div>
-        </motion.div>
+        </div>
       )}
-    </motion.section>
+    </section>
   )
 }

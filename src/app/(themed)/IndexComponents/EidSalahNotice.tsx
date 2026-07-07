@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { motion } from 'motion/react'
 
 import {
   EID_AL_ADHA_NOTICE_END_MS,
@@ -46,12 +45,7 @@ export default function EidSalahNotice() {
 
   return (
     <section className="px-6 pt-5">
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="mx-auto max-w-6xl rounded-3xl border border-[var(--accent-color)]/25 bg-[var(--background-start)]/90 px-5 py-5 shadow-[0_18px_40px_rgba(21,49,71,0.12)] backdrop-blur-sm"
-      >
+      <div className="mx-auto max-w-6xl rounded-3xl border border-[var(--accent-color)]/25 bg-[var(--background-start)]/90 px-5 py-5 shadow-[0_18px_40px_rgba(21,49,71,0.12)] backdrop-blur-sm">
         <div className="grid gap-5 lg:grid-cols-[1fr_minmax(320px,480px)] lg:items-stretch">
           <div className="flex flex-col gap-3">
             <div
@@ -119,7 +113,7 @@ export default function EidSalahNotice() {
             />
           </div>
         </div>
-      </motion.div>
+      </div>
     </section>
   )
 }

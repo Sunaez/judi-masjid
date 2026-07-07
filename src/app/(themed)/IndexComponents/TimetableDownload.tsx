@@ -63,6 +63,8 @@ const TimetableDownload: React.FC = () => {
               <img
                 src={timetable.imageData}
                 alt={timetable.label}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-auto object-contain"
               />
             </div>
@@ -150,6 +152,8 @@ const TimetableDownload: React.FC = () => {
               <img
                 src={timetable.imageData}
                 alt={timetable.label}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-auto"
               />
             </div>

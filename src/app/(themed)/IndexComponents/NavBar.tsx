@@ -5,8 +5,6 @@ import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import { createPortal } from 'react-dom'
-import { IoMoon, IoSunny } from 'react-icons/io5'
-import { AnimatePresence, motion } from 'motion/react'
 import {
   ArrowRight,
   CalendarDays,
@@ -17,7 +15,9 @@ import {
   Mail,
   Menu,
   Monitor,
+  Moon,
   ShieldCheck,
+  Sun,
   X,
 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
@@ -75,8 +75,8 @@ function ThemeToggle({
       aria-label="Toggle theme"
     >
       {displayTheme === 'dark'
-        ? <IoSunny size={24} className="text-[var(--yellow)]" />
-        : <IoMoon size={24} className="text-[var(--accent-color)]" />
+        ? <Sun size={24} className="text-[var(--yellow)]" />
+        : <Moon size={24} className="text-[var(--accent-color)]" />
       }
     </button>
   )
@@ -219,12 +219,21 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
     }
 
     setMounted(true)
-    fetchWeather()
+    let cleanupIdleTask: () => void
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(fetchWeather, { timeout: 2500 })
+      cleanupIdleTask = () => window.cancelIdleCallback(idleId)
+    } else {
+      const timeoutId = globalThis.setTimeout(fetchWeather, 1000)
+      cleanupIdleTask = () => globalThis.clearTimeout(timeoutId)
+    }
 
     const intervalId = setInterval(fetchWeather, WEATHER_UPDATE_INTERVAL)
 
     return () => {
       cancelled = true
+      cleanupIdleTask()
       clearInterval(intervalId)
     }
   }, [])
@@ -318,136 +327,112 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
       ? 'Loading weather'
       : 'Weather unavailable'
 
-  const menuOverlay = mounted ? createPortal(
-    <AnimatePresence>
-      {isMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-[100] text-[var(--text-color)] lg:hidden"
-        >
-          <motion.div
-            aria-hidden="true"
-            onClick={() => closeMenu()}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 cursor-default bg-[linear-gradient(90deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.2)_34%,rgba(0,0,0,0.07)_68%,rgba(0,0,0,0)_100%)] backdrop-blur-[2px]"
-          />
+  const menuOverlay = mounted && isMenuOpen ? createPortal(
+    <div className="fixed inset-0 z-[100] text-[var(--text-color)] lg:hidden">
+      <div
+        aria-hidden="true"
+        onClick={() => closeMenu()}
+        className="mobile-nav-backdrop absolute inset-0 cursor-default bg-[linear-gradient(90deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.2)_34%,rgba(0,0,0,0.07)_68%,rgba(0,0,0,0)_100%)] backdrop-blur-[2px]"
+      />
 
-          <motion.div
-            id="site-section-menu"
-            ref={drawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Site navigation"
-            initial={{ x: '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
-            transition={{ duration: 0.34, ease: [0.77, 0.2, 0.05, 1] }}
-            className="relative z-10 flex h-dvh w-[min(86vw,26rem)] flex-col overflow-hidden border-r border-[var(--secondary-color)] bg-[var(--background-end)] shadow-[18px_0_45px_rgba(0,0,0,0.22)]"
+      <div
+        id="site-section-menu"
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Site navigation"
+        className="mobile-drawer-panel relative z-10 flex h-dvh w-[min(86vw,26rem)] flex-col overflow-hidden border-r border-[var(--secondary-color)] bg-[var(--background-end)] shadow-[18px_0_45px_rgba(0,0,0,0.22)]"
+      >
+        <div className="mobile-drawer-header flex items-center justify-between gap-4 border-b border-[var(--secondary-color)] px-5 py-4">
+          <button
+            type="button"
+            onClick={() => selectSection('home')}
+            className="flex min-w-0 items-center gap-3 text-left"
           >
-            <div className="flex items-center justify-between gap-4 border-b border-[var(--secondary-color)] px-5 py-4">
+            <span className="block truncate text-2xl font-bold text-[var(--accent-color)]">
+              Al Judi Masjid
+            </span>
+          </button>
+
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={() => closeMenu()}
+            aria-label="Close menu"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:bg-[var(--background-start)]"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <nav className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-5">
+          {menuItems.map(({ id, label, Icon }, index) => {
+            const isActive = id === activeSection
+
+            return (
               <button
+                key={id}
                 type="button"
-                onClick={() => selectSection('home')}
-                className="flex min-w-0 items-center gap-3 text-left"
+                onClick={() => selectSection(id)}
+                aria-current={isActive ? 'true' : undefined}
+                style={{ animationDelay: `${130 + index * 48}ms` }}
+                className={`mobile-nav-item group relative flex min-h-14 items-center gap-3 overflow-hidden rounded-lg px-3 py-3 text-left transition ${
+                  isActive
+                    ? 'bg-[var(--accent-color)] text-[var(--background-end)] shadow-lg'
+                    : 'text-[var(--text-color)] hover:bg-[var(--background-start)] hover:shadow-sm'
+                }`}
               >
-                <span className="block truncate text-2xl font-bold text-[var(--accent-color)]">
-                  Al Judi Masjid
+                {isActive && (
+                  <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[var(--yellow)]" />
+                )}
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${
+                    isActive
+                      ? 'bg-[var(--background-end)] text-[var(--accent-color)]'
+                      : 'bg-[var(--background-start)] text-[var(--accent-color)]'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
                 </span>
+                <span className="min-w-0 flex-1 truncate text-lg font-semibold">
+                  {label}
+                </span>
+                <ArrowRight
+                  className={`h-4 w-4 shrink-0 transition ${
+                    isActive
+                      ? 'opacity-100'
+                      : 'opacity-40 group-hover:translate-x-1 group-hover:opacity-100'
+                  }`}
+                />
               </button>
+            )
+          })}
+        </nav>
 
-              <button
-                ref={closeButtonRef}
-                type="button"
+        <div className="mobile-drawer-footer mt-auto border-t border-[var(--secondary-color)] bg-[var(--background-start)] p-4">
+          <div className="grid grid-cols-2 gap-2">
+            {accessLinks.map(({ href, label, Icon }, index) => (
+              <Link
+                key={href}
+                href={href}
+                style={{ animationDelay: `${410 + index * 48}ms` }}
+                className="mobile-nav-item flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 font-semibold text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
                 onClick={() => closeMenu()}
-                aria-label="Close menu"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:bg-[var(--background-start)]"
               >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <nav className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-5">
-              {menuItems.map(({ id, label, Icon }, index) => {
-                const isActive = id === activeSection
-
-                return (
-                  <motion.button
-                    key={id}
-                    type="button"
-                    onClick={() => selectSection(id)}
-                    aria-current={isActive ? 'true' : undefined}
-                    initial={{ opacity: 0, x: -18 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 + 0.04 * index, duration: 0.22 }}
-                    className={`group relative flex min-h-14 items-center gap-3 overflow-hidden rounded-lg px-3 py-3 text-left transition ${
-                      isActive
-                        ? 'bg-[var(--accent-color)] text-[var(--background-end)] shadow-lg'
-                        : 'text-[var(--text-color)] hover:bg-[var(--background-start)] hover:shadow-sm'
-                    }`}
-                  >
-                    {isActive && (
-                      <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[var(--yellow)]" />
-                    )}
-                    <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${
-                        isActive
-                          ? 'bg-[var(--background-end)] text-[var(--accent-color)]'
-                          : 'bg-[var(--background-start)] text-[var(--accent-color)]'
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-lg font-semibold">
-                      {label}
-                    </span>
-                    <ArrowRight
-                      className={`h-4 w-4 shrink-0 transition ${
-                        isActive
-                          ? 'opacity-100'
-                          : 'opacity-40 group-hover:translate-x-1 group-hover:opacity-100'
-                      }`}
-                    />
-                  </motion.button>
-                )
-              })}
-            </nav>
-
-            <div className="mt-auto border-t border-[var(--secondary-color)] bg-[var(--background-start)] p-4">
-              <div className="grid grid-cols-2 gap-2">
-                {accessLinks.map(({ href, label, Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 font-semibold text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
-                    onClick={() => closeMenu()}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
+                <Icon className="h-5 w-5" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>,
     document.body
   ) : null
 
   return (
     <>
-      <motion.header
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="sticky top-0 z-40 border-b border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6 lg:hidden"
-      >
+      <header className="sticky top-0 z-40 border-b border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6 lg:hidden">
         <nav className="relative mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-4">
           <div className="flex min-w-0 items-center gap-3 justify-self-start">
             <button
@@ -490,12 +475,9 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
             <ThemeToggle displayTheme={displayTheme} onToggle={toggleTheme} />
           </div>
         </nav>
-      </motion.header>
+      </header>
 
-      <motion.aside
-        initial={{ opacity: 0, x: -18 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.42, delay: 0.08 }}
+      <aside
         className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-5 shadow-xl backdrop-blur-md lg:flex"
         aria-label="Primary navigation"
       >
@@ -587,7 +569,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
             <ThemeToggle displayTheme={displayTheme} onToggle={toggleTheme} />
           </div>
         </div>
-      </motion.aside>
+      </aside>
       {menuOverlay}
     </>
   )

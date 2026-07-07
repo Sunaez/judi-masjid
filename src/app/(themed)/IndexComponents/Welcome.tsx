@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import gsap from 'gsap'
-import { IoChatbox } from 'react-icons/io5'
+import { MessageCircle } from 'lucide-react'
 
 import { usePrayerTimesContext } from '../../display/context/PrayerTimesContext'
 
@@ -17,48 +15,16 @@ function splitToWords(text: string): string[] {
   return text.trim().split(/\s+/)
 }
 
+const englishLine1 = splitToChars('Welcome to')
+const englishLine2 = splitToChars('Al-judi Masjid')
+const arabicLine1 = splitToWords(KURDISH_LINE_1)
+const arabicLine2 = splitToWords(KURDISH_LINE_2)
+
 export default function Welcome() {
-  const [fontsReady, setFontsReady] = useState(false)
   const { isEid } = usePrayerTimesContext()
 
-  const englishLine1 = useMemo(() => splitToChars('Welcome to'), [])
-  const englishLine2 = useMemo(() => splitToChars('Al-judi Masjid'), [])
-  const arabicLine1 = useMemo(() => splitToWords(KURDISH_LINE_1), [])
-  const arabicLine2 = useMemo(() => splitToWords(KURDISH_LINE_2), [])
-
-  useEffect(() => {
-    if (!document.fonts?.ready) {
-      setFontsReady(true)
-      return
-    }
-
-    document.fonts.ready.then(() => setFontsReady(true))
-  }, [])
-
-  useEffect(() => {
-    if (!fontsReady) return
-
-    const chars = document.querySelectorAll<HTMLSpanElement>('.char')
-    const feedback = document.querySelector<HTMLDivElement>('.feedback-box')
-    const eidBadge = document.querySelector<HTMLDivElement>('.eid-badge')
-    const animatedExtras = [feedback, eidBadge].filter(Boolean)
-
-    if (chars.length === 0 || !feedback) return
-
-    const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-    tl.fromTo(
-      [...chars, ...animatedExtras],
-      { opacity: 0, y: 20, scale: (index: number) => (index >= chars.length ? 0.8 : 1) },
-      { opacity: 1, y: 0, scale: 1, duration: 1.2, stagger: 0.08 }
-    )
-
-    return () => {
-      tl.kill()
-    }
-  }, [fontsReady, isEid])
-
   return (
-    <section className={`flex min-h-full flex-col justify-between rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl transition-opacity sm:p-6 lg:p-8 ${fontsReady ? 'opacity-100' : 'opacity-0'}`}>
+    <section className="flex min-h-full flex-col justify-between rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6 lg:p-8">
       <div>
         <h1
           className="text-4xl font-bold leading-tight text-[var(--text-color)] sm:text-5xl"
@@ -66,14 +32,22 @@ export default function Welcome() {
         >
           <div>
             {englishLine1.map((char, idx) => (
-              <span key={idx} className="char inline-block will-change-transform">
+              <span
+                key={idx}
+                className="char welcome-char inline-block will-change-transform"
+                style={{ animationDelay: `${idx * 45}ms` }}
+              >
                 {char}
               </span>
             ))}
           </div>
           <div className="text-[var(--accent-color)]">
             {englishLine2.map((char, idx) => (
-              <span key={idx} className="char inline-block will-change-transform">
+              <span
+                key={idx}
+                className="char welcome-char inline-block will-change-transform"
+                style={{ animationDelay: `${(englishLine1.length + idx) * 45}ms` }}
+              >
                 {char}
               </span>
             ))}
@@ -87,7 +61,11 @@ export default function Welcome() {
         >
           <div>
             {arabicLine1.map((word, idx) => (
-              <span key={idx} className="char inline-block will-change-transform">
+              <span
+                key={idx}
+                className="char welcome-char inline-block will-change-transform"
+                style={{ animationDelay: `${(englishLine1.length + englishLine2.length + idx) * 45}ms` }}
+              >
                 {word}
                 {idx < arabicLine1.length - 1 && '\u00A0'}
               </span>
@@ -95,7 +73,11 @@ export default function Welcome() {
           </div>
           <div className="text-[var(--accent-color)]">
             {arabicLine2.map((word, idx) => (
-              <span key={idx} className="char inline-block will-change-transform">
+              <span
+                key={idx}
+                className="char welcome-char inline-block will-change-transform"
+                style={{ animationDelay: `${(englishLine1.length + englishLine2.length + arabicLine1.length + idx) * 45}ms` }}
+              >
                 {word}
                 {idx < arabicLine2.length - 1 && '\u00A0'}
               </span>
@@ -104,20 +86,20 @@ export default function Welcome() {
         </div>
 
         {isEid && (
-          <div className="eid-badge mt-5 inline-flex w-fit items-center rounded-full border border-[var(--accent-color)]/40 bg-[var(--secondary-color)]/20 px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--accent-color)] shadow-lg">
+          <div className="welcome-extra mt-5 inline-flex w-fit items-center rounded-full border border-[var(--accent-color)]/40 bg-[var(--secondary-color)]/20 px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--accent-color)] shadow-lg">
             Eid Mubarak
           </div>
         )}
       </div>
 
-      <div className="feedback-box mt-6 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-start)] p-4 text-center shadow-sm dark:bg-[var(--background-end)]">
+      <div className="welcome-extra mt-6 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-start)] p-4 text-center shadow-sm dark:bg-[var(--background-end)]">
         <a
           href="https://forms.gle/o2PUq1vq3QDomWKk9"
           target="_blank"
           rel="noopener noreferrer"
           className="mx-auto inline-flex min-h-11 items-center rounded-lg bg-[var(--accent-color)] px-4 py-2 font-semibold text-[var(--background-end)] shadow transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-start)]"
         >
-          <IoChatbox className="mr-2 h-5 w-5" />
+          <MessageCircle className="mr-2 h-5 w-5" />
           Add feedback
         </a>
         <p className="mt-3 text-sm leading-6 text-[var(--text-color)]">
@@ -128,6 +110,33 @@ export default function Welcome() {
       <style jsx>{`
         .char {
           word-break: keep-all;
+        }
+
+        .welcome-char,
+        .welcome-extra {
+          animation: welcome-rise 0.72s ease-out both;
+        }
+
+        .welcome-extra {
+          animation-delay: 0.45s;
+        }
+
+        @keyframes welcome-rise {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .welcome-char,
+          .welcome-extra {
+            animation: none;
+          }
         }
       `}</style>
     </section>

@@ -3,6 +3,7 @@ import {
   addMinutesToTime,
   findActivePostPrayerEvent,
   getJamaatRows,
+  isInDowntimeWindow,
   minutesToTime,
   timeToMinutes,
 } from '../prayerTimeUtils'
@@ -86,5 +87,50 @@ describe('prayerTimeUtils', () => {
 
     expect(active?.name).toBe('Taraweh')
     expect(active?.time).toBe('00:05')
+  })
+
+  describe('off-peak downtime window', () => {
+    const downtimeTimes: RawPrayerTimes = {
+      ...mockPrayerTimes,
+      fajrJamaat: '05:30',
+      ishaJamaat: '21:00',
+    }
+
+    it('starts one hour after Isha and ends exactly one hour before Fajr', () => {
+      expect(isInDowntimeWindow(downtimeTimes, 21 * 60 + 59, false)).toBe(false)
+      expect(isInDowntimeWindow(downtimeTimes, 22 * 60, false)).toBe(true)
+      expect(isInDowntimeWindow(downtimeTimes, 4 * 60 + 29, false)).toBe(true)
+      expect(isInDowntimeWindow(downtimeTimes, 4 * 60 + 30, false)).toBe(false)
+    })
+
+    it('keeps the overnight window active after midnight', () => {
+      expect(isInDowntimeWindow(downtimeTimes, 23 * 60 + 30, false)).toBe(true)
+      expect(isInDowntimeWindow(downtimeTimes, 0, false)).toBe(true)
+      expect(isInDowntimeWindow(downtimeTimes, 3 * 60, false)).toBe(true)
+      expect(isInDowntimeWindow(downtimeTimes, 12 * 60, false)).toBe(false)
+    })
+
+    it('starts three hours after Isha during the Ramadan period', () => {
+      expect(isInDowntimeWindow(downtimeTimes, 23 * 60 + 59, true)).toBe(false)
+      expect(isInDowntimeWindow(downtimeTimes, 0, true)).toBe(true)
+      expect(isInDowntimeWindow(downtimeTimes, 4 * 60 + 29, true)).toBe(true)
+      expect(isInDowntimeWindow(downtimeTimes, 4 * 60 + 30, true)).toBe(false)
+    })
+
+    it('does not wrap into a full-day downtime when Ramadan Isha runs past the Fajr cutoff', () => {
+      const tightRamadanTimes: RawPrayerTimes = {
+        ...mockPrayerTimes,
+        fajrJamaat: '02:00',
+        ishaJamaat: '22:30',
+      }
+
+      expect(isInDowntimeWindow(tightRamadanTimes, 1 * 60 + 15, true)).toBe(false)
+      expect(isInDowntimeWindow(tightRamadanTimes, 1 * 60 + 45, true)).toBe(false)
+      expect(isInDowntimeWindow(tightRamadanTimes, 23 * 60, true)).toBe(false)
+    })
+
+    it('returns false when prayer times are not available', () => {
+      expect(isInDowntimeWindow(null, 23 * 60, false)).toBe(false)
+    })
   })
 })

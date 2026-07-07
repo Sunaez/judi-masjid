@@ -44,8 +44,8 @@ function getDocumentPath(dateStr: string): string {
 /**
  * Get today's date in DD/MM/YYYY format
  */
-export function getTodayDateString(): string {
-  const d = new Date();
+export function getTodayDateString(date: Date = new Date()): string {
+  const d = new Date(date);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const yyyy = d.getFullYear();
@@ -55,8 +55,8 @@ export function getTodayDateString(): string {
 /**
  * Get tomorrow's date in DD/MM/YYYY format
  */
-export function getTomorrowDateString(): string {
-  const d = new Date();
+export function getTomorrowDateString(date: Date = new Date()): string {
+  const d = new Date(date);
   d.setDate(d.getDate() + 1);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');

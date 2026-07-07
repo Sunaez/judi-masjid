@@ -9,6 +9,7 @@ import PrayerOverlay from './Components/PrayerOverlay';
 import PostPrayerTableOverlay from './Components/PostPrayerTableOverlay';
 import DowntimeDisplay from './Components/DowntimeDisplay';
 import SlideshowOverlay from './Components/SlideshowOverlay';
+import IslamicBackdrop from './Components/IslamicBackdrop';
 import { usePrayerTimesContext } from './context/PrayerTimesContext';
 import { useDebugContext } from './context/DebugContext';
 import {
@@ -23,8 +24,6 @@ const DISPLAY_BASE_WIDTH = 1920;
 const DISPLAY_BASE_HEIGHT = 1080;
 const ROTATOR_SECTION_HEIGHT_PERCENT = 65;
 const TIMELINE_SECTION_HEIGHT_PERCENT = 35;
-const ROTATOR_GRADIENT_HOLD_PERCENT = 18;
-const ROTATOR_GRADIENT_BLEND_END_PERCENT = 100;
 const ROTATOR_BOUNDARY_FADE_HEIGHT_PX = 160;
 
 function DisplayContent() {
@@ -234,23 +233,17 @@ function DisplayContent() {
             <div
               ref={normalRef}
               id="app"
-              className="absolute inset-0 flex h-full w-full flex-col overflow-hidden"
+              className="display-screen-normal absolute inset-0 flex h-full w-full flex-col overflow-hidden"
               style={{
                 visibility: displayMode === 'normal' ? 'visible' : 'hidden',
-                backgroundColor: 'var(--background-end)',
               }}
             >
+              <IslamicBackdrop />
               <div
-                className="relative w-full flex-none overflow-hidden"
+                className="display-rotator-section relative w-full flex-none overflow-hidden"
                 style={{
                   height: `${ROTATOR_SECTION_HEIGHT_PERCENT}%`,
-                  background: `linear-gradient(
-                    180deg,
-                    var(--background-start) 0%,
-                    var(--background-start) ${ROTATOR_GRADIENT_HOLD_PERCENT}%,
-                    var(--background-end) ${ROTATOR_GRADIENT_BLEND_END_PERCENT}%,
-                    var(--background-end) 100%
-                  )`,
+                  background: 'var(--display-rotator-surface)',
                 }}
               >
                 <Rotator />
@@ -258,22 +251,22 @@ function DisplayContent() {
                   className="pointer-events-none absolute inset-x-0 bottom-0"
                   style={{
                     height: `${ROTATOR_BOUNDARY_FADE_HEIGHT_PX}px`,
-                    background: 'linear-gradient(180deg, transparent 0%, var(--background-end) 100%)',
+                    background: 'linear-gradient(180deg, transparent 0%, var(--display-timeline-surface) 100%)',
                   }}
                 />
               </div>
 
               <div
-                className="w-full flex-none overflow-hidden"
+                className="display-timeline-section w-full flex-none overflow-hidden"
                 style={{
                   height: `${TIMELINE_SECTION_HEIGHT_PERCENT}%`,
-                  backgroundColor: 'var(--background-end)',
+                  background: 'var(--display-timeline-surface)',
                 }}
               >
                 <PrayerTimeline />
               </div>
 
-              <div className="pointer-events-none absolute inset-0 h-full w-full">
+              <div className="pointer-events-none absolute inset-0 z-20 h-full w-full">
                 <PrayerOverlay />
                 <PostPrayerTableOverlay />
               </div>
