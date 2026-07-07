@@ -188,13 +188,13 @@ const PrayerTimeline = memo(function PrayerTimeline() {
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden text-[var(--text-color)]"
-      style={{ backgroundColor: 'var(--background-end)' }}
+      className="display-timeline-panel relative flex h-full w-full flex-col overflow-hidden text-[var(--text-color)]"
+      style={{ background: 'var(--display-timeline-panel)' }}
     >
       <div
         ref={scrollRef}
-        className="relative z-10 flex-grow overflow-x-hidden overflow-y-hidden py-30"
-        style={{ backgroundColor: 'var(--background-end)' }}
+        className="display-timeline-scroll relative z-10 flex-grow overflow-x-hidden overflow-y-hidden py-30"
+        style={{ background: 'transparent' }}
       >
         <div ref={innerRef} className="relative w-full min-w-[900px] py-10">
           <div

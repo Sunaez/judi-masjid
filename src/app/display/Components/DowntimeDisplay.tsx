@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { getPrayerTimesByDate, getTomorrowDateString } from '@/lib/firebase/prayerTimes';
 import type { RawPrayerTimes } from '@/app/FetchPrayerTimes';
+import IslamicBackdrop from './IslamicBackdrop';
 
 interface WeatherData {
   temp: number;
@@ -168,12 +169,14 @@ export default function DowntimeDisplay() {
   return (
     <div
       ref={containerRef}
-      className="relative flex h-full w-full items-center justify-center p-12"
+      className="display-downtime-screen relative flex h-full w-full items-center justify-center p-12"
       style={{
         backgroundImage: 'linear-gradient(135deg, var(--background-start), var(--background-end))',
         color: 'var(--text-color)',
       }}
     >
+      <IslamicBackdrop className="islamic-backdrop-downtime" />
+
       {/* Dimming overlay for off-peak feel */}
       <div
         className="absolute inset-0 pointer-events-none"

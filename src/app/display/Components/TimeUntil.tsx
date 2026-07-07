@@ -72,8 +72,8 @@ const TimeUntil = memo(function TimeUntil({ eventName, eventTime }: TimeUntilPro
 
   return (
     <div
-      className="w-full text-[var(--text-color)] py-8"
-      style={{ backgroundColor: 'var(--background-end)' }}
+      className="display-time-until w-full text-[var(--text-color)] py-8"
+      style={{ background: 'var(--display-timeuntil-surface)' }}
     >
       <div className="flex items-center justify-center space-x-6">
         {/* Label */}
