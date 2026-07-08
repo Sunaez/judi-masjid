@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Check,
   ChevronRight,
   Copy,
   CreditCard,
   HeartHandshake,
+  Loader2,
   LockKeyhole,
   ReceiptText,
   ShieldCheck,
@@ -90,8 +91,6 @@ export default function DonationOptions({
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null)
   const [redirecting, setRedirecting] = useState(false)
-  const [showWorkInProgressNotice, setShowWorkInProgressNotice] = useState(true)
-  const lastNoticeTapTime = useRef(0)
 
   const donationAmount = useMemo(() => {
     if (!customAmount.trim()) {
@@ -171,42 +170,28 @@ export default function DonationOptions({
     }
   }
 
-  const dismissWorkInProgressNotice = () => {
-    setShowWorkInProgressNotice(false)
-  }
-
-  const handleNoticePointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'mouse') {
-      return
-    }
-
-    const now = Date.now()
-
-    if (now - lastNoticeTapTime.current < 450) {
-      dismissWorkInProgressNotice()
-      lastNoticeTapTime.current = 0
-      return
-    }
-
-    lastNoticeTapTime.current = now
-  }
-
   return (
-    <article className="relative overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-xl">
+    <article className="overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-xl">
       <div
-        className={`transition duration-300 ${
-          showWorkInProgressNotice ? 'pointer-events-none select-none blur-sm' : ''
+        className={`grid gap-0 ${
+          variant === 'full'
+            ? 'xl:grid-cols-[minmax(0,1fr)_420px]'
+            : 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]'
         }`}
-        aria-hidden={showWorkInProgressNotice}
       >
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.86fr)]">
-        <div className="p-5 md:p-6">
+        <div className={variant === 'full' ? 'p-5 md:p-7 xl:p-8' : 'p-5 md:p-6'}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
                 Secure giving
               </p>
-              <h2 className="mt-2 text-2xl font-bold leading-tight text-[var(--text-color)] md:text-3xl">
+              <h2
+                className={`mt-2 font-bold leading-tight text-[var(--text-color)] ${
+                  variant === 'full'
+                    ? 'text-3xl md:text-4xl'
+                    : 'text-2xl md:text-3xl'
+                }`}
+              >
                 Support Al Judi Masjid
               </h2>
             </div>
@@ -215,13 +200,12 @@ export default function DonationOptions({
             </span>
           </div>
 
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-muted)] md:text-base">
-            Choose a donation amount and purpose. Stripe Checkout will show the
-            best available payment methods for each donor, including cards,
-            Apple Pay, Google Pay, PayPal, Link, and eligible bank methods.
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] md:text-base">
+            Choose an amount and purpose, then continue to Stripe&apos;s hosted
+            checkout page for the secure payment step.
           </p>
 
-          <div className="mt-6">
+          <div className="mt-7">
             <p className="text-sm font-semibold text-[var(--text-color)]">
               Donation amount
             </p>
@@ -253,8 +237,7 @@ export default function DonationOptions({
                   GBP
                 </span>
                 <input
-                  inputMode="numeric"
-                  pattern="[0-9]*"
+                  inputMode="decimal"
                   value={customAmount}
                   onChange={event => handleCustomAmount(event.target.value)}
                   placeholder="Other amount"
@@ -264,7 +247,7 @@ export default function DonationOptions({
             </label>
           </div>
 
-          <div className="mt-6 grid gap-5 md:grid-cols-[0.72fr_1fr]">
+          <div className="mt-7 grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
             <div>
               <p className="text-sm font-semibold text-[var(--text-color)]">
                 Frequency
@@ -298,7 +281,11 @@ export default function DonationOptions({
               <p className="text-sm font-semibold text-[var(--text-color)]">
                 Donation purpose
               </p>
-              <div className="mt-3 grid gap-2">
+              <div
+                className={`mt-3 grid gap-3 ${
+                  variant === 'full' ? 'lg:grid-cols-3 xl:grid-cols-3' : ''
+                }`}
+              >
                 {donationFunds.map(option => {
                   const isActive = selectedFund === option.id
 
@@ -335,13 +322,19 @@ export default function DonationOptions({
           </div>
         </div>
 
-        <div className="border-t border-[var(--secondary-color)] bg-[var(--x-background-start)] p-5 text-[var(--x-text-color)] lg:border-l lg:border-t-0 md:p-6">
+        <div
+          className={`border-t border-[var(--secondary-color)] bg-[var(--x-background-start)] p-5 text-[var(--x-text-color)] md:p-6 ${
+            variant === 'full'
+              ? 'xl:border-l xl:border-t-0 xl:p-8'
+              : 'lg:border-l lg:border-t-0'
+          }`}
+        >
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-75">
                 Stripe hosted checkout
               </p>
-              <h3 className="mt-1 text-xl font-bold">Al Judi Masjid</h3>
+              <h3 className="mt-1 text-xl font-bold">Donation to Al Judi Masjid</h3>
             </div>
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-[var(--x-background-end)]">
               <LockKeyhole className="h-5 w-5" />
@@ -366,23 +359,11 @@ export default function DonationOptions({
               <div className="flex items-center gap-3">
                 <CreditCard className="h-5 w-5 opacity-85" />
                 <div>
-                  <p className="text-sm font-semibold">Flexible payment methods</p>
+                  <p className="text-sm font-semibold">Secure external payment page</p>
                   <p className="text-xs opacity-75">
-                    Cards, Apple Pay, Google Pay, PayPal, Link, bank
+                    Stripe will show the available payment methods for each donor.
                   </p>
                 </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-                {['Card', 'Apple Pay', 'Google Pay', 'PayPal', 'Bank'].map(
-                  method => (
-                    <span
-                      key={method}
-                      className="rounded-full border border-[var(--x-secondary-color)] px-3 py-1"
-                    >
-                      {method}
-                    </span>
-                  )
-                )}
               </div>
             </div>
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--x-secondary-color)] pt-4 text-sm">
@@ -394,7 +375,7 @@ export default function DonationOptions({
           <div className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
             <div className="flex items-center gap-2 rounded-md border border-[var(--x-secondary-color)] px-3 py-2 text-sm">
               <ShieldCheck className="h-4 w-4" />
-              <span>Dynamic payment methods</span>
+              <span>Hosted by Stripe</span>
             </div>
             <div className="flex items-center gap-2 rounded-md border border-[var(--x-secondary-color)] px-3 py-2 text-sm">
               <ReceiptText className="h-4 w-4" />
@@ -402,7 +383,7 @@ export default function DonationOptions({
             </div>
             <div className="flex items-center gap-2 rounded-md border border-[var(--x-secondary-color)] px-3 py-2 text-sm">
               <LockKeyhole className="h-4 w-4" />
-              <span>No card details stored</span>
+              <span>No card details stored here</span>
             </div>
           </div>
 
@@ -412,8 +393,17 @@ export default function DonationOptions({
             onClick={handleStripeCheckout}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--x-accent-color)] px-5 py-3 font-semibold text-[var(--x-background-end)] transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {redirecting ? 'Opening Stripe Checkout...' : 'Donate securely with Stripe'}
-            <ChevronRight className="h-5 w-5" />
+            {redirecting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Opening Stripe Checkout...
+              </>
+            ) : (
+              <>
+                Continue to Stripe Checkout
+                <ChevronRight className="h-5 w-5" />
+              </>
+            )}
           </button>
 
           {checkoutError && (
@@ -477,36 +467,6 @@ export default function DonationOptions({
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-      </div>
-
-      {showWorkInProgressNotice && (
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label="Donation section is currently being worked on. Double click or double tap to dismiss."
-          onDoubleClick={dismissWorkInProgressNotice}
-          onPointerUp={handleNoticePointerUp}
-          onKeyDown={event => {
-            if (['Enter', ' ', 'Escape'].includes(event.key)) {
-              event.preventDefault()
-              dismissWorkInProgressNotice()
-            }
-          }}
-          className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center bg-[var(--background-end)]/65 p-6 text-center backdrop-blur-sm"
-        >
-          <div className="max-w-md rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)]/95 p-6 text-[var(--text-color)] shadow-2xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-              Donations
-            </p>
-            <h2 className="mt-3 text-2xl font-bold leading-tight text-[var(--accent-color)]">
-              This section is currently being worked on
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-              Double click or double tap this notice to dismiss it.
-            </p>
           </div>
         </div>
       )}

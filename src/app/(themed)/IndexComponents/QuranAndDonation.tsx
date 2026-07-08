@@ -105,7 +105,7 @@ export default function QuranAndDonation() {
 
   return (
     <section className="px-4 pb-8 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[minmax(0,0.88fr)_minmax(420px,1fr)]">
+      <div className="mx-auto grid max-w-7xl gap-6">
         <article
           className="relative overflow-hidden rounded-lg border border-[var(--secondary-color)] p-6 shadow-xl"
           style={{

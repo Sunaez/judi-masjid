@@ -9,6 +9,17 @@ import {
 
 export const runtime = 'nodejs'
 
+type DonationPaymentMethodType = Extract<
+  Stripe.Checkout.SessionCreateParams.PaymentMethodType,
+  'card' | 'link' | 'paypal'
+>
+
+const DONATION_PRODUCT_NAME = 'Donation to Al Judi Masjid'
+const supportedDonationPaymentMethodTypes = new Set<DonationPaymentMethodType>([
+  'card',
+  'link',
+  'paypal',
+] satisfies DonationPaymentMethodType[])
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null
 
@@ -34,6 +45,27 @@ function getCheckoutErrorMessage(error: unknown) {
   }
 
   return 'Unable to start Stripe Checkout. Please try again.'
+}
+
+function isDonationPaymentMethodType(type: string): type is DonationPaymentMethodType {
+  return supportedDonationPaymentMethodTypes.has(type as DonationPaymentMethodType)
+}
+
+function getConfiguredPaymentMethodTypes() {
+  const configuredTypes = process.env.STRIPE_DONATION_PAYMENT_METHOD_TYPES?.trim()
+
+  if (!configuredTypes) {
+    return null
+  }
+
+  const paymentMethodTypes = configuredTypes
+    .split(',')
+    .map(type => type.trim().toLowerCase())
+    .filter(isDonationPaymentMethodType)
+
+  return paymentMethodTypes.length > 0
+    ? Array.from(new Set(paymentMethodTypes))
+    : null
 }
 
 export async function POST(request: NextRequest) {
@@ -87,8 +119,10 @@ export async function POST(request: NextRequest) {
     donationFund: fund.id,
     donationFundLabel: fund.label,
     frequency,
+    productName: DONATION_PRODUCT_NAME,
   }
   const mode = frequency === 'monthly' ? 'subscription' : 'payment'
+  const paymentMethodTypes = getConfiguredPaymentMethodTypes()
   const paymentMethodConfiguration =
     process.env.STRIPE_DONATION_PAYMENT_METHOD_CONFIGURATION?.trim()
 
@@ -96,6 +130,7 @@ export async function POST(request: NextRequest) {
     mode,
     success_url: `${baseUrl}/?donation=success&session_id={CHECKOUT_SESSION_ID}#donate`,
     cancel_url: `${baseUrl}/?donation=cancelled#donate`,
+    billing_address_collection: 'auto',
     line_items: [
       {
         quantity: 1,
@@ -103,8 +138,8 @@ export async function POST(request: NextRequest) {
           currency: 'gbp',
           unit_amount: amountInPence,
           product_data: {
-            name: `${fund.label} - Al Judi Masjid`,
-            description: fund.description,
+            name: DONATION_PRODUCT_NAME,
+            description: `${fund.label}: ${fund.description}`,
             metadata,
           },
           ...(frequency === 'monthly'
@@ -114,10 +149,15 @@ export async function POST(request: NextRequest) {
       },
     ],
     metadata,
+    payment_method_options: {
+      paypal: {
+        preferred_locale: 'en-GB',
+      },
+    },
     custom_text: {
       submit: {
         message:
-          'JazakAllahu khairan for supporting Al Judi Masjid. Stripe will email your payment confirmation.',
+          'JazakAllahu khairan for supporting Al Judi Masjid.',
       },
     },
     ...(frequency === 'once'
@@ -131,7 +171,8 @@ export async function POST(request: NextRequest) {
           subscription_data: {
             metadata,
           },
-        }),
+    }),
+    ...(paymentMethodTypes ? { payment_method_types: paymentMethodTypes } : {}),
     ...(paymentMethodConfiguration
       ? { payment_method_configuration: paymentMethodConfiguration }
       : {}),
