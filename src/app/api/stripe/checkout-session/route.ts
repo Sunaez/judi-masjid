@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
 import {
-  getDonationFund,
   isDonationFrequency,
   toDonationAmountInPence,
 } from '@/lib/donations'
@@ -15,6 +14,7 @@ type DonationPaymentMethodType = Extract<
 >
 
 const DONATION_PRODUCT_NAME = 'Donation to Al Judi Masjid'
+const DONATION_PRODUCT_DESCRIPTION = 'Supporting Al Judi Masjid'
 const supportedDonationPaymentMethodTypes = new Set<DonationPaymentMethodType>([
   'card',
   'link',
@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
   const frequency = isDonationFrequency(requestBody.frequency)
     ? requestBody.frequency
     : 'once'
-  const fund = getDonationFund(requestBody.fund)
 
   if (!amountInPence) {
     return NextResponse.json(
@@ -107,17 +106,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!fund) {
-    return NextResponse.json(
-      { error: 'Choose a valid donation purpose.' },
-      { status: 400 }
-    )
-  }
-
   const baseUrl = getBaseUrl(request)
   const metadata = {
-    donationFund: fund.id,
-    donationFundLabel: fund.label,
     frequency,
     productName: DONATION_PRODUCT_NAME,
   }
@@ -128,7 +118,7 @@ export async function POST(request: NextRequest) {
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode,
-    success_url: `${baseUrl}/?donation=success&session_id={CHECKOUT_SESSION_ID}#donate`,
+    success_url: `${baseUrl}/?donation=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/?donation=cancelled#donate`,
     billing_address_collection: 'auto',
     line_items: [
@@ -139,7 +129,7 @@ export async function POST(request: NextRequest) {
           unit_amount: amountInPence,
           product_data: {
             name: DONATION_PRODUCT_NAME,
-            description: `${fund.label}: ${fund.description}`,
+            description: DONATION_PRODUCT_DESCRIPTION,
             metadata,
           },
           ...(frequency === 'monthly'

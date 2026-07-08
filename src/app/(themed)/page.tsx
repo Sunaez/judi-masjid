@@ -1,13 +1,15 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Building2,
   CalendarDays,
+  CheckCircle2,
   Mail,
   MapPin,
   Phone,
+  X,
 } from 'lucide-react'
 
 import { usePrayerTimesContext } from '../display/context/PrayerTimesContext'
@@ -61,6 +63,10 @@ function getSectionFromLocation(): SiteSectionId {
   const hash = window.location.hash.replace('#', '')
 
   return isSiteSectionId(hash) ? hash : 'home'
+}
+
+function hasSuccessfulDonationReturn() {
+  return new URLSearchParams(window.location.search).get('donation') === 'success'
 }
 
 function getSectionUrl(section: SiteSectionId) {
@@ -240,6 +246,46 @@ function DonateSection() {
   )
 }
 
+function DonationThankYouOverlay({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(21,49,71,0.48)] px-4 py-8 backdrop-blur-sm">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="donation-thank-you-title"
+        className="relative w-full max-w-lg rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-6 text-[var(--text-color)] shadow-2xl md:p-8"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close donation thank you message"
+          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--secondary-color)] bg-[var(--background-end)] text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <span className="inline-flex h-14 w-14 items-center justify-center rounded-md bg-[var(--accent-color)] text-[var(--background-end)]">
+          <CheckCircle2 className="h-7 w-7" />
+        </span>
+
+        <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+          Donation received
+        </p>
+        <h2
+          id="donation-thank-you-title"
+          className="mt-2 pr-10 text-2xl font-bold leading-tight text-[var(--accent-color)] md:text-3xl"
+        >
+          Jazakallah khair for your donation
+        </h2>
+        <p className="mt-4 leading-7 text-[var(--text-color)]">
+          May Allah accept it from you and place barakah in your giving. Your
+          support helps Al Judi Masjid continue serving the community.
+        </p>
+      </section>
+    </div>
+  )
+}
+
 function ContactSection() {
   return (
     <SectionShell eyebrow="Contact" title="Get in touch with Al Judi Masjid">
@@ -302,9 +348,16 @@ function renderSection(activeSection: SiteSectionId) {
 export default function HomePage() {
   const { isEid } = usePrayerTimesContext()
   const [activeSection, setActiveSection] = useState<SiteSectionId>('home')
+  const [showDonationThankYou, setShowDonationThankYou] = useState(false)
 
   useEffect(() => {
     const syncSectionFromLocation = () => {
+      if (hasSuccessfulDonationReturn()) {
+        setActiveSection('home')
+        setShowDonationThankYou(true)
+        return
+      }
+
       setActiveSection(getSectionFromLocation())
     }
 
@@ -317,6 +370,38 @@ export default function HomePage() {
       window.removeEventListener('popstate', syncSectionFromLocation)
     }
   }, [])
+
+  const handleCloseDonationThankYou = useCallback(() => {
+    setShowDonationThankYou(false)
+    setActiveSection('home')
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('donation')
+    url.searchParams.delete('session_id')
+    url.hash = ''
+
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${url.pathname}${url.search}${url.hash}`
+    )
+  }, [])
+
+  useEffect(() => {
+    if (!showDonationThankYou) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleCloseDonationThankYou()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [handleCloseDonationThankYou, showDonationThankYou])
 
   const handleSectionChange = (section: SiteSectionId) => {
     setActiveSection(section)
@@ -345,6 +430,10 @@ export default function HomePage() {
         <div className="flex-1">
           {renderSection(activeSection)}
         </div>
+
+        {showDonationThankYou && (
+          <DonationThankYouOverlay onClose={handleCloseDonationThankYou} />
+        )}
 
         {activeSection === 'home' && (
           <LazyOnVisible minHeight={260}>
