@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
 
 interface PrayerTableProps {
@@ -130,12 +129,15 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
         const isNext = i === nextIndex;
 
         const nameBg = wasDark
-          ? 'var(--static-light-accent-color)'
-          : 'var(--static-dark-accent-color)';
+          ? 'var(--static-dark-accent-color)'
+          : 'var(--static-light-accent-color)';
         const timeBg = wasDark
           ? 'var(--static-dark-background-end)'
           : 'var(--static-light-background-end)';
-        const textColor = nameBg.includes('light')
+        const nameTextColor = wasDark
+          ? 'var(--static-light-text-color)'
+          : 'var(--static-dark-text-color)';
+        const timeTextColor = wasDark
           ? 'var(--static-dark-text-color)'
           : 'var(--static-light-text-color)';
         const borderStyle = isNext
@@ -159,7 +161,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
               style={{
                 flex: 1,
                 backgroundColor: nameBg,
-                color: textColor,
+                color: nameTextColor,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -179,7 +181,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
               style={{
                 flex: 2,
                 backgroundColor: timeBg,
-                color: textColor,
+                color: timeTextColor,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
