@@ -57,10 +57,16 @@ import { getPrayerTimesByDate } from '@/lib/firebase/prayerTimes';
 const mockGetPrayerTimesByDate = getPrayerTimesByDate as jest.MockedFunction<
   typeof getPrayerTimesByDate
 >;
+const originalFetch = global.fetch;
 
 beforeEach(() => {
   mockGetPrayerTimesByDate.mockClear();
   mockGetPrayerTimesByDate.mockImplementation(() => new Promise(() => {}));
+  global.fetch = jest.fn(() => new Promise<Response>(() => {}));
+});
+
+afterAll(() => {
+  global.fetch = originalFetch;
 });
 
 describe('DowntimeDisplay', () => {

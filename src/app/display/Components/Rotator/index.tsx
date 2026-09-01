@@ -17,8 +17,6 @@ import Footer from './Footer';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
 import { useDebugContext } from '@/app/display/context/DebugContext';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getRotatorSlotOrder, type RotatorSlotKey } from './slotConfig';
 import { addMinutesToTime } from '@/lib/prayerTimeUtils';
 import EidLanternBackdrop from '@/components/EidLanternBackdrop';
@@ -28,18 +26,8 @@ import {
   isEidAlAdhaPrayerNoticeActive,
 } from '@/lib/eidPrayerNotice';
 
-// Environment variable keys for OpenWeather API
-const OPENWEATHER_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY!;
-const OPENWEATHER_LAT = process.env.NEXT_PUBLIC_OPENWEATHER_LAT!;
-const OPENWEATHER_LON = process.env.NEXT_PUBLIC_OPENWEATHER_LON!;
-
-// Firestore document reference for caching weather
-const weatherDocRef = doc(db, 'weather', 'current');
-
 // Duration each slot is displayed (in milliseconds)
 const DISPLAY_MS = 20_000;
-// Minimum time between weather API calls (5 minutes) - prevents abuse from page reloads
-const WEATHER_API_COOLDOWN = 5 * 60 * 1000;
 // Interval at which to check weather cache (1 minute)
 const WEATHER_CHECK_INTERVAL = 60 * 1000;
 
@@ -84,6 +72,7 @@ interface WeatherData {
   iconCode: string;
   forecastTemp: number;
   forecastCondition: string;
+  timestamp: number;
 }
 
 export default function Rotator() {
@@ -219,71 +208,18 @@ export default function Rotator() {
     return () => window.clearTimeout(timeout);
   }, [prayerRefresh]);
 
-  // ─── Fetch & Cache Weather ───────────────────────────────────────────────────
-  // Checks Firestore cache first. Only calls OpenWeather API if cache is older than
-  // 5 minutes (WEATHER_API_COOLDOWN). This prevents abuse from page reloads.
+  // ─── Fetch Weather ───────────────────────────────────────────────────────────
+  // Weather is fetched through a server route so Firestore cache writes are trusted.
   const updateWeather = useCallback(async () => {
     try {
-      const snap = await getDoc(weatherDocRef);
+      const response = await fetch('/api/weather/current', { cache: 'no-store' });
 
-      // Always check cache first
-      if (snap.exists()) {
-        const data = snap.data();
-        const age = Date.now() - (data.timestamp as number);
-
-        // Update state with cached data
-        setWeatherData({
-          temp: data.temp,
-          condition: data.condition,
-          iconCode: data.iconCode,
-          forecastTemp: data.forecastTemp,
-          forecastCondition: data.forecastCondition,
-        });
-
-        // If cache is fresh enough, don't call API
-        if (age < WEATHER_API_COOLDOWN) {
-          return;
-        }
+      if (!response.ok) {
+        throw new Error('Weather endpoint returned an unsuccessful response.');
       }
 
-      // Cache is stale or missing - fetch from API
-      const curRes = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric`
-      );
-      const curJson = await curRes.json();
-
-      // Fetch next forecast entry
-      const fcRes = await fetch(
-        `https://api.openweathermap.org/data/2.5/forecast?lat=${OPENWEATHER_LAT}&lon=${OPENWEATHER_LON}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=1`
-      );
-      const fcJson = await fcRes.json();
-
-      // Extract and round temps, main condition strings, icon code
-      const temp = Math.round(curJson.main.temp);
-      const condition = curJson.weather[0].main;
-      const iconCode = curJson.weather[0].icon;
-      const forecastTemp = Math.round(fcJson.list[0].main.temp);
-      const forecastCondition = fcJson.list[0].weather[0].main;
-
-      const timestamp = Date.now();
-      const freshWeatherData = {
-        temp,
-        condition,
-        iconCode,
-        forecastTemp,
-        forecastCondition,
-      };
-
-      setWeatherData(freshWeatherData);
-
-      try {
-        await setDoc(weatherDocRef, {
-          ...freshWeatherData,
-          timestamp,
-        });
-      } catch (cacheError) {
-        console.error('[weather] Failed to cache weather:', cacheError);
-      }
+      const data = (await response.json()) as WeatherData;
+      setWeatherData(data);
     } catch (error) {
       console.error('[weather] Error:', error);
     }

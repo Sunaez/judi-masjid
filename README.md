@@ -16,6 +16,21 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Admin Access
+
+Admin access is controlled by Firebase Authentication. Any user account you
+manually create in Firebase Console can sign in to the admin page and perform
+admin writes.
+
+There is no `ADMIN_EMAILS` environment allowlist and no custom admin claim is
+required. Keep account creation restricted to Firebase Console, disable any
+users who should no longer have access, and do not add public sign-up to the
+app unless you also add a stricter role system.
+
+The checked-in `firestore.rules` file allows public reads, but admin/dashboard
+writes require a signed-in Firebase Authentication session. Publish those rules
+in Firebase Console after deploying code changes.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

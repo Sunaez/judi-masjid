@@ -4,8 +4,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { gsap } from 'gsap';
 import { usePrayerTimesContext } from '../context/PrayerTimesContext';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import {
   getPrayerTimesByDate,
   getTodayDateString,
@@ -110,18 +108,17 @@ export default function DowntimeDisplay() {
     return () => ctx.revert();
   }, []);
 
-  // Fetch cached weather from Firebase (no direct API calls during downtime)
+  // Fetch weather through the server cache.
   const fetchWeather = useCallback(async () => {
     try {
-      const weatherDoc = await getDoc(doc(db, 'weather', 'current'));
-      if (weatherDoc.exists()) {
-        const data = weatherDoc.data();
-        setWeather({
-          temp: data.temp,
-          condition: data.condition,
-          iconCode: data.iconCode,
-        });
+      const response = await fetch('/api/weather/current', { cache: 'no-store' });
+
+      if (!response.ok) {
+        throw new Error('Weather endpoint returned an unsuccessful response.');
       }
+
+      const data = (await response.json()) as WeatherData;
+      setWeather(data);
     } catch (error) {
       console.error('[DowntimeDisplay] Failed to fetch weather:', error);
     }

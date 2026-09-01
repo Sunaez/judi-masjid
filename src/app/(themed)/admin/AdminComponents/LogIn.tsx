@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   browserSessionPersistence,
-  getIdTokenResult,
   onIdTokenChanged,
   sendPasswordResetEmail,
   setPersistence,
@@ -13,6 +12,11 @@ import {
 } from 'firebase/auth'
 
 import { auth } from '@/lib/firebase'
+import { AdminAccessError, ensureAdminAccess } from '@/lib/adminClient'
+import {
+  getFirebaseAuthFeedback,
+  getPasswordResetFeedback,
+} from '@/lib/adminMessages'
 import NavBar from './NavBar'
 
 const PASSWORD_RESET_MESSAGE =
@@ -46,10 +50,12 @@ export default function LogIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [errorHelp, setErrorHelp] = useState<string[]>([])
   const [status, setStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [resettingPassword, setResettingPassword] = useState(false)
   const [safeRedirect, setSafeRedirect] = useState('/admin/dashboard')
+  const loginInProgressRef = useRef(false)
 
   useEffect(() => {
     setMounted(true)
@@ -60,18 +66,17 @@ export default function LogIn() {
 
     const unsubscribe = onIdTokenChanged(auth, async user => {
       if (!user) return
+      if (loginInProgressRef.current) return
 
       try {
-        const tokenResult = await getIdTokenResult(user)
-
-        if (tokenResult.claims.admin === true) {
-          router.replace(redirect)
-          return
-        }
-
-        await signOut(auth)
+        await ensureAdminAccess(user)
+        router.replace(redirect)
       } catch (error) {
-        console.error('Failed to verify admin claim:', error)
+        console.error('Failed to verify admin session:', error)
+        if (error instanceof AdminAccessError) {
+          setError(error.message)
+          setErrorHelp(error.help)
+        }
         await signOut(auth)
       }
     })
@@ -85,38 +90,42 @@ export default function LogIn() {
     event.preventDefault()
     setLoading(true)
     setError(null)
+    setErrorHelp([])
     setStatus(null)
+    loginInProgressRef.current = true
 
     try {
       await setPersistence(auth, browserSessionPersistence)
       const credential = await signInWithEmailAndPassword(auth, email, password)
-      const tokenResult = await getIdTokenResult(credential.user, true)
-
-      if (tokenResult.claims.admin !== true) {
-        await signOut(auth)
-        setError('This account is not authorised for admin access.')
-        return
-      }
+      await ensureAdminAccess(credential.user)
 
       router.replace(safeRedirect)
     } catch (err: unknown) {
+      if (err instanceof AdminAccessError) {
+        await signOut(auth)
+        setError(err.message)
+        setErrorHelp(err.help)
+        return
+      }
+
       const code = getFirebaseCode(err)
-      setError(
-        code === 'auth/too-many-requests'
-          ? 'Too many failed attempts. Try again later or reset the password.'
-          : 'Invalid admin email or password.'
-      )
+      const feedback = getFirebaseAuthFeedback(code)
+      setError(feedback.message)
+      setErrorHelp(feedback.help)
     } finally {
+      loginInProgressRef.current = false
       setLoading(false)
     }
   }
 
   const handlePasswordReset = async () => {
     setError(null)
+    setErrorHelp([])
     setStatus(null)
 
     if (!email.trim()) {
       setError('Enter the admin email address first.')
+      setErrorHelp(['Type the admin email in the Email field, then press Forgot password again.'])
       return
     }
 
@@ -127,10 +136,13 @@ export default function LogIn() {
       setStatus(PASSWORD_RESET_MESSAGE)
     } catch (err: unknown) {
       const code = getFirebaseCode(err)
-      if (code === 'auth/invalid-email') {
-        setError('Enter a valid email address.')
+      const feedback = getPasswordResetFeedback(code)
+
+      if (feedback.help.length > 0) {
+        setError(feedback.message)
+        setErrorHelp(feedback.help)
       } else {
-        setStatus(PASSWORD_RESET_MESSAGE)
+        setStatus(feedback.message)
       }
     } finally {
       setResettingPassword(false)
@@ -150,12 +162,19 @@ export default function LogIn() {
           </h1>
 
           {error && (
-            <p
+            <div
               role="alert"
               className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
             >
-              {error}
-            </p>
+              <p className="font-semibold">{error}</p>
+              {errorHelp.length > 0 && (
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {errorHelp.map(item => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
 
           {status && (

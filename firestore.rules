@@ -3,7 +3,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return request.auth != null;
+    }
+
+    function isReasonableWeatherText(value) {
+      return value is string && value.size() > 0 && value.size() <= 40;
+    }
+
+    function isReasonableTemperature(value) {
+      return value is number && value >= -50 && value <= 60;
     }
 
     function isValidWeatherCache() {
@@ -23,12 +31,14 @@ service cloud.firestore {
         'temp',
         'timestamp',
       ]) &&
-      request.resource.data.condition is string &&
-      request.resource.data.forecastCondition is string &&
-      request.resource.data.forecastTemp is number &&
+      isReasonableWeatherText(request.resource.data.condition) &&
+      isReasonableWeatherText(request.resource.data.forecastCondition) &&
+      isReasonableTemperature(request.resource.data.forecastTemp) &&
       request.resource.data.iconCode is string &&
-      request.resource.data.temp is number &&
-      request.resource.data.timestamp is number;
+      request.resource.data.iconCode.matches('^\\d{2}[dn]$') &&
+      isReasonableTemperature(request.resource.data.temp) &&
+      request.resource.data.timestamp is number &&
+      request.resource.data.timestamp > 0;
     }
 
     match /messages/{messageId} {
@@ -59,7 +69,7 @@ service cloud.firestore {
 
     match /weather/current {
       allow read: if true;
-      allow create, update: if isValidWeatherCache();
+      allow create, update: if isAdmin() && isValidWeatherCache();
       allow delete: if isAdmin();
     }
 

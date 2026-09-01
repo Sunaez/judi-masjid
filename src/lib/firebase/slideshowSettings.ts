@@ -7,21 +7,12 @@ import {
   type Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { getIdTokenResult } from 'firebase/auth';
 import { auth, db } from '../firebase';
 
 const SLIDESHOW_STATE_REF = doc(db, 'state', 'slideshow');
 
 async function canWriteAsAdmin(): Promise<boolean> {
-  const user = auth?.currentUser;
-  if (!user) return false;
-
-  try {
-    const tokenResult = await getIdTokenResult(user);
-    return tokenResult.claims.admin === true;
-  } catch {
-    return false;
-  }
+  return Boolean(auth?.currentUser?.uid);
 }
 
 export async function saveSlideIndex(index: number): Promise<void> {

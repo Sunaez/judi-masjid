@@ -20,9 +20,6 @@ import {
   Sun,
   X,
 } from 'lucide-react'
-import { doc, getDoc } from 'firebase/firestore'
-
-import { db } from '@/lib/firebase'
 
 export type SiteSectionId =
   | 'home'
@@ -205,9 +202,16 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
 
     async function fetchWeather() {
       try {
-        const snap = await getDoc(doc(db, 'weather', 'current'))
-        if (!cancelled && snap.exists()) {
-          setWeather(snap.data() as Weather)
+        const response = await fetch('/api/weather/current', { cache: 'no-store' })
+
+        if (!response.ok) {
+          throw new Error('Weather endpoint returned an unsuccessful response.')
+        }
+
+        const data = (await response.json()) as Weather
+
+        if (!cancelled) {
+          setWeather(data)
         }
       } catch (err) {
         console.error('Failed to fetch weather:', err)

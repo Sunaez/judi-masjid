@@ -14,6 +14,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "firebase": "^11.9.1",
+    "firebase-admin": "^14.3.0",
     "gsap": "^3.13.0",
     "ionicons": "^7.4.0",
     "lucide-react": "^0.517.0",
@@ -37,22 +38,25 @@
     "@types/papaparse": "^5.3.16",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "eslint": "^9",
+    "eslint-config-next": "^15.5.7",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "eslint": "^9",
-    "eslint-config-next": "^15.5.7"
+    "typescript": "^5"
   },
   "overrides": {
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "babel-plugin-istanbul": "8.0.0",
-    "postcss": "8.5.16"
+    "postcss": "8.5.26",
+    "uuid": "11.1.1"
   },
   "allowScripts": {
     "@firebase/util@1.12.0": true,
+    "@firebase/util@1.15.3": true,
     "protobufjs@7.6.4": true,
+    "protobufjs@7.6.6": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.11.1": true
   }

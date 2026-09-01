@@ -147,10 +147,9 @@ Follow the detailed instructions in `GOOGLE_SHEETS_SETUP.md`:
 ### Step 3: Update Firestore Security Rules
 
 Use the checked-in `firestore.rules` file. It allows public reads, but only
-Firebase Auth users with a custom claim of `admin: true` can write to the app's
-known writable collections. The only public write exception is the
-`weather/current` cache document, which is limited to the exact weather fields
-used by the display.
+signed-in Firebase Authentication users can write to the app's known writable
+collections. Weather cache writes are handled by the server API, so browser
+clients only need public read access to the `weather/current` document.
 
 To update the live rules through the Firebase web app:
 
@@ -159,8 +158,10 @@ To update the live rules through the Firebase web app:
 3. Paste the contents of `firestore.rules`.
 4. Publish the rules.
 
-Before deploying, make sure each admin Firebase Auth user has the custom admin
-claim set from a trusted environment using the Firebase Admin SDK.
+Before deploying, make sure admin accounts are created manually in Firebase
+Console > Authentication > Users. Any signed-in Firebase Authentication user is
+treated as an admin, so keep account creation restricted to Firebase Console.
+There is no `ADMIN_EMAILS` environment allowlist.
 
 ### Step 4: Test Everything
 

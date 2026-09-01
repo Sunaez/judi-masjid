@@ -9,11 +9,11 @@ Copy and paste this **improved version** with better error handling:
 // AUTO-SYNC PRAYER TIMES TO FIREBASE
 //
 // SECURITY NOTE:
-// The current Firestore rules require Firebase Auth users with an `admin: true`
-// custom claim for writes. This direct REST API + API key script will not be
-// allowed to write under those rules. Use the in-app admin dashboard sync, or
-// move this automation behind a trusted server/Cloud Function that uses the
-// Firebase Admin SDK.
+// The current Firestore rules require a signed-in Firebase Auth user for
+// writes. This direct REST API + API key script will not be allowed to write
+// under those rules. Use the in-app admin dashboard sync, or move this
+// automation behind a trusted server/Cloud Function that uses the Firebase
+// Admin SDK.
 // ========================================
 
 // 🔥 FIREBASE CONFIGURATION

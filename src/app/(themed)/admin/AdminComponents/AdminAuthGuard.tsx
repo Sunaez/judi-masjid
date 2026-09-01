@@ -3,15 +3,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import {
-  getIdTokenResult,
   onIdTokenChanged,
   signOut,
   type User,
 } from 'firebase/auth'
 
 import { auth } from '@/lib/firebase'
+import { ensureAdminAccess } from '@/lib/adminClient'
 
-const AUTH_CHECK_TIMEOUT_MS = 2500
+const AUTH_CHECK_TIMEOUT_MS = 10000
 
 export default function AdminAuthGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -51,20 +51,15 @@ export default function AdminAuthGuard({ children }: { children: ReactNode }) {
           }
 
           try {
-            const tokenResult = await getIdTokenResult(nextUser)
-
-            if (tokenResult.claims.admin !== true) {
-              await signOut(auth)
-              redirectToLogin()
-              return
-            }
+            await ensureAdminAccess(nextUser)
 
             if (!isMounted) return
 
             setUser(nextUser)
             setCheckingAuth(false)
           } catch (error) {
-            console.error('Failed to verify admin claim:', error)
+            console.error('Failed to verify admin session:', error)
+            await signOut(auth)
             redirectToLogin()
           }
         },
