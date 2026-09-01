@@ -4,10 +4,12 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   browserSessionPersistence,
+  getIdTokenResult,
   onIdTokenChanged,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth'
 
 import { auth } from '@/lib/firebase'
@@ -56,9 +58,21 @@ export default function LogIn() {
     )
     setSafeRedirect(redirect)
 
-    const unsubscribe = onIdTokenChanged(auth, user => {
-      if (user) {
-        router.replace(redirect)
+    const unsubscribe = onIdTokenChanged(auth, async user => {
+      if (!user) return
+
+      try {
+        const tokenResult = await getIdTokenResult(user)
+
+        if (tokenResult.claims.admin === true) {
+          router.replace(redirect)
+          return
+        }
+
+        await signOut(auth)
+      } catch (error) {
+        console.error('Failed to verify admin claim:', error)
+        await signOut(auth)
       }
     })
 
@@ -75,7 +89,15 @@ export default function LogIn() {
 
     try {
       await setPersistence(auth, browserSessionPersistence)
-      await signInWithEmailAndPassword(auth, email, password)
+      const credential = await signInWithEmailAndPassword(auth, email, password)
+      const tokenResult = await getIdTokenResult(credential.user, true)
+
+      if (tokenResult.claims.admin !== true) {
+        await signOut(auth)
+        setError('This account is not authorised for admin access.')
+        return
+      }
+
       router.replace(safeRedirect)
     } catch (err: unknown) {
       const code = getFirebaseCode(err)

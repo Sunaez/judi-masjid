@@ -1,0 +1,76 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    function isValidWeatherCache() {
+      return request.resource.data.keys().hasAll([
+        'condition',
+        'forecastCondition',
+        'forecastTemp',
+        'iconCode',
+        'temp',
+        'timestamp',
+      ]) &&
+      request.resource.data.keys().hasOnly([
+        'condition',
+        'forecastCondition',
+        'forecastTemp',
+        'iconCode',
+        'temp',
+        'timestamp',
+      ]) &&
+      request.resource.data.condition is string &&
+      request.resource.data.forecastCondition is string &&
+      request.resource.data.forecastTemp is number &&
+      request.resource.data.iconCode is string &&
+      request.resource.data.temp is number &&
+      request.resource.data.timestamp is number;
+    }
+
+    match /messages/{messageId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+
+      match /conditions/{conditionId} {
+        allow read: if true;
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    match /prayerTimes/{document=**} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin()
+        && (settingId == 'donation' || settingId == 'slideshow');
+    }
+
+    match /state/slideshow {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /weather/current {
+      allow read: if true;
+      allow create, update: if isValidWeatherCache();
+      allow delete: if isAdmin();
+    }
+
+    match /timetables/{timetableId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

@@ -265,18 +265,25 @@ export default function Rotator() {
       const forecastTemp = Math.round(fcJson.list[0].main.temp);
       const forecastCondition = fcJson.list[0].weather[0].main;
 
-      // Cache in Firestore with timestamp
       const timestamp = Date.now();
-      await setDoc(weatherDocRef, {
+      const freshWeatherData = {
         temp,
         condition,
         iconCode,
         forecastTemp,
         forecastCondition,
-        timestamp,
-      });
+      };
 
-      setWeatherData({ temp, condition, iconCode, forecastTemp, forecastCondition });
+      setWeatherData(freshWeatherData);
+
+      try {
+        await setDoc(weatherDocRef, {
+          ...freshWeatherData,
+          timestamp,
+        });
+      } catch (cacheError) {
+        console.error('[weather] Failed to cache weather:', cacheError);
+      }
     } catch (error) {
       console.error('[weather] Error:', error);
     }

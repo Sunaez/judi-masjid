@@ -2,7 +2,12 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { onIdTokenChanged, type User } from 'firebase/auth'
+import {
+  getIdTokenResult,
+  onIdTokenChanged,
+  signOut,
+  type User,
+} from 'firebase/auth'
 
 import { auth } from '@/lib/firebase'
 
@@ -15,6 +20,7 @@ export default function AdminAuthGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let didResolve = false
+    let isMounted = true
 
     const redirectToLogin = () => {
       if (typeof window === 'undefined') return
@@ -35,7 +41,7 @@ export default function AdminAuthGuard({ children }: { children: ReactNode }) {
     try {
       unsubscribe = onIdTokenChanged(
         auth,
-        nextUser => {
+        async nextUser => {
           didResolve = true
           window.clearTimeout(timeoutId)
 
@@ -44,8 +50,23 @@ export default function AdminAuthGuard({ children }: { children: ReactNode }) {
             return
           }
 
-          setUser(nextUser)
-          setCheckingAuth(false)
+          try {
+            const tokenResult = await getIdTokenResult(nextUser)
+
+            if (tokenResult.claims.admin !== true) {
+              await signOut(auth)
+              redirectToLogin()
+              return
+            }
+
+            if (!isMounted) return
+
+            setUser(nextUser)
+            setCheckingAuth(false)
+          } catch (error) {
+            console.error('Failed to verify admin claim:', error)
+            redirectToLogin()
+          }
         },
         error => {
           didResolve = true
@@ -62,6 +83,7 @@ export default function AdminAuthGuard({ children }: { children: ReactNode }) {
     }
 
     return () => {
+      isMounted = false
       window.clearTimeout(timeoutId)
       unsubscribe()
     }

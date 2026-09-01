@@ -146,41 +146,21 @@ Follow the detailed instructions in `GOOGLE_SHEETS_SETUP.md`:
 
 ### Step 3: Update Firestore Security Rules
 
-Add these rules to allow writes:
+Use the checked-in `firestore.rules` file. It allows public reads, but only
+Firebase Auth users with a custom claim of `admin: true` can write to the app's
+known writable collections. The only public write exception is the
+`weather/current` cache document, which is limited to the exact weather fields
+used by the display.
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
+To update the live rules through the Firebase web app:
 
-    // Existing messages rules
-    match /messages/{messageId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+1. Open Firebase Console.
+2. Go to Firestore Database > Rules.
+3. Paste the contents of `firestore.rules`.
+4. Publish the rules.
 
-      match /conditions/{conditionId} {
-        allow read: if true;
-        allow write: if request.auth != null;
-      }
-    }
-
-    // NEW: Prayer times rules
-    match /prayerTimes/{year}/{month}/{day} {
-      // Anyone can read prayer times
-      allow read: if true;
-
-      // Only authenticated users (admins) can write
-      allow write: if request.auth != null;
-    }
-
-    // NEW: Legacy prayer times
-    match /prayerTimes/legacy/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-  }
-}
-```
+Before deploying, make sure each admin Firebase Auth user has the custom admin
+claim set from a trusted environment using the Firebase Admin SDK.
 
 ### Step 4: Test Everything
 
