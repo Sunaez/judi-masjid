@@ -1,27 +1,21 @@
 import { NextResponse } from 'next/server';
-import { doc, getDoc } from 'firebase/firestore';
-
-import { db } from '@/lib/firebase';
-import { getFirebaseAdminFirestore } from '@/lib/firebaseAdmin';
 import { normalizeWeatherData, type WeatherData } from '@/lib/weather';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const WEATHER_CACHE_MS = 5 * 60 * 1000;
-const WEATHER_DOC_PATH = 'weather/current';
+let pendingRefresh: Promise<WeatherData> | null = null;
+let retryAt = 0;
+let lastFailure: WeatherServiceError | null = null;
 
 let memoryWeatherCache: WeatherData | null = null;
 
-function isFresh(weather: WeatherData) {
-  return Date.now() - weather.timestamp < WEATHER_CACHE_MS;
-}
-
-function isFirebaseAdminConfigError(error: unknown) {
-  return (
-    error instanceof Error &&
-    error.message.includes('Firebase Admin SDK')
-  );
+class WeatherServiceError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = 'WeatherServiceError';
+  }
 }
 
 function getWeatherConfig() {
@@ -45,65 +39,9 @@ function getWeatherConfig() {
 function weatherResponse(weather: WeatherData) {
   return NextResponse.json(weather, {
     headers: {
-      'Cache-Control': 'public, max-age=60, stale-while-revalidate=240',
+      'Cache-Control': 'no-store',
     },
   });
-}
-
-async function readCachedWeather() {
-  if (memoryWeatherCache) {
-    return memoryWeatherCache;
-  }
-
-  try {
-    const snapshot = await getFirebaseAdminFirestore().doc(WEATHER_DOC_PATH).get();
-    const weather = normalizeWeatherData(snapshot.data());
-
-    if (weather) {
-      memoryWeatherCache = weather;
-    }
-
-    return weather;
-  } catch (error) {
-    if (!isFirebaseAdminConfigError(error)) {
-      console.error(
-        '[weather] Failed to read cached weather with Admin SDK:',
-        error instanceof Error ? error.message : error
-      );
-    }
-  }
-
-  try {
-    const snapshot = await getDoc(doc(db, 'weather', 'current'));
-    const weather = normalizeWeatherData(snapshot.exists() ? snapshot.data() : null);
-
-    if (weather) {
-      memoryWeatherCache = weather;
-    }
-
-    return weather;
-  } catch (error) {
-    console.error(
-      '[weather] Failed to read cached weather with public Firestore client:',
-      error instanceof Error ? error.message : error
-    );
-    return null;
-  }
-}
-
-async function writeCachedWeather(weather: WeatherData) {
-  memoryWeatherCache = weather;
-
-  try {
-    await getFirebaseAdminFirestore().doc(WEATHER_DOC_PATH).set(weather);
-  } catch (error) {
-    if (!isFirebaseAdminConfigError(error)) {
-      console.error(
-        '[weather] Failed to write cached weather:',
-        error instanceof Error ? error.message : error
-      );
-    }
-  }
 }
 
 function getOpenWeatherEntry(payload: unknown) {
@@ -134,7 +72,8 @@ async function fetchWeatherFromOpenWeather(): Promise<WeatherData> {
   const config = getWeatherConfig();
 
   if (!config) {
-    throw new Error('OpenWeather is not configured.');
+    throw new WeatherServiceError('WEATHER_NOT_CONFIGURED',
+      'Set OPENWEATHER_API_KEY, OPENWEATHER_LAT and OPENWEATHER_LON on the server.');
   }
 
   const currentUrl = new URL('https://api.openweathermap.org/data/2.5/weather');
@@ -151,12 +90,23 @@ async function fetchWeatherFromOpenWeather(): Promise<WeatherData> {
   forecastUrl.searchParams.set('cnt', '1');
 
   const [currentResponse, forecastResponse] = await Promise.all([
-    fetch(currentUrl, { cache: 'no-store' }),
-    fetch(forecastUrl, { cache: 'no-store' }),
+    fetch(currentUrl, { cache: 'no-store', signal: AbortSignal.timeout(15_000) }),
+    fetch(forecastUrl, { cache: 'no-store', signal: AbortSignal.timeout(15_000) }),
   ]);
 
-  if (!currentResponse.ok || !forecastResponse.ok) {
-    throw new Error('OpenWeather returned an unsuccessful response.');
+  for (const response of [currentResponse, forecastResponse]) {
+    if (response.status === 401 || response.status === 403) {
+      throw new WeatherServiceError('WEATHER_API_KEY_REJECTED',
+        'OpenWeather rejected the API key. Set a valid OPENWEATHER_API_KEY on the server.');
+    }
+    if (response.status === 429) {
+      throw new WeatherServiceError('WEATHER_RATE_LIMITED',
+        'OpenWeather has reached its request limit. Weather will retry automatically.');
+    }
+    if (!response.ok) {
+      throw new WeatherServiceError('WEATHER_PROVIDER_ERROR',
+        `OpenWeather returned HTTP ${response.status ?? 'error'}.`);
+    }
   }
 
   const [currentPayload, forecastPayload] = await Promise.all([
@@ -189,29 +139,42 @@ async function fetchWeatherFromOpenWeather(): Promise<WeatherData> {
   return weather;
 }
 
-export async function GET() {
-  const cachedWeather = await readCachedWeather();
-
-  if (cachedWeather && isFresh(cachedWeather)) {
+// Public requests never write to Firestore. Share overlapping refreshes within
+// this server instance, and back off on upstream failures.
+export async function GET(request: Request) {
+  const requestedInterval = Number(new URL(request.url).searchParams.get('interval'));
+  const interval = Number.isFinite(requestedInterval) && requestedInterval >= 4 * 60_000
+    && requestedInterval <= 6 * 60_000 ? requestedInterval : WEATHER_CACHE_MS;
+  const cachedWeather = memoryWeatherCache;
+  if (cachedWeather && Date.now() - cachedWeather.timestamp < interval) {
     return weatherResponse(cachedWeather);
   }
-
   try {
-    const freshWeather = await fetchWeatherFromOpenWeather();
-    await writeCachedWeather(freshWeather);
-    return weatherResponse(freshWeather);
-  } catch (error) {
-    console.error(
-      '[weather] Failed to refresh weather:',
-      error instanceof Error ? error.message : error
-    );
-
-    if (cachedWeather) {
-      return weatherResponse(cachedWeather);
+    if (Date.now() < retryAt) throw lastFailure;
+    if (!pendingRefresh) {
+      pendingRefresh = fetchWeatherFromOpenWeather()
+        .then(weather => {
+          memoryWeatherCache = weather;
+          lastFailure = null;
+          return weather;
+        })
+        .catch(error => {
+          retryAt = Date.now() + WEATHER_CACHE_MS;
+          // Only return messages we control; upstream errors can contain request URLs.
+          lastFailure = error instanceof WeatherServiceError ? error
+            : new WeatherServiceError('WEATHER_UNAVAILABLE', 'Weather is temporarily unavailable.');
+          console.warn('[weather]', lastFailure.code, lastFailure.message);
+          throw lastFailure;
+        })
+        .finally(() => { pendingRefresh = null; });
     }
-
+    return weatherResponse(await pendingRefresh);
+  } catch (error) {
+    if (cachedWeather) return weatherResponse(cachedWeather);
+    const failure = error instanceof WeatherServiceError ? error
+      : new WeatherServiceError('WEATHER_UNAVAILABLE', 'Weather is temporarily unavailable.');
     return NextResponse.json(
-      { error: 'Weather is unavailable.' },
+      { error: failure.message, code: failure.code },
       { status: 503, headers: { 'Cache-Control': 'no-store' } }
     );
   }

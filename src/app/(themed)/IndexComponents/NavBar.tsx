@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import { createPortal } from 'react-dom'
+import { useWeather } from '@/app/hooks/useWeather'
+import type { WeatherData as Weather } from '@/lib/weather'
 import {
   ArrowRight,
   CalendarDays,
@@ -32,17 +34,6 @@ interface NavBarProps {
   activeSection: SiteSectionId
   onSectionChange: (section: SiteSectionId) => void
 }
-
-type Weather = {
-  condition: string
-  forecastCondition: string
-  forecastTemp: number
-  iconCode: string
-  temp: number
-  timestamp: number
-}
-
-const WEATHER_UPDATE_INTERVAL = 15 * 60 * 1000
 
 const menuItems = [
   { id: 'home', label: 'Home', Icon: Home },
@@ -182,8 +173,7 @@ function WeatherStatus({
 export default function NavBar({ activeSection, onSectionChange }: NavBarProps) {
   const { theme, systemTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const [weather, setWeather] = useState<Weather | null>(null)
-  const [isLoadingWeather, setIsLoadingWeather] = useState(true)
+  const { weather, loading: isLoadingWeather } = useWeather()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -198,48 +188,7 @@ export default function NavBar({ activeSection, onSectionChange }: NavBarProps) 
   }, [])
 
   useEffect(() => {
-    let cancelled = false
-
-    async function fetchWeather() {
-      try {
-        const response = await fetch('/api/weather/current', { cache: 'no-store' })
-
-        if (!response.ok) {
-          throw new Error('Weather endpoint returned an unsuccessful response.')
-        }
-
-        const data = (await response.json()) as Weather
-
-        if (!cancelled) {
-          setWeather(data)
-        }
-      } catch (err) {
-        console.error('Failed to fetch weather:', err)
-      } finally {
-        if (!cancelled) {
-          setIsLoadingWeather(false)
-        }
-      }
-    }
-
     setMounted(true)
-    let cleanupIdleTask: () => void
-
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(fetchWeather, { timeout: 2500 })
-      cleanupIdleTask = () => window.cancelIdleCallback(idleId)
-    } else {
-      const timeoutId = globalThis.setTimeout(fetchWeather, 1000)
-      cleanupIdleTask = () => globalThis.clearTimeout(timeoutId)
-    }
-
-    const intervalId = setInterval(fetchWeather, WEATHER_UPDATE_INTERVAL)
-
-    return () => {
-      cancelled = true
-      cleanupIdleTask()
-      clearInterval(intervalId)
-    }
   }, [])
 
   useEffect(() => {

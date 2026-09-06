@@ -21,6 +21,9 @@ export default function Notification({
 }: NotificationProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const isPermissionError = type === 'error' && /permission.denied|missing or insufficient permissions/i.test(message);
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const visibleDuration = isPermissionError ? Math.max(duration, 15000) : duration;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -38,7 +41,7 @@ export default function Notification({
     const tl = gsap.timeline({ onComplete: onDone });
     tl.to(overlay, {
       width: '100%',
-      duration: duration / 1000,
+      duration: visibleDuration / 1000,
       ease: 'none',
     }).to(
       container,
@@ -54,7 +57,7 @@ export default function Notification({
     return () => {
       tl.kill();
     };
-  }, [message, duration, onDone]);
+  }, [message, visibleDuration, onDone]);
 
   // Decide base and overlay colors
   const isSuccess = type === 'success';
@@ -103,7 +106,19 @@ export default function Notification({
             />
           )}
         </svg>
-        <span className="flex-1 text-sm">{message}</span>
+        <span className="flex-1 text-sm">
+          {isPermissionError ? 'Firebase rejected this change. Sign in again; if it still fails, publish the updated Firestore rules for this project.' : message}
+          {isPermissionError && projectId && (
+            <a
+              href={`https://console.firebase.google.com/project/${encodeURIComponent(projectId)}/firestore/rules`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 block font-semibold underline"
+            >
+              Open rules for {projectId}
+            </a>
+          )}
+        </span>
       </div>
     </div>
   );

@@ -2,85 +2,11 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAdmin() {
-      return request.auth != null;
-    }
-
-    function isReasonableWeatherText(value) {
-      return value is string && value.size() > 0 && value.size() <= 40;
-    }
-
-    function isReasonableTemperature(value) {
-      return value is number && value >= -50 && value <= 60;
-    }
-
-    function isValidWeatherCache() {
-      return request.resource.data.keys().hasAll([
-        'condition',
-        'forecastCondition',
-        'forecastTemp',
-        'iconCode',
-        'temp',
-        'timestamp',
-      ]) &&
-      request.resource.data.keys().hasOnly([
-        'condition',
-        'forecastCondition',
-        'forecastTemp',
-        'iconCode',
-        'temp',
-        'timestamp',
-      ]) &&
-      isReasonableWeatherText(request.resource.data.condition) &&
-      isReasonableWeatherText(request.resource.data.forecastCondition) &&
-      isReasonableTemperature(request.resource.data.forecastTemp) &&
-      request.resource.data.iconCode is string &&
-      request.resource.data.iconCode.matches('^\\d{2}[dn]$') &&
-      isReasonableTemperature(request.resource.data.temp) &&
-      request.resource.data.timestamp is number &&
-      request.resource.data.timestamp > 0;
-    }
-
-    match /messages/{messageId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-
-      match /conditions/{conditionId} {
-        allow read: if true;
-        allow create, update, delete: if isAdmin();
-      }
-    }
-
-    match /prayerTimes/{document=**} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin()
-        && (settingId == 'donation' || settingId == 'slideshow');
-    }
-
-    match /state/slideshow {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    match /weather/current {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidWeatherCache();
-      allow delete: if isAdmin();
-    }
-
-    match /timetables/{timetableId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
+    // Accounts are provisioned by the owner. Every signed-in user is an admin.
+    // This covers every document, including nested and future collections.
     match /{document=**} {
       allow read: if true;
-      allow write: if false;
+      allow create, update, delete: if request.auth != null;
     }
   }
 }

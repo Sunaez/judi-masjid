@@ -1,7 +1,7 @@
 // src/app/display/Components/DowntimeDisplay.tsx
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
 import { usePrayerTimesContext } from '../context/PrayerTimesContext';
 import {
@@ -12,11 +12,7 @@ import {
 import type { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import IslamicBackdrop from './IslamicBackdrop';
 
-interface WeatherData {
-  temp: number;
-  condition: string;
-  iconCode: string;
-}
+import { useWeather } from '@/app/hooks/useWeather';
 
 // Prayer display order for the table
 const PRAYER_ORDER = [
@@ -36,7 +32,7 @@ const PRAYER_ORDER = [
 export default function DowntimeDisplay() {
   const { prayerTimes, isRamadan } = usePrayerTimesContext();
   const [now, setNow] = useState(() => new Date());
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const { weather } = useWeather();
   const [displayPrayerTimes, setDisplayPrayerTimes] = useState<RawPrayerTimes | null>(null);
 
   // Refs for GSAP animations
@@ -107,29 +103,6 @@ export default function DowntimeDisplay() {
 
     return () => ctx.revert();
   }, []);
-
-  // Fetch weather through the server cache.
-  const fetchWeather = useCallback(async () => {
-    try {
-      const response = await fetch('/api/weather/current', { cache: 'no-store' });
-
-      if (!response.ok) {
-        throw new Error('Weather endpoint returned an unsuccessful response.');
-      }
-
-      const data = (await response.json()) as WeatherData;
-      setWeather(data);
-    } catch (error) {
-      console.error('[DowntimeDisplay] Failed to fetch weather:', error);
-    }
-  }, []);
-
-  // Fetch weather on mount and every hour (reduced frequency for downtime)
-  useEffect(() => {
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 60 * 60_000); // Every hour
-    return () => clearInterval(interval);
-  }, [fetchWeather]);
 
   // Fetch the prayer table date shown on screen.
   useEffect(() => {

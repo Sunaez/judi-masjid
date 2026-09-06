@@ -46,6 +46,8 @@ export default function AdminAuthGuard({ children }: { children: ReactNode }) {
           window.clearTimeout(timeoutId)
 
           if (!nextUser) {
+            setUser(null)
+            setCheckingAuth(true)
             redirectToLogin()
             return
           }

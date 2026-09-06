@@ -147,9 +147,10 @@ Follow the detailed instructions in `GOOGLE_SHEETS_SETUP.md`:
 ### Step 3: Update Firestore Security Rules
 
 Use the checked-in `firestore.rules` file. It allows public reads, but only
-signed-in Firebase Authentication users can write to the app's known writable
-collections. Weather cache writes are handled by the server API, so browser
-clients only need public read access to the `weather/current` document.
+signed-in Firebase Authentication users can create, update or delete documents
+in any collection. Public weather refreshes use browser/server caches and do
+not write to Firestore. Website deployment does not publish Firestore rules;
+publish them separately using the steps below or the command in `README.md`.
 
 To update the live rules through the Firebase web app:
 

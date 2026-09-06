@@ -7,7 +7,8 @@ import {
   type Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { auth, db } from '../firebase';
+import { ensureAdminAccess } from '../adminClient';
 
 export interface DonationSettings {
   currentAmount: number;
@@ -106,6 +107,9 @@ export async function saveDonationSettings(
   if (validationError) {
     throw new Error(validationError);
   }
+
+  await auth.authStateReady();
+  await ensureAdminAccess(auth.currentUser);
 
   await setDoc(
     DONATION_SETTINGS_REF,

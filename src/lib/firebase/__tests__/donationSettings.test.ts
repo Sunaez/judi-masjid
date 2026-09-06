@@ -1,5 +1,6 @@
 jest.mock('../../firebase', () => ({
   db: {},
+  auth: { authStateReady: jest.fn().mockResolvedValue(undefined), currentUser: { uid: "admin" } },
 }));
 
 jest.mock('firebase/firestore', () => ({
@@ -9,6 +10,8 @@ jest.mock('firebase/firestore', () => ({
   setDoc: jest.fn(),
 }));
 
+import { auth } from '../../firebase';
+import type { User } from 'firebase/auth';
 import { onSnapshot, setDoc } from 'firebase/firestore';
 import {
   DEFAULT_DONATION_SETTINGS,
@@ -23,6 +26,7 @@ const mockedOnSnapshot = onSnapshot as unknown as jest.Mock;
 
 describe('donationSettings', () => {
   beforeEach(() => {
+    auth.currentUser = { uid: "admin" } as User;
     mockedSetDoc.mockReset();
     mockedOnSnapshot.mockReset();
   });
@@ -81,6 +85,22 @@ describe('donationSettings', () => {
       },
       { merge: true }
     );
+  });
+
+  it('rejects signed-out saves before attempting a Firestore write', async () => {
+    auth.currentUser = null;
+    await expect(saveDonationSettings({ currentAmount: 100, totalAmount: 200 }))
+      .rejects.toMatchObject({ code: 'ADMIN_AUTH_REQUIRED' });
+    expect(mockedSetDoc).not.toHaveBeenCalled();
+  });
+
+  it('waits for the persisted authentication session before saving', async () => {
+    auth.currentUser = null;
+    (auth.authStateReady as jest.Mock).mockImplementationOnce(async () => {
+      auth.currentUser = { uid: 'restored-admin' } as User;
+    });
+    await saveDonationSettings({ currentAmount: 100, totalAmount: 200 });
+    expect(mockedSetDoc).toHaveBeenCalledTimes(1);
   });
 
   it('streams valid Firestore changes to subscribers', () => {

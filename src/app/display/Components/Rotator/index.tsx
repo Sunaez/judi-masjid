@@ -19,6 +19,7 @@ import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext'
 import { useDebugContext } from '@/app/display/context/DebugContext';
 import { getRotatorSlotOrder, type RotatorSlotKey } from './slotConfig';
 import { addMinutesToTime } from '@/lib/prayerTimeUtils';
+import { useWeather } from '@/app/hooks/useWeather';
 import EidLanternBackdrop from '@/components/EidLanternBackdrop';
 import {
   EID_AL_ADHA_NOTICE_END_MS,
@@ -28,8 +29,6 @@ import {
 
 // Duration each slot is displayed (in milliseconds)
 const DISPLAY_MS = 20_000;
-// Interval at which to check weather cache (1 minute)
-const WEATHER_CHECK_INTERVAL = 60 * 1000;
 
 type RotatorSlot =
   | { type: 'message'; key: 'message' }
@@ -66,15 +65,6 @@ function buildSlots(isRamadan: boolean, showEidAlAdhaPrayer: boolean): RotatorSl
   })
 }
 
-interface WeatherData {
-  temp: number;
-  condition: string;
-  iconCode: string;
-  forecastTemp: number;
-  forecastCondition: string;
-  timestamp: number;
-}
-
 export default function Rotator() {
   // Raw messages fetched from various sources
   const all = useMessages();
@@ -94,7 +84,7 @@ export default function Rotator() {
     ? 'Eid Mubarak'
     : undefined;
   // Current + forecast weather data
-  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const { weather: weatherData } = useWeather();
   // Counter to trigger re-renders after prayer times +1min
   const [prayerRefresh, setPrayerRefresh] = useState(0);
   const [showEidAlAdhaPrayer, setShowEidAlAdhaPrayer] = useState(false);
@@ -207,30 +197,6 @@ export default function Rotator() {
 
     return () => window.clearTimeout(timeout);
   }, [prayerRefresh]);
-
-  // ─── Fetch Weather ───────────────────────────────────────────────────────────
-  // Weather is fetched through a server route so Firestore cache writes are trusted.
-  const updateWeather = useCallback(async () => {
-    try {
-      const response = await fetch('/api/weather/current', { cache: 'no-store' });
-
-      if (!response.ok) {
-        throw new Error('Weather endpoint returned an unsuccessful response.');
-      }
-
-      const data = (await response.json()) as WeatherData;
-      setWeatherData(data);
-    } catch (error) {
-      console.error('[weather] Error:', error);
-    }
-  }, []);
-
-  // Initial weather fetch and periodic check (respects 5-minute API cooldown)
-  useEffect(() => {
-    updateWeather();
-    const interval = setInterval(updateWeather, WEATHER_CHECK_INTERVAL);
-    return () => clearInterval(interval);
-  }, [updateWeather]);
 
   // ─── Pick Random Message for "message" Slots ─────────────────────────────────
   // Whenever the slot index changes to a message, choose one valid at random.
