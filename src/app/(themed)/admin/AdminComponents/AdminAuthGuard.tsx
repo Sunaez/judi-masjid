@@ -88,8 +88,8 @@ export default function AdminAuthGuard({ children }: { children: ReactNode }) {
 
   if (checkingAuth || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)] px-4 text-center">
-        <div className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-6 shadow-xl">
+      <div className="flex min-h-screen items-center justify-center px-4 text-center" role="status">
+        <div className="aero-panel p-8">
           <p className="text-lg font-semibold text-[var(--accent-color)]">
             Checking secure admin access...
           </p>

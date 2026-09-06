@@ -22,12 +22,13 @@ export default function SourceSelector({
           >
             <input
               type="radio"
-              className="hidden"
+              className="sr-only peer"
+              name="message-content-source"
               value={opt}
               checked={sourceType===opt}
               onChange={()=>setSourceType(opt)}
             />
-            {opt.charAt(0).toUpperCase()+opt.slice(1)}
+            <span className="rounded px-2 py-1 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4">{opt.charAt(0).toUpperCase()+opt.slice(1)}</span>
           </label>
         ))}
       </div>

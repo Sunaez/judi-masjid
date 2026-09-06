@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import AdminDialog from '../../AdminComponents/AdminDialog';
 import {
   uploadTimetable,
   getTimetables,
@@ -40,6 +41,7 @@ export default function ManageTimetables({
   const [label, setLabel] = useState('');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  useEffect(() => { setClosing(uploading); }, [uploading, setClosing]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Confirm delete
@@ -547,49 +549,10 @@ export default function ManageTimetables({
 
       {/* ── Preview Modal ── */}
       {previewTimetable && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70"
-          onClick={() => setPreviewTimetable(null)}
-        >
-          <div
-            className="relative max-w-4xl max-h-[90vh] w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close */}
-            <button
-              onClick={() => setPreviewTimetable(null)}
-              className="absolute -top-10 right-0 text-white hover:opacity-70 text-2xl font-bold"
-            >
-              &times;
-            </button>
-
-            {/* Label */}
-            <div className="bg-[var(--background-end)] rounded-t-xl px-4 py-3 flex items-center justify-between">
-              <h3 className="font-semibold text-[var(--text-color)] truncate">
-                {previewTimetable.label}
-              </h3>
-              <a
-                href={previewTimetable.imageData}
-                download={previewTimetable.originalName}
-                className="flex items-center gap-1 text-sm font-semibold text-[var(--accent-color)] hover:opacity-70 transition"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Download
-              </a>
-            </div>
-
-            {/* Image */}
-            <div className="bg-[var(--background-start)] rounded-b-xl overflow-auto max-h-[75vh]">
-              <img
-                src={previewTimetable.imageData}
-                alt={previewTimetable.label}
-                className="w-full h-auto"
-              />
-            </div>
-          </div>
-        </div>
+        <AdminDialog open onClose={() => setPreviewTimetable(null)} title={previewTimetable.label} wide>
+          <a href={previewTimetable.imageData} download={previewTimetable.originalName} className="aero-button aero-button-secondary mb-4">Download timetable</a>
+          <img src={previewTimetable.imageData} alt={previewTimetable.label} className="w-full h-auto rounded-xl" />
+        </AdminDialog>
       )}
     </div>
   );

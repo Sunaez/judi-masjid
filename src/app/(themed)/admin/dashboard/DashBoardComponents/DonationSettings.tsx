@@ -100,9 +100,9 @@ export default function DonationSettings({
   };
 
   return (
-    <section className="rounded-xl border border-[var(--secondary-color)] bg-[var(--background-start)] p-6">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <section className="aero-panel admin-settings-card">
+      <div className="admin-settings-heading">
+        <div className="admin-settings-title">
           <span className="rounded-lg bg-[var(--accent-color)] p-3 text-[var(--background-end)]">
             <CirclePoundSterling size={22} aria-hidden="true" />
           </span>
@@ -117,7 +117,7 @@ export default function DonationSettings({
         </div>
 
         {!loading && !validationError && (
-          <div className="text-right text-sm text-[var(--text-muted)]">
+          <div className="admin-settings-status">
             <p>
               {formatPounds(parsedCurrentAmount)} of{' '}
               {formatPounds(parsedTotalAmount)}
@@ -130,7 +130,7 @@ export default function DonationSettings({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center py-8" role="status"><span className="sr-only">Loading settings...</span>
           <div className="h-7 w-7 animate-spin rounded-full border-4 border-[var(--secondary-color)] border-t-[var(--accent-color)]" />
         </div>
       ) : (
@@ -196,7 +196,7 @@ export default function DonationSettings({
         type="button"
         onClick={handleSave}
         disabled={loading || saving || Boolean(validationError)}
-        className="mt-5 flex items-center gap-2 rounded-md bg-[var(--accent-color)] px-5 py-2.5 font-semibold text-[var(--background-end)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--button-disabled)]"
+        className="aero-button mt-6"
       >
         <Save size={18} aria-hidden="true" />
         {saving ? 'Saving...' : 'Save Donation Settings'}

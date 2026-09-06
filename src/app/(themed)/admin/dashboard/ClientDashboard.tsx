@@ -1,382 +1,99 @@
-﻿// src/app/(themed)/admin/dashboard/ClientDashboard.tsx
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
-import NavBar from '../AdminComponents/NavBar';
-import MessageList from './DashBoardComponents/MessageList';
-import Notification from './DashBoardComponents/Notification';
+import { useCallback, useState } from 'react'
+import dynamic from 'next/dynamic'
+import Link from 'next/link'
+import { ArrowUpRight, CalendarClock, FileSpreadsheet, LayoutList, MessageSquarePlus, Monitor, RefreshCw, Upload } from 'lucide-react'
+import NavBar from '../AdminComponents/NavBar'
+import AdminDialog from '../AdminComponents/AdminDialog'
+import MessageList, { type MessageRecord } from './DashBoardComponents/MessageList'
+import Notification from './DashBoardComponents/Notification'
 
-const AddMessage = dynamic(
-  () => import('./DashBoardComponents/AddMessage'),
-  { ssr: false }
-);
-const AddAnimation = dynamic(
-  () => import('./DashBoardComponents/AddAnimation'),
-  { ssr: false }
-);
-const SyncPrayerTimes = dynamic(
-  () => import('./DashBoardComponents/SyncPrayerTimes'),
-  { ssr: false }
-);
-const ManageTimetables = dynamic(
-  () => import('./DashBoardComponents/ManageTimetables'),
-  { ssr: false }
-);
-const ControlSlideshow = dynamic(
-  () => import('./DashBoardComponents/ControlSlideshow'),
-  { ssr: false }
-);
-const DonationSettings = dynamic(
-  () => import('./DashBoardComponents/DonationSettings'),
-  { ssr: false }
-);
+function LoadingPanel() {
+  return <div className="admin-loading" role="status">Loading tools...</div>
+}
+
+const AddMessage = dynamic(() => import('./DashBoardComponents/AddMessage'), { ssr: false, loading: LoadingPanel })
+const AddAnimation = dynamic(() => import('./DashBoardComponents/AddAnimation'), { ssr: false, loading: LoadingPanel })
+const SyncPrayerTimes = dynamic(() => import('./DashBoardComponents/SyncPrayerTimes'), { ssr: false, loading: LoadingPanel })
+const ManageTimetables = dynamic(() => import('./DashBoardComponents/ManageTimetables'), { ssr: false, loading: LoadingPanel })
+const ControlSlideshow = dynamic(() => import('./DashBoardComponents/ControlSlideshow'), { ssr: false, loading: LoadingPanel })
+const DonationSettings = dynamic(() => import('./DashBoardComponents/DonationSettings'), { ssr: false, loading: LoadingPanel })
+
+type Modal = 'message' | 'animation' | 'sync' | 'timetables'
+const modalTitles: Record<Modal, string> = { message: 'Add message', animation: 'Message animation', sync: 'Sync prayer times', timetables: 'Manage timetables' }
+const actions = [
+  { modal: 'message' as const, title: 'Add message', detail: 'Share an announcement or reminder', Icon: MessageSquarePlus },
+  { modal: 'sync' as const, title: 'Sync prayer times', detail: 'Import the latest spreadsheet times', Icon: RefreshCw },
+  { modal: 'timetables' as const, title: 'Manage timetables', detail: 'Upload and choose timetable images', Icon: Upload },
+]
 
 export default function ClientDashboard() {
-  const [isMessageModalOpen, setMessageModalOpen] = useState(false);
-  const [messageChildIsClosing, setMessageChildIsClosing] = useState(false);
+  const [modal, setModal] = useState<Modal | null>(null)
+  const [closing, setClosing] = useState(false)
+  const [selectedMessage, setSelectedMessage] = useState<MessageRecord | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  const [isAnimModalOpen, setAnimModalOpen] = useState(false);
-  const [animChildIsClosing, setAnimChildIsClosing] = useState(false);
-  const [selectedMessageForAnimation, setSelectedMessageForAnimation] = useState<any>(null);
-
-  const [isSyncModalOpen, setSyncModalOpen] = useState(false);
-  const [syncChildIsClosing, setSyncChildIsClosing] = useState(false);
-
-  const [isTimetableModalOpen, setTimetableModalOpen] = useState(false);
-  const [timetableChildIsClosing, setTimetableChildIsClosing] = useState(false);
-
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  const openMessageModal = () => {
-    setMessageChildIsClosing(false);
-    setMessageModalOpen(true);
-  };
-  const handleMessageChildClose = () => {
-    setMessageChildIsClosing(false);
-    setMessageModalOpen(false);
-  };
-  const handleMessageSuccessToast = () => setToast({ type: 'success', message: 'Message added successfully' });
-  const handleMessageErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
-
-  const openAnimModal = (msg: any) => {
-    setSelectedMessageForAnimation(msg);
-    setAnimChildIsClosing(false);
-    setAnimModalOpen(true);
-  };
-  const handleAnimChildClose = () => {
-    setAnimChildIsClosing(false);
-    setAnimModalOpen(false);
-    setSelectedMessageForAnimation(null);
-  };
-  const handleAnimSuccessToast = () => setToast({ type: 'success', message: 'Animation saved successfully' });
-  const handleAnimErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
-
-  const openSyncModal = () => {
-    setSyncChildIsClosing(false);
-    setSyncModalOpen(true);
-  };
-  const handleSyncChildClose = () => {
-    setSyncChildIsClosing(false);
-    setSyncModalOpen(false);
-  };
-  const handleSyncSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
-  const handleSyncErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
-
-  const openTimetableModal = () => {
-    setTimetableChildIsClosing(false);
-    setTimetableModalOpen(true);
-  };
-  const handleTimetableChildClose = () => {
-    setTimetableChildIsClosing(false);
-    setTimetableModalOpen(false);
-  };
-  const handleTimetableSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
-  const handleTimetableErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
-  const handleSlideshowSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
-  const handleSlideshowErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
-  const handleDonationSuccessToast = (msg: string) => setToast({ type: 'success', message: msg });
-  const handleDonationErrorToast = (msg: string) => setToast({ type: 'error', message: msg });
-
-  const handleBackdropClick = () => {
-    if (!messageChildIsClosing && isMessageModalOpen) {
-      setMessageModalOpen(false);
-    }
-    if (!animChildIsClosing && isAnimModalOpen) {
-      setAnimModalOpen(false);
-      setSelectedMessageForAnimation(null);
-    }
-    if (!syncChildIsClosing && isSyncModalOpen) {
-      setSyncModalOpen(false);
-    }
-    if (!timetableChildIsClosing && isTimetableModalOpen) {
-      setTimetableModalOpen(false);
-    }
-  };
-
-  const actionClass = "inline-flex min-h-12 items-center justify-center rounded-lg bg-[var(--accent-color)] px-4 py-3 text-center text-sm font-semibold text-[var(--background-end)] transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-start)]";
+  // Stable callbacks keep live subscriptions from restarting and replacing draft inputs.
+  const onSuccess = useCallback((message: string) => setToast({ type: 'success', message }), [])
+  const onError = useCallback((message: string) => setToast({ type: 'error', message }), [])
+  const dismissToast = useCallback(() => setToast(null), [])
+  const closeModal = useCallback(() => { setModal(null); setClosing(false); setSelectedMessage(null) }, [])
+  const openModal = (next: Modal) => { setClosing(false); setModal(next) }
 
   return (
-    <div className="min-h-screen lg:pl-64">
+    <>
       <NavBar />
-
-      <main className="min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)] p-4 sm:p-6 lg:p-8">
-        <div className="mb-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-            Masjid tools
-          </p>
-          <h1 className="mt-2 text-3xl font-bold text-[var(--accent-color)] sm:text-4xl">
-            Admin Dashboard
-          </h1>
-        </div>
-
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-          <button
-            onClick={openMessageModal}
-            className={actionClass}
-          >
-            {/* svg icon omitted for brevity */}
-            Add Message
-          </button>
-
-          <button
-            onClick={openSyncModal}
-            className={actionClass}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            Sync Prayer Times
-          </button>
-
-          <button
-            onClick={openTimetableModal}
-            className={actionClass}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-              />
-            </svg>
-            Manage Timetables
-          </button>
-
-          <a
-            href="/admin/dashboard/prayer-times-editor"
-            className={actionClass}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-            Local Prayer Times Editor
-          </a>
-
-          <a
-            href="https://docs.google.com/spreadsheets/d/1TqARmQOth6B1BEA8wx-EHGJY-bgEeCtYDHqeYTRmISc/edit?usp=sharing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={actionClass}
-          >
-            {/* svg icon omitted for brevity */}
-            Manage timetable Spreadsheet
-          </a>
-
-          <a
-            href="https://trello.com/b/9jKqsYXt"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={actionClass}
-          >
-            {/* svg icon omitted for brevity */}
-            Trello Board
-          </a>
-        </div>
-
-        <div className="mb-8">
-          <ControlSlideshow
-            onSuccess={handleSlideshowSuccessToast}
-            onError={handleSlideshowErrorToast}
-          />
-        </div>
-
-        <div className="mb-8">
-          <DonationSettings
-            onSuccess={handleDonationSuccessToast}
-            onError={handleDonationErrorToast}
-          />
-        </div>
-
-        {isMessageModalOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
-            onClick={handleBackdropClick}
-          >
-            <div
-              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-screen-xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-4/5 lg:p-8 xl:w-3/4"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-[var(--accent-color)]">
-                  Add Message
-                </h2>
-                <button
-                  onClick={() => !messageChildIsClosing && setMessageModalOpen(false)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
-                  aria-label="Close modal"
-                >
-                  &times;
-                </button>
-              </div>
-              <AddMessage
-                onClose={handleMessageChildClose}
-                setClosing={setMessageChildIsClosing}
-                onSuccess={handleMessageSuccessToast}
-                onError={handleMessageErrorToast}
-              />
-            </div>
+      <main id="admin-main" tabIndex={-1} className="admin-main">
+        <div className="admin-page-heading">
+          <div>
+            <p className="eyebrow">Serving our community</p>
+            <h1>Admin dashboard</h1>
+            <p>Everything you need to keep the masjid informed and connected.</p>
           </div>
-        )}
-
-        {isAnimModalOpen && selectedMessageForAnimation && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
-            onClick={handleBackdropClick}
-          >
-            <div
-              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-screen-xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-4/5 lg:p-8 xl:w-3/4"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-green-500">
-                  Add Animation
-                </h2>
-                <button
-                  onClick={() => !animChildIsClosing && handleAnimChildClose()}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
-                  aria-label="Close modal"
-                >
-                  &times;
-                </button>
-              </div>
-              <AddAnimation
-                message={selectedMessageForAnimation}
-                onClose={handleAnimChildClose}
-                setClosing={setAnimChildIsClosing}
-                onSuccess={handleAnimSuccessToast}
-                onError={handleAnimErrorToast}
-              />
-            </div>
-          </div>
-        )}
-
-        {isSyncModalOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
-            onClick={handleBackdropClick}
-          >
-            <div
-              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-3/5 lg:p-8"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-[var(--accent-color)]">
-                  Sync Prayer Times
-                </h2>
-                <button
-                  onClick={() => !syncChildIsClosing && setSyncModalOpen(false)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
-                  aria-label="Close modal"
-                >
-                  &times;
-                </button>
-              </div>
-              <SyncPrayerTimes
-                onClose={handleSyncChildClose}
-                setClosing={setSyncChildIsClosing}
-                onSuccess={handleSyncSuccessToast}
-                onError={handleSyncErrorToast}
-              />
-            </div>
-          </div>
-        )}
-
-        {isTimetableModalOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md"
-            onClick={handleBackdropClick}
-          >
-            <div
-              className="mx-4 max-h-[92vh] w-[calc(100%-2rem)] max-w-screen-xl overflow-y-auto rounded-lg bg-[var(--background-end)] p-4 shadow-2xl sm:w-11/12 sm:p-6 lg:w-4/5 lg:p-8 xl:w-3/4"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold text-[var(--accent-color)]">
-                  Manage Timetables
-                </h2>
-                <button
-                  onClick={() => !timetableChildIsClosing && setTimetableModalOpen(false)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-2xl font-bold text-[var(--text-color)] transition hover:bg-[var(--background-start)]"
-                  aria-label="Close modal"
-                >
-                  &times;
-                </button>
-              </div>
-              <ManageTimetables
-                onClose={handleTimetableChildClose}
-                setClosing={setTimetableChildIsClosing}
-                onSuccess={handleTimetableSuccessToast}
-                onError={handleTimetableErrorToast}
-              />
-            </div>
-          </div>
-        )}
-
-        {toast && (
-          <Notification
-            type={toast.type}
-            message={toast.message}
-            onDone={() => setToast(null)}
-          />
-        )}
-
-        <div className="mt-8">
-          <h2 className="text-2xl font-semibold text-[var(--accent-color)] mb-4">
-            Existing Messages
-          </h2>
-          <MessageList onAddAnimation={openAnimModal} />
+          <Link href="/display/" target="_blank" rel="noopener noreferrer" className="aero-button aero-button-secondary">
+            <Monitor size={18} aria-hidden="true" /> Preview display <ArrowUpRight size={16} aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span>
+          </Link>
         </div>
+        <section className="admin-quick-section" aria-labelledby="quick-actions-title">
+          <div className="admin-section-heading"><h2 id="quick-actions-title">Quick actions</h2><span>Your everyday masjid tools</span></div>
+          <div className="admin-quick-actions">
+            {actions.map(({ modal: next, title, detail, Icon }) => (
+              <button key={next} type="button" className={next === 'message' ? 'admin-action-card admin-action-featured' : 'admin-action-card'} onClick={() => openModal(next)}>
+                <span className="admin-action-icon"><Icon size={23} aria-hidden="true" /></span>
+                <span><strong>{title}</strong><small>{detail}</small></span><ArrowUpRight className="admin-action-arrow" size={19} aria-hidden="true" />
+              </button>
+            ))}
+            <Link href="/admin/dashboard/prayer-times-editor" className="admin-action-card">
+              <span className="admin-action-icon"><CalendarClock size={23} aria-hidden="true" /></span>
+              <span><strong>Prayer times editor</strong><small>Review and edit individual prayer times</small></span><ArrowUpRight className="admin-action-arrow" size={19} aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+        <div className="admin-settings-grid">
+          <ControlSlideshow onSuccess={onSuccess} onError={onError} />
+          <DonationSettings onSuccess={onSuccess} onError={onError} />
+        </div>
+        <section className="admin-messages" aria-labelledby="messages-title">
+          <div className="admin-section-heading">
+            <div><p className="eyebrow">On the display</p><h2 id="messages-title">Existing messages</h2></div>
+            <button type="button" className="aero-button aero-button-secondary" onClick={() => openModal('message')}><MessageSquarePlus size={18} aria-hidden="true" /> Add message</button>
+          </div>
+          <MessageList onAddAnimation={message => { setSelectedMessage(message); openModal('animation') }} />
+        </section>
+        <footer className="admin-resources">
+          <span>Planning &amp; resources</span>
+          <a href="https://docs.google.com/spreadsheets/d/1TqARmQOth6B1BEA8wx-EHGJY-bgEeCtYDHqeYTRmISc/edit?usp=sharing" target="_blank" rel="noopener noreferrer"><FileSpreadsheet size={17} aria-hidden="true" /> Timetable spreadsheet <ArrowUpRight size={15} aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span></a>
+          <a href="https://trello.com/b/9jKqsYXt" target="_blank" rel="noopener noreferrer"><LayoutList size={17} aria-hidden="true" /> Trello board <ArrowUpRight size={15} aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span></a>
+        </footer>
       </main>
-    </div>
-  );
+      {modal && <AdminDialog open onClose={closeModal} title={modalTitles[modal]} busy={closing} wide={modal !== 'sync'}>
+        {modal === 'message' && <AddMessage onClose={closeModal} setClosing={setClosing} onSuccess={() => onSuccess('Message added successfully')} onError={onError} />}
+        {modal === 'animation' && selectedMessage && <AddAnimation message={selectedMessage} onClose={closeModal} setClosing={setClosing} onSuccess={() => onSuccess('Animation saved successfully')} onError={onError} />}
+        {modal === 'sync' && <SyncPrayerTimes onClose={closeModal} setClosing={setClosing} onSuccess={onSuccess} onError={onError} />}
+        {modal === 'timetables' && <ManageTimetables onClose={closeModal} setClosing={setClosing} onSuccess={onSuccess} onError={onError} />}
+      </AdminDialog>}
+      {toast && <Notification type={toast.type} message={toast.message} onDone={dismissToast} />}
+    </>
+  )
 }

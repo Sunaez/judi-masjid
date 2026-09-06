@@ -39,6 +39,7 @@ export default function MessageList({ onAddAnimation }: MessageListProps) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Notification state for delete success/failure
   const [toast, setToast] = useState<{
@@ -128,7 +129,8 @@ export default function MessageList({ onAddAnimation }: MessageListProps) {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteTargetId) return;
+    if (!deleteTargetId || deleting) return;
+    setDeleting(true);
     try {
       // Delete all condition documents in batch
       const condCollRef = collection(db, 'messages', deleteTargetId, 'conditions');
@@ -149,6 +151,7 @@ export default function MessageList({ onAddAnimation }: MessageListProps) {
       console.error('Error deleting message:', err);
       setToast({ type: 'error', message: err.message || 'Failed to delete message' });
     } finally {
+      setDeleting(false);
       closeModal();
     }
   };
@@ -168,6 +171,7 @@ export default function MessageList({ onAddAnimation }: MessageListProps) {
         isOpen={isModalOpen}
         onClose={closeModal}
         onConfirm={handleConfirmDelete}
+        deleting={deleting}
       />
 
       {toast && (

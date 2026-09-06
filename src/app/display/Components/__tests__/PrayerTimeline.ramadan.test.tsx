@@ -44,6 +44,8 @@ describe('Display PrayerTimeline Ramadan extension', () => {
   beforeEach(() => {
     Element.prototype.scrollTo = jest.fn()
     jest.useFakeTimers()
+    // Keep the active-prayer label independent of the wall clock running this suite.
+    jest.setSystemTime(new Date(2026, 2, 1, 12, 0))
     mockIsRamadan = false
     mockRamadanPreviewActive = false
   })

@@ -174,23 +174,23 @@ export default function ControlSlideshow({
   };
 
   return (
-    <section className="rounded-xl border border-[var(--secondary-color)] bg-[var(--background-start)] p-6">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <section className="aero-panel admin-settings-card">
+      <div className="admin-settings-heading">
+        <div className="admin-settings-title">
           <span className="rounded-lg bg-[var(--accent-color)] p-3 text-[var(--background-end)]">
             <MonitorPlay size={22} aria-hidden="true" />
           </span>
           <div>
             <h2 className="text-2xl font-semibold text-[var(--accent-color)]">
-              Control SlideShow
+              Display slideshow
             </h2>
             <p className="text-sm text-[var(--text-muted)]">
-              Schedule the fullscreen display overlay every day.
+              Choose when the slideshow appears on the masjid display.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1">
+        <div className="admin-settings-status">
           <span
             className={`rounded-full px-3 py-1 text-sm font-semibold ${status.className}`}
           >
@@ -203,7 +203,7 @@ export default function ControlSlideshow({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center py-8" role="status"><span className="sr-only">Loading settings...</span>
           <svg
             className="h-7 w-7 animate-spin text-[var(--accent-color)]"
             fill="none"
@@ -225,7 +225,7 @@ export default function ControlSlideshow({
           </svg>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 flex items-center gap-2 text-sm font-medium text-[var(--text-color)]">
               <CalendarClock size={16} aria-hidden="true" />
@@ -267,12 +267,12 @@ export default function ControlSlideshow({
         </div>
       )}
 
-      <div className="mt-5 flex flex-wrap gap-3">
+      <div className="admin-settings-actions">
         <button
           type="button"
           onClick={handleSave}
           disabled={loading || saving}
-          className="flex items-center gap-2 rounded-md bg-[var(--accent-color)] px-5 py-2.5 font-semibold text-[var(--background-end)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--button-disabled)]"
+          className="aero-button"
         >
           <Save size={18} aria-hidden="true" />
           {saving ? 'Saving...' : 'Save Schedule'}
@@ -282,7 +282,7 @@ export default function ControlSlideshow({
           type="button"
           onClick={handleClear}
           disabled={loading || saving}
-          className="flex items-center gap-2 rounded-md bg-[var(--secondary-color)] px-5 py-2.5 font-semibold text-[var(--text-color)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="aero-button aero-button-secondary"
         >
           <Power size={18} aria-hidden="true" />
           Disable

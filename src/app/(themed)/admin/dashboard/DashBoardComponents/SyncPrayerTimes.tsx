@@ -26,6 +26,7 @@ export default function SyncPrayerTimes({
 
   const handleSync = async () => {
     setIsSyncing(true);
+    setClosing(true);
     setSyncStatus('Fetching data from Google Sheets...');
 
     try {
@@ -49,6 +50,7 @@ export default function SyncPrayerTimes({
         setTimeout(onClose, 300);
       }, 2000);
     } catch (error) {
+      setClosing(false);
       console.error('Sync error:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';

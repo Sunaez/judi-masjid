@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getPrayerTimesByMonth, batchSavePrayerTimes } from "@/lib/firebase/prayerTimes";
 import NavBar from "../../AdminComponents/NavBar";
 import Notification from "../DashBoardComponents/Notification";
+import AdminDialog from "../../AdminComponents/AdminDialog";
 
 interface PrayerTimeRow {
   date: string; // DD/MM/YYYY format
@@ -40,6 +41,13 @@ export default function PrayerTimesEditorPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [exitModalOpen, setExitModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!hasChanges) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [hasChanges]);
 
   // Selection state
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -376,17 +384,18 @@ export default function PrayerTimesEditorPage() {
       setToast({ type: 'success', message: 'Changes saved successfully!' });
 
       await loadPrayerTimesForYear();
+      return true;
     } catch (err) {
       console.error("Error saving prayer times:", err);
       setToast({ type: 'error', message: 'Failed to save prayer times' });
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const handleSaveAndExit = async () => {
-    await handleSave();
-    router.push("/admin/dashboard");
+    if (await handleSave()) router.push("/admin/dashboard");
   };
 
   const handleExit = () => {
@@ -445,20 +454,21 @@ export default function PrayerTimesEditorPage() {
   const archivedCount = prayerTimes.filter(row => row.archived).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)] lg:pl-64">
+    <div>
       <NavBar />
 
-      <main className="min-h-screen p-4 sm:p-6 lg:p-8">
+      <main id="admin-main" tabIndex={-1} className="admin-main admin-editor">
         {/* Header */}
         <div className="mb-6">
-          <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="admin-page-heading">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
                 Timetable data
               </p>
-              <h1 className="mt-2 text-3xl font-bold text-[var(--text-color)]">
-                Local Prayer Times Editor
+              <h1>
+                Prayer times editor
               </h1>
+              <p>Review the timetable, edit a time, or paste a column from your spreadsheet.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -473,9 +483,11 @@ export default function PrayerTimesEditorPage() {
               </label>
 
               <div className="flex gap-2 items-center">
-                <label className="text-[var(--text-color)] font-medium">Year:</label>
+                <label htmlFor="prayer-editor-year" className="text-[var(--text-color)] font-medium">Year:</label>
                 <select
+                  id="prayer-editor-year"
                   value={selectedYear}
+                  disabled={saving || loading || hasChanges}
                   onChange={(e) => setSelectedYear(e.target.value)}
                   className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 text-[var(--text-color)] focus:border-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]/30"
                 >
@@ -489,7 +501,8 @@ export default function PrayerTimesEditorPage() {
 
               <button
                 onClick={addNewRow}
-                className="min-h-10 rounded-lg bg-[var(--accent-color)] px-4 py-2 font-medium text-[var(--background-end)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+                disabled={saving || loading}
+                className="aero-button aero-button-secondary"
               >
                 + Add Row
               </button>
@@ -498,15 +511,16 @@ export default function PrayerTimesEditorPage() {
                 onClick={handleSave}
                 disabled={saving || !hasChanges}
                 aria-label={saving ? "Saving..." : "Save"}
-                className="min-h-10 rounded-lg bg-green-600 px-5 py-2 font-medium text-white transition hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="aero-button"
               >
                 {saving ? "Saving..." : "Save"}
               </button>
 
               <button
                 onClick={handleExit}
+                disabled={saving}
                 aria-label="Back"
-                className="min-h-10 rounded-lg bg-[var(--accent-color)] px-5 py-2 font-medium text-[var(--background-end)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+                className="aero-button aero-button-secondary"
               >
                 Back
               </button>
@@ -554,7 +568,8 @@ export default function PrayerTimesEditorPage() {
         </div>
 
         {/* Table Container */}
-        <div className="overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-lg">
+        <p className="admin-editor-note" role="status">{hasChanges ? 'You have unsaved changes. Save before switching years.' : 'Changes are only published when you save.'} Select past dates to archive or delete them. Scroll across the table to see every prayer.</p>
+        <div className="aero-panel admin-editor-table">
           {loading ? (
             <div className="flex items-center justify-center h-96">
               <div className="text-[var(--text-color)] text-lg">Loading prayer times...</div>
@@ -569,12 +584,13 @@ export default function PrayerTimesEditorPage() {
             </div>
           ) : (
             <div className="max-h-[calc(100vh-360px)] overflow-auto custom-scrollbar lg:max-h-[calc(100vh-280px)]">
-              <table className="w-full border-collapse">
+              <table className="w-full border-collapse" aria-label="Editable prayer timetable">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-[var(--accent-color)] text-[var(--background-end)]">
+                  <tr>
                     <th className="px-4 py-3 text-center font-bold border border-[var(--secondary-color)] w-12">
                       <input
                         type="checkbox"
+                        aria-label="Select all past dates"
                         checked={selectedRows.size === visibleRows.length && visibleRows.length > 0}
                         onChange={toggleAllRowsSelection}
                         className="w-4 h-4 cursor-pointer"
@@ -635,6 +651,7 @@ export default function PrayerTimesEditorPage() {
                         <td className="px-4 py-2 border border-[var(--secondary-color)] text-center">
                           <input
                             type="checkbox"
+                            aria-label={`Select ${row.date}`}
                             checked={isSelected}
                             onChange={(e) => toggleRowSelection(actualIndex, e)}
                             disabled={isFutureDate}
@@ -648,6 +665,8 @@ export default function PrayerTimesEditorPage() {
                           >
                             <input
                               type="text"
+                              aria-label={`${colKey} for ${row.date}`}
+                              disabled={saving}
                               value={row[colKey]}
                               onChange={(e) => handleCellChange(actualIndex, colKey, e.target.value)}
                               onPaste={(e) => handleCellPaste(actualIndex, colKey, e)}
@@ -666,43 +685,14 @@ export default function PrayerTimesEditorPage() {
         </div>
       </main>
 
-      {/* Exit Warning Modal */}
-      {exitModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="mx-4 w-[calc(100%-2rem)] max-w-md rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-2xl sm:p-8">
-            <h3 className="text-2xl font-bold text-[var(--text-color)] mb-4">
-              Unsaved Changes
-            </h3>
-            <p className="text-[var(--text-color)] mb-6">
-              You have unsaved changes. What would you like to do?
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={handleSaveAndExitFromModal}
-                disabled={saving}
-                aria-label="Save Changes & Exit"
-                className="w-full rounded-lg bg-green-600 px-6 py-3 font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-              >
-                Save Changes &amp; Exit
-              </button>
-              <button
-                onClick={handleExitWithoutSaving}
-                aria-label="Discard Changes & Exit"
-                className="w-full rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition-colors hover:bg-red-700"
-              >
-                Discard Changes &amp; Exit
-              </button>
-              <button
-                onClick={() => setExitModalOpen(false)}
-                aria-label="Cancel and continue editing"
-                className="w-full rounded-lg bg-gray-500 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-600"
-              >
-                Cancel (Continue Editing)
-              </button>
-            </div>
-          </div>
+      <AdminDialog open={exitModalOpen} onClose={() => setExitModalOpen(false)} title="Unsaved changes" busy={saving}
+        description="Save your changes before returning to the dashboard, or discard them to leave the published timetable unchanged.">
+        <div className="flex flex-col gap-3">
+          <button onClick={handleSaveAndExitFromModal} disabled={saving} className="aero-button">Save Changes &amp; Exit</button>
+          <button onClick={handleExitWithoutSaving} disabled={saving} className="admin-danger-button">Discard Changes &amp; Exit</button>
+          <button data-autofocus onClick={() => setExitModalOpen(false)} disabled={saving} className="aero-button aero-button-secondary">Continue editing</button>
         </div>
-      )}
+      </AdminDialog>
 
       {/* Toast Notification */}
       {toast && (

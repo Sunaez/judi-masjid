@@ -18,6 +18,8 @@ import {
   getPasswordResetFeedback,
 } from '@/lib/adminMessages'
 import NavBar from './NavBar'
+import { ArrowRight, Eye, EyeOff, ShieldCheck } from 'lucide-react'
+import AeroLandscape from '@/components/AeroLandscape'
 
 const PASSWORD_RESET_MESSAGE =
   'If an admin account exists for that email, a password reset link has been sent.'
@@ -49,6 +51,7 @@ export default function LogIn() {
   const [mounted, setMounted] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorHelp, setErrorHelp] = useState<string[]>([])
   const [status, setStatus] = useState<string | null>(null)
@@ -96,7 +99,7 @@ export default function LogIn() {
 
     try {
       await setPersistence(auth, browserSessionPersistence)
-      const credential = await signInWithEmailAndPassword(auth, email, password)
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password)
       await ensureAdminAccess(credential.user)
 
       router.replace(safeRedirect)
@@ -150,16 +153,23 @@ export default function LogIn() {
   }
 
   return (
-    <div className="min-h-screen lg:pl-64">
+    <>
       <NavBar />
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)] px-4 py-8 sm:px-6 lg:px-8">
+      <main id="admin-main" tabIndex={-1} className="admin-login">
+        <div className="admin-login-welcome">
+          <p className="eyebrow">Al-Judi Masjid · Admin</p>
+          <h2>A little care.<br /><span>A connected community.</span></h2>
+          <p>Manage prayer times, share reminders, and keep our community up to date. It all starts here.</p>
+          <AeroLandscape />
+        </div>
         <form
           onSubmit={handleSubmit}
-          className="w-full max-w-md rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-6 shadow-xl sm:p-8"
+          className="aero-panel admin-login-form"
+          aria-busy={loading || resettingPassword}
         >
-          <h1 className="mb-6 text-center text-3xl font-semibold text-[var(--accent-color)]">
-            Admin Login
-          </h1>
+          <span className="admin-action-icon"><ShieldCheck size={24} aria-hidden="true" /></span>
+          <h1>Welcome back</h1>
+          <p>Sign in to your admin account to manage the masjid.</p>
 
           {error && (
             <div
@@ -186,7 +196,7 @@ export default function LogIn() {
             </p>
           )}
 
-          <label htmlFor="email" className="mb-2 block text-lg font-medium text-[var(--text-color)]">
+          <label htmlFor="email">
             Email
           </label>
           <input
@@ -196,44 +206,48 @@ export default function LogIn() {
             value={email}
             onChange={event => setEmail(event.target.value)}
             autoComplete="email"
-            className="mb-4 w-full rounded-md border border-[var(--secondary-color)] bg-transparent px-4 py-3 text-lg placeholder-[var(--secondary-color)] focus:border-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:ring-opacity-30"
+            disabled={loading || resettingPassword}
           />
 
-          <label htmlFor="password" className="mb-2 block text-lg font-medium text-[var(--text-color)]">
+          <label htmlFor="password">
             Password
           </label>
-          <input
+          <div className="admin-password-field"><input
             id="password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             required
             value={password}
             onChange={event => setPassword(event.target.value)}
             autoComplete="current-password"
-            className="mb-6 w-full rounded-md border border-[var(--secondary-color)] bg-transparent px-4 py-3 text-lg placeholder-[var(--secondary-color)] focus:border-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:ring-opacity-30"
+            disabled={loading || resettingPassword}
           />
+          <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>
+            {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
+          </button></div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-[var(--accent-color)] py-3 text-lg font-semibold text-[var(--background-end)] transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background-end)] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={loading || resettingPassword}
+            className="aero-button w-full"
           >
             {loading ? 'Signing in...' : 'Sign In'}
+            <ArrowRight size={18} aria-hidden="true" />
           </button>
 
           <button
             type="button"
             onClick={handlePasswordReset}
             disabled={resettingPassword || loading}
-            className="mt-4 w-full rounded-md border border-[var(--secondary-color)] px-4 py-3 text-sm font-semibold text-[var(--accent-color)] transition hover:bg-[var(--background-start)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="aero-button aero-button-secondary mt-3 w-full"
           >
             {resettingPassword ? 'Sending reset link...' : 'Forgot password?'}
           </button>
 
-          <p className="mt-4 text-center text-xs leading-5 text-[var(--text-muted)]">
+          <p className="admin-login-note">
             Admin sessions are limited to this browser session. Use Logout when finished.
           </p>
         </form>
       </main>
-    </div>
+    </>
   )
 }

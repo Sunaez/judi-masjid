@@ -3,6 +3,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { gsap } from 'gsap';
+import { MessageSquare } from 'lucide-react';
 import type { MessageRecord } from './index';
 import { IoEllipsisHorizontal, IoTrash, IoStar } from 'react-icons/io5';
 import type { ConditionData, AnimationType } from '../AddMessage/types';
@@ -75,9 +76,9 @@ export default function Display({
   useEffect(() => {
     if (!containerRef.current) return;
     const cards = containerRef.current.querySelectorAll<HTMLElement>('.message-card');
-    if (!cards.length) return;
+    if (!cards.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    gsap.fromTo(
+    const tween = gsap.fromTo(
       cards,
       { opacity: 0, y: 20 },
       {
@@ -88,6 +89,7 @@ export default function Display({
         ease: 'ease.inOut',
       }
     );
+    return () => { tween.kill(); };
   }, [filteredMessages]);
 
   // Animation helper - applies animation to an element
@@ -230,6 +232,7 @@ export default function Display({
 
   // Set up interval to play animations every 5 seconds
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     // Initial play after a short delay
     const initialTimeout = setTimeout(playAllAnimations, 500);
 
@@ -266,27 +269,6 @@ export default function Display({
     };
   }, [openMenuId]);
 
-  // GSAP shine animation for the visible "Add Animation" text
-  useEffect(() => {
-    if (!openMenuId) return;
-
-    // Target the currently open "Add Animation" span by its dynamic class
-    const selector = `.shine-text-${openMenuId}`;
-    const elem = document.querySelector<HTMLElement>(selector);
-    if (!elem) return;
-
-    // Reset backgroundPosition before starting
-    gsap.set(elem, { backgroundPosition: '-100%' });
-
-    // Start continuous tween
-    gsap.to(elem, {
-      backgroundPosition: '200%',
-      duration: 1.5,
-      repeat: -1,
-      ease: 'none',
-    });
-  }, [openMenuId]);
-
   // Helper to set refs for a message
   const setTextRef = (msgId: string, type: 'arabic' | 'english', el: HTMLElement | null) => {
     if (!textRefsMap.current.has(msgId)) {
@@ -307,10 +289,10 @@ export default function Display({
     return <p className="text-[var(--text-color)]">Loading messages…</p>;
   }
   if (error) {
-    return <p className="text-red-600">Error: {error}</p>;
+    return <p role="alert" className="admin-empty text-[var(--admin-danger)]">Unable to load messages: {error}</p>;
   }
   if (!messages.length) {
-    return <p className="text-[var(--text-color)]">No messages found.</p>;
+    return <div className="admin-empty"><MessageSquare size={32} aria-hidden="true" /><strong>No messages yet</strong><p>Add your first announcement, verse, or reminder using Add message.</p></div>;
   }
 
   return (
@@ -323,6 +305,7 @@ export default function Display({
             <button
               key={opt}
               onClick={() => setFilter(opt)}
+              aria-pressed={filter === opt}
               className={`
                 px-3 py-1 rounded-full text-sm font-medium
                 ${
@@ -349,18 +332,18 @@ export default function Display({
             <div
               key={msg.id}
               className="message-card
-                grid grid-cols-4
+                grid grid-cols-1 lg:grid-cols-4
                 bg-[var(--background-end)]
                 border border-[var(--secondary-color)]
                 rounded-2xl shadow-lg
-                overflow-hidden
+
               "
             >
               {/* Content (75%) */}
-              <div className="col-span-3 p-6 space-y-4">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-2xl font-semibold text-[var(--accent-color)]">
+              <div className="min-w-0 lg:col-span-3 p-5 sm:p-6 space-y-4">
+                <div className="flex flex-wrap justify-between items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-lg font-semibold text-[var(--accent-color)]">
                       Message #{msg.id.slice(-6)}
                     </h3>
                     {hasAnimations(msg) && (
@@ -370,13 +353,19 @@ export default function Display({
                     )}
                   </div>
                   <div className="flex items-center space-x-3">
-                    <span className="text-sm text-[var(--secondary-color)]">
+                    <span className="text-xs text-[var(--text-muted)]">
                       {msg.createdAt.toDate().toLocaleString()}
                     </span>
 
                     {/* Show-more (three dots) container */}
                     <div
                       className="relative"
+                      onKeyDown={event => {
+                        if (event.key === 'Escape') {
+                          setOpenMenuId(null);
+                          event.currentTarget.querySelector('button')?.focus();
+                        }
+                      }}
                       ref={(el) => {
                         if (openMenuId === msg.id) {
                           menuContainerRef.current = el;
@@ -388,7 +377,9 @@ export default function Display({
                           setOpenMenuId((prev) => (prev === msg.id ? null : msg.id))
                         }
                         className="text-[var(--text-color)] hover:text-[var(--yellow)] transition-colors duration-200"
-                        aria-label="Show more"
+                        aria-label={`Actions for message ${msg.id.slice(-6)}`}
+                        aria-expanded={openMenuId === msg.id}
+
                       >
                         <IoEllipsisHorizontal size={20} />
                       </button>
@@ -419,17 +410,7 @@ export default function Display({
                             "
                           >
                             <IoStar className="inline-block mr-2 align-middle" />
-                            <span
-                              className={`shine-text-${msg.id}`}
-                              style={{
-                                background:
-                                  'linear-gradient(90deg, var(--text-color) 0%, var(--x-text-color) 50%, var(--text-color) 100%)',
-                                backgroundSize: '200%',
-                                backgroundPosition: '-100%',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                              }}
-                            >
+                            <span>
                               {hasAnimations(msg) ? 'Edit Animation' : 'Add Animation'}
                             </span>
                           </button>
@@ -536,7 +517,7 @@ export default function Display({
               </div>
 
               {/* Conditions (25%) */}
-              <div className="col-span-1 bg-[var(--background-start)] p-6 border-l border-[var(--secondary-color)]">
+              <div className="min-w-0 bg-[var(--surface-soft)] p-5 sm:p-6 border-t lg:border-t-0 lg:border-l border-[var(--border-color)] rounded-b-2xl lg:rounded-bl-none lg:rounded-r-2xl">
                 <h4 className="text-lg font-semibold text-[var(--text-color)] mb-4">
                   Conditions ({msg.conditionsData.length})
                 </h4>

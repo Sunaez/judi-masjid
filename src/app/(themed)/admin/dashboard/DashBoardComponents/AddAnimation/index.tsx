@@ -199,6 +199,7 @@ export default function AddAnimationWrapper({
   // Save animations to Firebase
   const handleSave = async () => {
     setSaving(true);
+    setClosing(true);
     try {
       const animationData: AnimationData = {};
 
@@ -225,6 +226,7 @@ export default function AddAnimationWrapper({
       setIsClosingLocal(true);
       setTimeout(onClose, 300);
     } catch (err: any) {
+      setClosing(false);
       console.error('Error saving animations:', err);
       onError(err.message || 'Failed to save animations');
     } finally {

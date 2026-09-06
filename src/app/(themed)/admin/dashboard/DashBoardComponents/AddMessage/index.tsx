@@ -94,8 +94,12 @@ export default function AddMessageWrapper({
   ]);
 
   const [isClosing, setIsClosingLocal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const onSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    setClosing(true);
     try {
       await handleSave();
       onSuccess();
@@ -105,6 +109,8 @@ export default function AddMessageWrapper({
         onClose();
       }, 500);
     } catch (err: any) {
+      setSaving(false);
+      setClosing(false);
       onError(err.message || 'Failed to save message');
     }
   };
@@ -272,9 +278,10 @@ export default function AddMessageWrapper({
 
       <button
         onClick={onSave}
-        className="mt-4 bg-[var(--accent-color)] text-[var(--x-text-color)] px-6 py-3 rounded font-semibold hover:opacity-90"
+        disabled={saving}
+        className="aero-button mt-4"
       >
-        Save Message
+        {saving ? 'Saving...' : 'Save Message'}
       </button>
     </div>
   );
