@@ -9,7 +9,7 @@ interface PrayerTableProps {
   displayDuration: number;
 }
 
-const DARK_PRAYERS = new Set(['Fajr', 'Maghrib', 'Isha']);
+const NIGHT_PRAYERS = new Set(['Fajr', 'Maghrib', 'Isha']);
 
 export default function PrayerTable({ displayDuration }: PrayerTableProps) {
   // Get prayer times from Firebase context
@@ -114,7 +114,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
   style={{
     gridColumn: `1 / span ${upcoming.length}`,
     textAlign: 'center',
-    fontSize: '4vmin',
+    fontSize: '43.2px',
     fontWeight: 'bold',
     padding: '0.5rem 0',
     color: 'var(--text-color)', // <-- Added this line
@@ -125,21 +125,13 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
 
 
       {upcoming.map(({ name, time }, i) => {
-        const wasDark = DARK_PRAYERS.has(name);
+        const isNightPrayer = NIGHT_PRAYERS.has(name);
         const isNext = i === nextIndex;
 
-        const nameBg = wasDark
-          ? 'var(--static-dark-accent-color)'
-          : 'var(--static-light-accent-color)';
-        const timeBg = wasDark
-          ? 'var(--static-dark-background-end)'
-          : 'var(--static-light-background-end)';
-        const nameTextColor = wasDark
-          ? 'var(--static-light-text-color)'
-          : 'var(--static-dark-text-color)';
-        const timeTextColor = wasDark
-          ? 'var(--static-dark-text-color)'
-          : 'var(--static-light-text-color)';
+        const nameBg = isNightPrayer ? 'var(--static-dark-accent-color)' : 'var(--accent-color)';
+        const timeBg = isNightPrayer ? 'var(--static-dark-background-end)' : 'var(--surface)';
+        const nameTextColor = isNightPrayer ? 'var(--static-dark-background-end)' : 'var(--background-end)';
+        const timeTextColor = isNightPrayer ? 'var(--static-dark-text-color)' : 'var(--text-color)';
         const borderStyle = isNext
           ? `4px solid var(--secondary-color)`
           : `1px solid var(--secondary-color)`;
@@ -147,7 +139,8 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
         return (
           <div
             key={name}
-            data-prayer
+            data-prayer={name}
+            data-period={isNightPrayer ? 'night' : 'day'}
             style={{
               gridRow: '2 / span 2',
               gridColumn: i + 1,
@@ -169,7 +162,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
             >
               <span
                 style={{
-                  fontSize: '6vmin',
+                  fontSize: '64.8px',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                 }}
@@ -189,7 +182,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
             >
               <span
                 style={{
-                  fontSize: '10vmin',
+                  fontSize: '108px',
                   fontWeight: 800,
                 }}
               >

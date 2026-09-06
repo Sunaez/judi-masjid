@@ -1,10 +1,13 @@
 'use client'
 
+import './home.css'
+
 import dynamic from 'next/dynamic'
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
+import { AnimatePresence } from 'motion/react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Building2,
-  CalendarDays,
   CheckCircle2,
   Mail,
   MapPin,
@@ -16,6 +19,8 @@ import { usePrayerTimesContext } from '../display/context/PrayerTimesContext'
 import EidSalahNotice from './IndexComponents/EidSalahNotice'
 import NavBar, { type SiteSectionId } from './IndexComponents/NavBar'
 import Welcome from './IndexComponents/Welcome'
+import Feedback from './IndexComponents/Feedback'
+import { SectionReveal, SectionTransition } from './IndexComponents/SectionMotion'
 import PrayerTimesTable from './IndexComponents/PrayerTimeTable'
 import PrayerTimeline from './IndexComponents/PrayerTimeline'
 
@@ -24,10 +29,6 @@ const EidLanternBackdrop = dynamic(() => import('@/components/EidLanternBackdrop
 })
 
 const EidMubarakIntro = dynamic(() => import('./IndexComponents/EidMubarakIntro'), {
-  loading: () => null,
-})
-
-const TimetableDownload = dynamic(() => import('./IndexComponents/TimetableDownload'), {
   loading: () => null,
 })
 
@@ -178,26 +179,25 @@ function SectionShell({
 function HomeSection() {
   return (
     <>
-      <main className="px-4 pb-6 pt-5 sm:px-6 lg:px-8 lg:pt-8">
-        <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(380px,0.74fr)] xl:items-stretch">
-          <Welcome />
-          <PrayerTimesTable />
-        </div>
-      </main>
+      <Welcome />
 
-      <section className="px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-4 py-2 shadow-lg sm:px-6">
-          <PrayerTimeline />
-        </div>
-      </section>
+      <SectionReveal>
+        <section id="home-prayers" tabIndex={-1} aria-label="Prayer times" className="home-prayer-overview">
+          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.2fr)] lg:items-start">
+            <PrayerTimesTable />
+            <div className="aero-panel home-timeline px-5 py-6 sm:px-8">
+              <div className="home-section-heading"><h2>Prayer Timeline</h2></div>
+              <PrayerTimeline />
+            </div>
+          </div>
+        </section>
+      </SectionReveal>
 
-      <LazyOnVisible minHeight={480}>
-        <QuranAndDonation />
-      </LazyOnVisible>
+      <SectionReveal><Feedback /></SectionReveal>
 
-      <LazyOnVisible minHeight={320}>
-        <TimetableDownload />
-      </LazyOnVisible>
+      <SectionReveal>
+        <LazyOnVisible minHeight={480}><QuranAndDonation /></LazyOnVisible>
+      </SectionReveal>
     </>
   )
 }
@@ -207,32 +207,15 @@ function PrayerTimetableSection() {
     <SectionShell eyebrow="Daily prayers" title="Prayer timetable">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <div className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-4 shadow-lg">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-md bg-[var(--accent-color)] text-[var(--background-end)]">
-              <CalendarDays className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-xl font-semibold text-[var(--text-color)]">
-                Today at Al Judi
-              </h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                Start times and jamaat times in one place.
-              </p>
-            </div>
-          </div>
           <PrayerTimesTable variant="inline" />
         </div>
 
         <div className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-4 shadow-lg">
           <h2 className="text-xl font-semibold text-[var(--text-color)]">
-            Timeline
+            Prayer Timeline
           </h2>
           <PrayerTimeline />
         </div>
-      </div>
-
-      <div className="mt-2">
-        <TimetableDownload />
       </div>
     </SectionShell>
   )
@@ -248,41 +231,41 @@ function DonateSection() {
 
 function DonationThankYouOverlay({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(21,49,71,0.48)] px-4 py-8 backdrop-blur-sm">
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="donation-thank-you-title"
-        className="relative w-full max-w-lg rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-6 text-[var(--text-color)] shadow-2xl md:p-8"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close donation thank you message"
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--secondary-color)] bg-[var(--background-end)] text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
+    <Dialog open onClose={onClose} className="public-theme relative z-50">
+      <div className="fixed inset-0 bg-[var(--overlay-darkest)]" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center overflow-y-auto px-4 py-8">
+        <DialogPanel
+          className="relative w-full max-w-lg rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-6 text-[var(--text-color)] shadow-2xl md:p-8"
         >
-          <X className="h-5 w-5" />
-        </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close donation thank you message"
+            className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--secondary-color)] bg-[var(--background-end)] text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <X className="h-5 w-5" />
+          </button>
 
-        <span className="inline-flex h-14 w-14 items-center justify-center rounded-md bg-[var(--accent-color)] text-[var(--background-end)]">
-          <CheckCircle2 className="h-7 w-7" />
-        </span>
+          <span className="inline-flex h-14 w-14 items-center justify-center rounded-md bg-[var(--accent-color)] text-[var(--background-end)]">
+            <CheckCircle2 className="h-7 w-7" />
+          </span>
 
-        <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-          Donation received
-        </p>
-        <h2
-          id="donation-thank-you-title"
-          className="mt-2 pr-10 text-2xl font-bold leading-tight text-[var(--accent-color)] md:text-3xl"
-        >
-          Jazakallah khair for your donation
-        </h2>
-        <p className="mt-4 leading-7 text-[var(--text-color)]">
-          May Allah accept it from you and place barakah in your giving. Your
-          support helps Al Judi Masjid continue serving the community.
-        </p>
-      </section>
-    </div>
+          <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+            Donation received
+          </p>
+          <DialogTitle
+            id="donation-thank-you-title"
+            className="mt-2 pr-10 text-2xl font-bold leading-tight text-[var(--accent-color)] md:text-3xl"
+          >
+            Jazakallah khair for your donation
+          </DialogTitle>
+          <p className="mt-4 leading-7 text-[var(--text-color)]">
+            May Allah accept it from you and place barakah in your giving. Your
+            support helps Al Judi Masjid continue serving the community.
+          </p>
+        </DialogPanel>
+      </div>
+    </Dialog>
   )
 }
 
@@ -349,6 +332,14 @@ export default function HomePage() {
   const { isEid } = usePrayerTimesContext()
   const [activeSection, setActiveSection] = useState<SiteSectionId>('home')
   const [showDonationThankYou, setShowDonationThankYou] = useState(false)
+  const previousSection = useRef(activeSection)
+
+  useEffect(() => {
+    if (previousSection.current === activeSection) return
+    previousSection.current = activeSection
+    document.getElementById('main-content')?.focus({ preventScroll: true })
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [activeSection])
 
   useEffect(() => {
     const syncSectionFromLocation = () => {
@@ -413,23 +404,29 @@ export default function HomePage() {
       window.history.pushState({ section }, '', nextUrl)
     }
 
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    })
+    if (activeSection === section) {
+      document.getElementById('main-content')?.focus({ preventScroll: true })
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="public-theme home-site relative min-h-screen">
+      <a className="site-skip-link" href="#main-content">Skip to content</a>
       {isEid && <EidMubarakIntro active />}
       {isEid && <EidLanternBackdrop className="opacity-75" />}
 
-      <div className="relative z-10 flex min-h-screen flex-col lg:pl-72">
+      <div className="relative z-10 flex min-h-screen flex-col">
         <NavBar activeSection={activeSection} onSectionChange={handleSectionChange} />
         <EidSalahNotice />
 
-        <div className="flex-1">
-          {renderSection(activeSection)}
-        </div>
+        <main id="main-content" tabIndex={-1} className="flex-1">
+          <AnimatePresence mode="wait" initial={false}>
+            <SectionTransition key={activeSection}>
+              {renderSection(activeSection)}
+            </SectionTransition>
+          </AnimatePresence>
+        </main>
 
         {showDonationThankYou && (
           <DonationThankYouOverlay onClose={handleCloseDonationThankYou} />

@@ -136,7 +136,8 @@ export default function TimeUntil({ eventName, eventTime }: TimeUntilProps = {})
         </div>
 
         {/* Clock */}
-        <div className="inline-flex font-mono text-2xl md:text-3xl lg:text-4xl overflow-hidden">
+        <span className="sr-only">{ht}{ho} hours, {mt}{mo} minutes, {st}{so} seconds</span>
+        <div aria-hidden="true" className="inline-flex font-mono text-2xl md:text-3xl lg:text-4xl overflow-hidden">
           {[
             { digit: ht, pool: H_TENS, idx: 0 },
             { digit: ho, pool: DIGITS, idx: 1 },

@@ -157,7 +157,7 @@ export default function DowntimeDisplay() {
       ref={containerRef}
       className="display-downtime-screen relative flex h-full w-full items-center justify-center p-12"
       style={{
-        backgroundImage: 'linear-gradient(135deg, var(--background-start), var(--background-end))',
+        backgroundImage: 'radial-gradient(ellipse at 15% 15%, color-mix(in srgb, var(--aero-glow) 9%, transparent), transparent 60%), linear-gradient(135deg, var(--background-start), var(--background-end))',
         color: 'var(--text-color)',
       }}
     >
@@ -243,11 +243,7 @@ export default function DowntimeDisplay() {
               {PRAYER_ORDER.map(({ key, label }) => (
                 <div
                   key={key}
-                  className="flex items-center justify-between py-6 px-10 rounded-2xl"
-                  style={{
-                    backgroundColor: 'var(--secondary-color)',
-                    opacity: 0.9,
-                  }}
+                  className="downtime-prayer-row flex items-center justify-between py-6 px-10 rounded-2xl"
                 >
                   <span className="text-4xl font-semibold uppercase tracking-wide opacity-90">
                     {label}

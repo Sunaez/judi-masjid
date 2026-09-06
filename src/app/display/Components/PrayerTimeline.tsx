@@ -24,8 +24,6 @@ const MAX_EVENT_LEFT_PERCENT = 99.5
 const BAR_HEIGHT = 90
 const BAR_TOP_PERCENT = 100
 const BAR_Y_OFFSET_PX = 0
-const BAR_BG_COLOR = 'var(--secondary-color)'
-const BAR_FILL_COLOR = 'var(--accent-color)'
 const BAR_BORDER_RADIUS = BAR_HEIGHT
 const ICON_SIZE_MOBILE = 100
 const WRAPPER_MOBILE = 75
@@ -205,26 +203,26 @@ const PrayerTimeline = memo(function PrayerTimeline() {
       >
         <div ref={innerRef} className="relative w-full min-w-[900px] py-10">
           <div
+            className="display-timeline-track"
             style={{
               position: 'absolute',
               top: `${BAR_TOP_PERCENT}%`,
               left: 0,
               right: 0,
               height: BAR_HEIGHT,
-              background: BAR_BG_COLOR,
               borderRadius: BAR_BORDER_RADIUS,
               transform: `translateY(calc(-50% + ${BAR_Y_OFFSET_PX}px))`,
             }}
           />
 
           <div
+            className="display-timeline-fill"
             style={{
               position: 'absolute',
               top: `${BAR_TOP_PERCENT}%`,
               left: 0,
               width: `${passedPct}%`,
               height: BAR_HEIGHT,
-              background: BAR_FILL_COLOR,
               borderRadius: BAR_BORDER_RADIUS,
               transform: `translateY(calc(-50% + ${BAR_Y_OFFSET_PX}px))`,
             }}
@@ -232,6 +230,7 @@ const PrayerTimeline = memo(function PrayerTimeline() {
 
           {events.map(event => {
             const displayTime = formatEventTime(event)
+            const isOnFilledTrack = (adjustedLeftByEventName.get(event.name) ?? 100) <= passedPct
             const isAbove =
               event.type === 'jamaat' ||
               event.type === 'sunrise' ||
@@ -253,6 +252,7 @@ const PrayerTimeline = memo(function PrayerTimeline() {
                 )}
 
                 <div
+                  className="display-prayer-icon"
                   style={{
                     width: `${WRAPPER_MOBILE}px`,
                     height: `${WRAPPER_MOBILE}px`,
@@ -268,7 +268,7 @@ const PrayerTimeline = memo(function PrayerTimeline() {
                       width: ICON_SIZE_MOBILE,
                       height: ICON_SIZE_MOBILE,
                       objectFit: 'contain',
-                      filter: isDarkMode ? 'brightness(0)' : 'none',
+                      filter: isOnFilledTrack === isDarkMode ? 'brightness(0)' : 'none',
                     }}
                   />
                 </div>

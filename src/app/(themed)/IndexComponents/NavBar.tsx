@@ -1,529 +1,57 @@
-'use client'
+﻿'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
+import { CalendarDays, CloudSun, HeartHandshake, Home, Link2, MapPin, Moon, Sun } from 'lucide-react'
 import { useWeather } from '@/app/hooks/useWeather'
-import type { WeatherData as Weather } from '@/lib/weather'
-import {
-  ArrowRight,
-  CalendarDays,
-  CloudSun,
-  HeartHandshake,
-  Home,
-  Link2,
-  Mail,
-  Menu,
-  Monitor,
-  Moon,
-  ShieldCheck,
-  Sun,
-  X,
-} from 'lucide-react'
 
-export type SiteSectionId =
-  | 'home'
-  | 'prayer-timetable'
-  | 'useful-links'
-  | 'donate'
-  | 'contact'
+export type SiteSectionId = 'home' | 'prayer-timetable' | 'useful-links' | 'donate' | 'contact'
 
-interface NavBarProps {
+const sections = [
+  { id: 'home', label: 'Home', Icon: Home },
+  { id: 'prayer-timetable', label: 'Prayer times', Icon: CalendarDays },
+  { id: 'useful-links', label: 'Resources', Icon: Link2 },
+  { id: 'donate', label: 'Donate', Icon: HeartHandshake },
+  { id: 'contact', label: 'Contact', Icon: MapPin },
+] as const
+
+export default function NavBar({ activeSection, onSectionChange }: {
   activeSection: SiteSectionId
   onSectionChange: (section: SiteSectionId) => void
-}
-
-const menuItems = [
-  { id: 'home', label: 'Home', Icon: Home },
-  { id: 'prayer-timetable', label: 'Prayer Timetable', Icon: CalendarDays },
-  { id: 'useful-links', label: 'Useful Links', Icon: Link2 },
-  { id: 'donate', label: 'Donate', Icon: HeartHandshake },
-  { id: 'contact', label: 'Contact', Icon: Mail },
-] satisfies Array<{ id: SiteSectionId; label: string; Icon: ComponentType<{ className?: string }> }>
-
-const accessLinks = [
-  { href: '/admin/', label: 'Admin', Icon: ShieldCheck },
-  { href: '/display/', label: 'Display', Icon: Monitor },
-]
-
-function ThemeToggle({
-  displayTheme,
-  onToggle,
-}: {
-  displayTheme: string
-  onToggle: () => void
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:bg-[var(--background-end)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-      aria-label="Toggle theme"
-    >
-      {displayTheme === 'dark'
-        ? <Sun size={24} className="text-[var(--yellow)]" />
-        : <Moon size={24} className="text-[var(--accent-color)]" />
-      }
-    </button>
-  )
-}
-
-function WeatherStatus({
-  weather,
-  isLoadingWeather,
-  weatherCondition,
-  weatherSummary,
-  weatherTemperatureLabel,
-  variant,
-}: {
-  weather: Weather | null
-  isLoadingWeather: boolean
-  weatherCondition: string
-  weatherSummary: string
-  weatherTemperatureLabel: string
-  variant: 'header' | 'sidebar'
-}) {
-  if (variant === 'header') {
-    return (
-      <div
-        className="flex min-h-10 min-w-0 items-center justify-center gap-2 justify-self-center rounded-lg px-2 text-sm text-[var(--text-color)] md:text-base"
-        aria-label={weatherSummary}
-      >
-        {isLoadingWeather ? (
-          <>
-            <div className="h-8 w-8 animate-pulse rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
-            <div className="hidden h-4 w-32 animate-pulse rounded sm:block" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
-          </>
-        ) : weather ? (
-          <>
-            <Image
-              src={`https://openweathermap.org/img/wn/${weather.iconCode}@2x.png`}
-              alt={weatherCondition}
-              width={36}
-              height={36}
-              className="hidden h-9 w-9 shrink-0 min-[360px]:block"
-              unoptimized
-            />
-            <span className="whitespace-nowrap font-semibold">
-              {weatherTemperatureLabel}
-            </span>
-            <span className="hidden max-w-32 truncate capitalize sm:inline md:max-w-44">
-              {weatherCondition}
-            </span>
-          </>
-        ) : (
-          <>
-            <CloudSun className="h-6 w-6 shrink-0 text-[var(--accent-color)]" />
-            <span className="hidden whitespace-nowrap font-medium sm:inline">
-              Weather unavailable
-            </span>
-          </>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-4 shadow-sm"
-      aria-label={weatherSummary}
-    >
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-        Local weather
-      </p>
-      {isLoadingWeather ? (
-        <div className="mt-3 flex items-center gap-3">
-          <div className="h-10 w-10 animate-pulse rounded-md" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-4 w-20 animate-pulse rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
-            <div className="h-3 w-28 animate-pulse rounded" style={{ backgroundColor: 'var(--skeleton-bg)' }} />
-          </div>
-        </div>
-      ) : weather ? (
-        <div className="mt-3 flex items-center gap-3">
-          <Image
-            src={`https://openweathermap.org/img/wn/${weather.iconCode}@2x.png`}
-            alt={weatherCondition}
-            width={44}
-            height={44}
-            className="h-11 w-11 shrink-0"
-            unoptimized
-          />
-          <div className="min-w-0">
-            <p className="text-2xl font-bold leading-none text-[var(--accent-color)]">
-              {weatherTemperatureLabel}
-            </p>
-            <p className="mt-1 truncate text-sm capitalize text-[var(--text-muted)]">
-              {weatherCondition}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 flex items-center gap-3 text-[var(--text-color)]">
-          <CloudSun className="h-8 w-8 shrink-0 text-[var(--accent-color)]" />
-          <span className="text-sm font-medium">Weather unavailable</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-export default function NavBar({ activeSection, onSectionChange }: NavBarProps) {
-  const { theme, systemTheme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const { weather, loading: isLoadingWeather } = useWeather()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const menuButtonRef = useRef<HTMLButtonElement>(null)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const drawerRef = useRef<HTMLDivElement>(null)
-
-  const closeMenu = useCallback((restoreFocus = true) => {
-    setIsMenuOpen(false)
-
-    if (restoreFocus && typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => menuButtonRef.current?.focus())
-    }
-  }, [])
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isMenuOpen) return
-
-    const previousOverflow = document.body.style.overflow
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        closeMenu()
-        return
-      }
-
-      if (event.key !== 'Tab') return
-
-      const focusableElements = Array.from(
-        drawerRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        ) ?? []
-      ).filter(element => !element.hasAttribute('disabled'))
-
-      if (focusableElements.length === 0) {
-        event.preventDefault()
-        return
-      }
-
-      const firstElement = focusableElements[0]
-      const lastElement = focusableElements[focusableElements.length - 1]
-
-      if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault()
-        lastElement.focus()
-      } else if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault()
-        firstElement.focus()
-      }
-    }
-
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', handleKeyDown)
-    const focusFrame = window.requestAnimationFrame(() => {
-      closeButtonRef.current?.focus()
-    })
-
-    return () => {
-      window.cancelAnimationFrame(focusFrame)
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [closeMenu, isMenuOpen])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const mediaQuery = window.matchMedia('(min-width: 1024px)')
-    const handleChange = () => {
-      if (mediaQuery.matches) {
-        setIsMenuOpen(false)
-      }
-    }
-
-    handleChange()
-    mediaQuery.addEventListener('change', handleChange)
-
-    return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [])
-
-  const currentTheme = mounted
-    ? theme === 'system'
-      ? systemTheme
-      : theme
-    : undefined
-  const displayTheme = currentTheme ?? 'light'
-  const toggleTheme = () => setTheme(displayTheme === 'dark' ? 'light' : 'dark')
-  const selectSection = (section: SiteSectionId, restoreFocus = true) => {
-    onSectionChange(section)
-    closeMenu(restoreFocus)
-  }
-  const weatherTemp = weather
-    ? Math.round(Number.isFinite(weather.temp) ? weather.temp : weather.forecastTemp)
-    : null
-  const weatherCondition = weather
-    ? weather.condition || weather.forecastCondition || 'Unknown'
-    : ''
-  const weatherTemperatureLabel = weatherTemp === null ? '' : `${weatherTemp}\u00B0C`
-  const weatherSummary = weather
-    ? `${weatherTemperatureLabel}, ${weatherCondition}`
-    : isLoadingWeather
-      ? 'Loading weather'
-      : 'Weather unavailable'
-
-  const menuOverlay = mounted && isMenuOpen ? createPortal(
-    <div className="fixed inset-0 z-[100] text-[var(--text-color)] lg:hidden">
-      <div
-        aria-hidden="true"
-        onClick={() => closeMenu()}
-        className="mobile-nav-backdrop absolute inset-0 cursor-default bg-[linear-gradient(90deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.2)_34%,rgba(0,0,0,0.07)_68%,rgba(0,0,0,0)_100%)] backdrop-blur-[2px]"
-      />
-
-      <div
-        id="site-section-menu"
-        ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Site navigation"
-        className="mobile-drawer-panel relative z-10 flex h-dvh w-[min(86vw,26rem)] flex-col overflow-hidden border-r border-[var(--secondary-color)] bg-[var(--background-end)] shadow-[18px_0_45px_rgba(0,0,0,0.22)]"
-      >
-        <div className="mobile-drawer-header flex items-center justify-between gap-4 border-b border-[var(--secondary-color)] px-5 py-4">
-          <button
-            type="button"
-            onClick={() => selectSection('home')}
-            className="flex min-w-0 items-center gap-3 text-left"
-          >
-            <span className="block truncate text-2xl font-bold text-[var(--accent-color)]">
-              Al Judi Masjid
-            </span>
-          </button>
-
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={() => closeMenu()}
-            aria-label="Close menu"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:bg-[var(--background-start)]"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <nav className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-5">
-          {menuItems.map(({ id, label, Icon }, index) => {
-            const isActive = id === activeSection
-
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => selectSection(id)}
-                aria-current={isActive ? 'true' : undefined}
-                style={{ animationDelay: `${130 + index * 48}ms` }}
-                className={`mobile-nav-item group relative flex min-h-14 items-center gap-3 overflow-hidden rounded-lg px-3 py-3 text-left transition ${
-                  isActive
-                    ? 'bg-[var(--accent-color)] text-[var(--background-end)] shadow-lg'
-                    : 'text-[var(--text-color)] hover:bg-[var(--background-start)] hover:shadow-sm'
-                }`}
-              >
-                {isActive && (
-                  <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[var(--yellow)]" />
-                )}
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${
-                    isActive
-                      ? 'bg-[var(--background-end)] text-[var(--accent-color)]'
-                      : 'bg-[var(--background-start)] text-[var(--accent-color)]'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-lg font-semibold">
-                  {label}
-                </span>
-                <ArrowRight
-                  className={`h-4 w-4 shrink-0 transition ${
-                    isActive
-                      ? 'opacity-100'
-                      : 'opacity-40 group-hover:translate-x-1 group-hover:opacity-100'
-                  }`}
-                />
-              </button>
-            )
-          })}
-        </nav>
-
-        <div className="mobile-drawer-footer mt-auto border-t border-[var(--secondary-color)] bg-[var(--background-start)] p-4">
-          <div className="grid grid-cols-2 gap-2">
-            {accessLinks.map(({ href, label, Icon }, index) => (
-              <Link
-                key={href}
-                href={href}
-                style={{ animationDelay: `${410 + index * 48}ms` }}
-                className="mobile-nav-item flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 font-semibold text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md"
-                onClick={() => closeMenu()}
-              >
-                <Icon className="h-5 w-5" />
-                {label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body
-  ) : null
+  const { weather } = useWeather()
+  useEffect(() => setMounted(true), [])
+  const isDark = mounted && resolvedTheme === 'dark'
 
   return (
-    <>
-      <header className="sticky top-0 z-40 border-b border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6 lg:hidden">
-        <nav className="relative mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-4">
-          <div className="flex min-w-0 items-center gap-3 justify-self-start">
-            <button
-              ref={menuButtonRef}
-              type="button"
-              onClick={() => setIsMenuOpen(open => !open)}
-              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={isMenuOpen}
-              aria-controls="site-section-menu"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:bg-[var(--background-end)]"
-            >
-              {isMenuOpen ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => selectSection('home')}
-              className="hidden min-w-0 text-left min-[360px]:block"
-            >
-              <span className="block truncate text-lg font-bold leading-tight text-[var(--accent-color)] md:text-xl">
-                Al Judi Masjid
-              </span>
-            </button>
-          </div>
-
-          <div
-            className="contents"
-          >
-            <WeatherStatus
-              weather={weather}
-              isLoadingWeather={isLoadingWeather}
-              weatherCondition={weatherCondition}
-              weatherSummary={weatherSummary}
-              weatherTemperatureLabel={weatherTemperatureLabel}
-              variant="header"
-            />
-          </div>
-
-          <div className="justify-self-end">
-            <ThemeToggle displayTheme={displayTheme} onToggle={toggleTheme} />
-          </div>
-        </nav>
-      </header>
-
-      <aside
-        className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-[var(--secondary-color)] bg-[var(--background-start)]/95 px-4 py-5 shadow-xl backdrop-blur-md lg:flex"
-        aria-label="Primary navigation"
-      >
-        <button
-          type="button"
-          onClick={() => selectSection('home', false)}
-          className="rounded-lg p-2 text-left transition hover:bg-[var(--background-end)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-        >
-          <span className="block text-2xl font-bold leading-tight text-[var(--accent-color)]">
-            Al Judi Masjid
+    <header className="site-header">
+      <div className="site-header-inner">
+        <a href="#home" className="site-brand" onClick={event => { event.preventDefault(); onSectionChange('home') }}>
+          <span className="site-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7 26V16h20v10M9 16c0-5 5-6 8-11 3 5 8 6 8 11M17 5V2M14 26v-6q3-5 6 0v6M3 26V9M1 10h4M3 9V5M1 26h28" /></svg>
           </span>
-          <span className="mt-1 block text-sm text-[var(--text-muted)]">
-            Prayer times and community access
-          </span>
-        </button>
-
-        <div className="mt-5">
-          <WeatherStatus
-            weather={weather}
-            isLoadingWeather={isLoadingWeather}
-            weatherCondition={weatherCondition}
-            weatherSummary={weatherSummary}
-            weatherTemperatureLabel={weatherTemperatureLabel}
-            variant="sidebar"
-          />
-        </div>
-
-        <nav className="mt-5 flex min-h-0 flex-1 flex-col gap-2" aria-label="Site sections">
-          {menuItems.map(({ id, label, Icon }) => {
-            const isActive = id === activeSection
-
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => selectSection(id, false)}
-                aria-current={isActive ? 'page' : undefined}
-                className={`group relative flex min-h-12 items-center gap-3 rounded-lg px-3 py-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] ${
-                  isActive
-                    ? 'bg-[var(--accent-color)] text-[var(--background-end)] shadow-lg'
-                    : 'text-[var(--text-color)] hover:bg-[var(--background-end)] hover:shadow-sm'
-                }`}
-              >
-                {isActive && (
-                  <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[var(--yellow)]" />
-                )}
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${
-                    isActive
-                      ? 'bg-[var(--background-end)] text-[var(--accent-color)]'
-                      : 'bg-[var(--background-end)] text-[var(--accent-color)]'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1 truncate font-semibold">
-                  {label}
-                </span>
-                <ArrowRight
-                  className={`h-4 w-4 shrink-0 transition ${
-                    isActive
-                      ? 'opacity-100'
-                      : 'opacity-30 group-hover:translate-x-1 group-hover:opacity-100'
-                  }`}
-                />
-              </button>
-            )
-          })}
+          <span>Al-Judi Masjid</span>
+        </a>
+        <nav className="site-nav" aria-label="Main navigation">
+          {sections.map(({ id, label, Icon }) => (
+            <a key={id} href={`#${id}`} aria-current={activeSection === id ? 'page' : undefined}
+              onClick={event => { event.preventDefault(); onSectionChange(id) }}>
+              <Icon size={19} aria-hidden="true" /><span>{label}</span>
+            </a>
+          ))}
         </nav>
-
-        <div className="mt-4 border-t border-[var(--secondary-color)] pt-4">
-          <div className="grid grid-cols-2 gap-2">
-            {accessLinks.map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2 text-sm font-semibold text-[var(--accent-color)] transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-              >
-                <Icon className="h-5 w-5" />
-                {label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-3 flex items-center justify-between rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] px-3 py-2">
-            <span className="text-sm font-semibold text-[var(--text-color)]">
-              Theme
-            </span>
-            <ThemeToggle displayTheme={displayTheme} onToggle={toggleTheme} />
-          </div>
+        <div className="site-header-tools">
+          {weather && <span className="site-weather" title={weather.condition}><CloudSun size={19} aria-hidden="true" />{Math.round(weather.temp)}°C</span>}
+          <Link className="site-display-link" href="/display/">Display <span aria-hidden="true">↗</span></Link>
+          <button type="button" className="site-theme-toggle" onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            aria-label={isDark ? 'Switch to day theme' : 'Switch to night theme'} title={isDark ? 'Day theme' : 'Night theme'}>
+            {isDark ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
+          </button>
         </div>
-      </aside>
-      {menuOverlay}
-    </>
+      </div>
+    </header>
   )
 }

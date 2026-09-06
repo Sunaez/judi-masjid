@@ -4,9 +4,9 @@
 import {
   AnimatePresence,
   motion,
-  usePresence,
+  useReducedMotion,
 } from 'motion/react'
-import { useEffect, useState, ReactNode, useMemo, memo } from 'react'
+import { useEffect, useState, useMemo, memo } from 'react'
 import { usePrayerTimesContext } from '../context/PrayerTimesContext'
 import { useDebugContext } from '../context/DebugContext'
 
@@ -25,16 +25,8 @@ const toDate = (ts: string): Date => {
 
 const WINDOW_MS = 180 * 1000 // 3 minutes active window
 
-// Phone icons as SVG components
-const PhoneOffIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="phone-icon">
-    <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
-    <line x1="22" y1="2" x2="2" y2="22" />
-  </svg>
-)
-
 const PhoneSilentIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="phone-icon">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="prayer-overlay-phone-icon" aria-hidden="true" focusable="false">
     <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
     <line x1="12" y1="18" x2="12.01" y2="18" />
     <path d="M8 6h8" />
@@ -45,6 +37,7 @@ const PhoneSilentIcon = () => (
 const PrayerOverlay = memo(function PrayerOverlay() {
   const { prayerTimes: rawTimes, isLoading } = usePrayerTimesContext()
   const { prayerOverlayTestSignal } = useDebugContext()
+  const reducedMotion = useReducedMotion()
 
   // ─── State: "now" ───────────────────────────────────────────
   const [now, setNow] = useState(() => new Date())
@@ -141,191 +134,82 @@ const PrayerOverlay = memo(function PrayerOverlay() {
     return null
   }
 
-  // AnimatePresence wraps the conditional to enable exit animations
+  const countdownProgress = Math.max(0, Math.min(1, effectiveSecsUntil / (testMode === 'countdown' ? 10 : 60)))
+
   return (
     <AnimatePresence>
       {shouldShow && (
-        <BlurOverlay key={testMode !== 'off' ? 'test' : 'real'}>
-          <div className="overlay-content">
-            <AnimatePresence initial={false} mode="wait">
-              {effectivePhase === 'countdown' ? (
-                <motion.div
-                  key="countdown"
-                  className="countdown-container"
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1, transition: { duration: 0.3 } }}
-                  exit={{ scale: 0.8, opacity: 0, transition: { duration: 0.3 } }}
-                >
-                  <div className="countdown-number">{effectiveSecsUntil}</div>
-                  <div className="countdown-label">{effectivePrayerName} starting soon</div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="prayer"
-                  className="prayer-container"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1, transition: { duration: 0.4 } }}
-                  exit={{ y: -20, opacity: 0, transition: { duration: 0.4 } }}
-                >
-                  <div className="prayer-name">{effectivePrayerName}</div>
-                  <div className="prayer-status">In Progress</div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        <motion.div
+          key={testMode !== 'off' ? 'test' : 'real'}
+          className="prayer-overlay-root"
+          data-phase={effectivePhase}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reducedMotion ? 0 : 0.5 }}
+          aria-label={effectivePrayerName + ' prayer'}
+        >
+          <svg className="prayer-overlay-arch" viewBox="0 0 1000 900" fill="none" aria-hidden="true" focusable="false">
+            <path className="prayer-overlay-arch-fill" d="M30 900V460C30 235 350 185 500 35C650 185 970 235 970 460V900Z" />
+            <path d="M30 900V460C30 235 350 185 500 35C650 185 970 235 970 460V900M65 900V470C65 258 359 213 500 76C641 213 935 258 935 470V900" />
+          </svg>
 
-            {/* Phone reminders */}
-            <motion.div
-              className="phone-reminders"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0, transition: { delay: 0.5, duration: 0.4 } }}
-            >
-              <div className="phone-reminder">
-                <PhoneOffIcon />
-                <span>Turn off your phone</span>
-              </div>
-              <div className="phone-reminder">
-                <PhoneSilentIcon />
-                <span>Or put it on silent</span>
-              </div>
-            </motion.div>
+          <div className="prayer-overlay-brand"><span>Al-Judi Masjid</span></div>
+
+          <div className="prayer-overlay-content">
+            <p className="prayer-overlay-eyebrow">Congregational prayer</p>
+            <h2 className="prayer-overlay-name">{effectivePrayerName}</h2>
+            <div className="prayer-overlay-phase">
+              <AnimatePresence initial={false} mode="wait">
+                {effectivePhase === 'countdown' ? (
+                  <motion.div
+                    key="countdown"
+                    className="prayer-overlay-countdown"
+                    initial={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.25 }}
+                  >
+                    <svg className="prayer-overlay-ring" viewBox="0 0 340 340" fill="none" aria-hidden="true" focusable="false">
+                      <circle className="prayer-overlay-ring-track" cx="170" cy="170" r="159" />
+                      <circle
+                        className="prayer-overlay-ring-progress"
+                        cx="170" cy="170" r="159" pathLength="1"
+                        strokeDasharray="1" strokeDashoffset={1 - countdownProgress}
+                        transform="rotate(-90 170 170)"
+                      />
+                    </svg>
+                    <div className="prayer-overlay-timer" role="timer" aria-live="off" aria-label={effectivePrayerName + ' starts in ' + effectiveSecsUntil + ' seconds'}>
+                      <span className="prayer-overlay-number" aria-hidden="true">{effectiveSecsUntil}</span>
+                      <span className="prayer-overlay-seconds" aria-hidden="true">seconds to begin</span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="prayer"
+                    className="prayer-overlay-in-progress"
+                    initial={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.35 }}
+                    role="status"
+                  >
+                    <div className="prayer-overlay-status">Prayer in progress</div>
+                    <p>Please keep the prayer hall quiet.</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
-          <style>{`
-            .overlay-root {
-              position: fixed;
-              inset: 0;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              overflow: hidden;
-              z-index: 50;
-            }
-
-            /* Theme-aware blur overlay - uses CSS variables */
-            .overlay-root {
-              background: var(--prayer-overlay-bg);
-              backdrop-filter: blur(20px);
-            }
-
-            .overlay-content {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              gap: 4rem;
-              text-align: center;
-              z-index: 10;
-            }
-
-            .countdown-container {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 1rem;
-            }
-
-            .countdown-number {
-              font-size: 30vh;
-              font-weight: 800;
-              line-height: 1;
-              color: var(--text-color);
-              text-shadow: 0 4px 20px var(--shadow-color);
-            }
-
-            .countdown-label {
-              font-size: 6vh;
-              font-weight: 600;
-              color: var(--text-color);
-              opacity: 0.9;
-              text-transform: uppercase;
-              letter-spacing: 0.1em;
-            }
-
-            .prayer-container {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 1.5rem;
-            }
-
-            .prayer-name {
-              font-size: 20vh;
-              font-weight: 800;
-              line-height: 1;
-              color: var(--text-color);
-              text-shadow: 0 4px 20px var(--shadow-color);
-            }
-
-            .prayer-status {
-              font-size: 8vh;
-              font-weight: 600;
-              color: var(--accent-color);
-              text-transform: uppercase;
-              letter-spacing: 0.15em;
-            }
-
-            .phone-reminders {
-              display: flex;
-              gap: 4rem;
-              margin-top: 2rem;
-            }
-
-            .phone-reminder {
-              display: flex;
-              align-items: center;
-              gap: 1.5rem;
-              padding: 1.5rem 2.5rem;
-              background: var(--phone-reminder-bg);
-              border-radius: 1rem;
-              color: var(--text-color);
-              font-size: 2.5vh;
-              font-weight: 500;
-              opacity: 0.95;
-            }
-
-            .phone-icon {
-              width: 4vh;
-              height: 4vh;
-              flex-shrink: 0;
-            }
-          `}</style>
-        </BlurOverlay>
+          <div className="prayer-overlay-reminder">
+            <PhoneSilentIcon />
+            <span>Please silence or switch off your phone</span>
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
   )
 })
-
-function BlurOverlay({ children }: { children: ReactNode }) {
-  const [isPresent, safeToRemove] = usePresence()
-
-  const variants = useMemo(() => ({
-    open: {
-      clipPath: 'circle(150% at 50% 100%)',
-      opacity: 1,
-      transition: { duration: 0.6, ease: 'easeOut' },
-    },
-    closed: {
-      clipPath: 'circle(0% at 50% 100%)',
-      opacity: 0,
-      transition: { duration: 0.8, ease: 'easeInOut' },
-    },
-  }), [])
-
-  return (
-    <motion.div
-      className="overlay-root"
-      initial="closed"
-      animate="open"
-      exit="closed"
-      variants={variants}
-      style={{ transformOrigin: '50% 100%' }}
-      onAnimationComplete={() => {
-        if (!isPresent) safeToRemove()
-      }}
-    >
-      {children}
-    </motion.div>
-  )
-}
 
 export default PrayerOverlay

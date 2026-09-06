@@ -1,0 +1,115 @@
+/* Scoped to public pages; admin keeps its original palette. */
+.public-theme {
+  color-scheme: light;
+  --background-start: #cceefa;
+  --background-end: #f4faf7;
+  --text-color: #173c42;
+  --text-muted: #47656a;
+  --text-muted-light: #47656a;
+  --accent-color: #126650;
+  --secondary-color: #c6ded5;
+  --yellow: #b87b14;
+  --surface: #f9fcfa;
+  --surface-raised: #ffffff;
+  --surface-glass: rgba(249, 253, 251, .9);
+  --surface-soft: #e6f2eb;
+  --border-color: #bed8ce;
+  --highlight: rgba(255, 255, 255, .85);
+  --button-fill: linear-gradient(180deg, #358a6d 0%, #14694f 52%, #0d5944 100%);
+  --button-text: #ffffff;
+  --aero-sky: #b2e2f5;
+  --aero-hill: #80c89c;
+  --aero-hill-front: #3d9972;
+  --aero-glow: #fff5c5;
+  --aero-orb: rgba(255, 255, 255, .6);
+  --shadow-color: rgba(32, 88, 74, .12);
+  --surface-shadow: 0 12px 36px var(--shadow-color), inset 0 1px 0 var(--highlight);
+  --x-background-start: #145c49;
+  --x-background-end: #0e4d3c;
+  --x-text-color: #ffffff;
+  --x-accent-color: #d3eadb;
+  --x-secondary-color: #c6ded5;
+  --skeleton-bg: #d5e6de;
+  --skeleton-shine: #e6f2eb;
+  --overlay-dark: rgba(29, 54, 43, .12);
+  --overlay-darkest: rgba(17, 38, 31, .92);
+  --prayer-overlay-bg: rgba(244, 250, 247, .97);
+  --phone-reminder-bg: #d6e9df;
+  --timeline-active-icon-filter: brightness(0) invert(1);
+  --timeline-idle-icon-filter: brightness(0) opacity(.8);
+  --static-light-background-start: #cceefa;
+  --static-light-background-end: #f4faf7;
+  --static-light-text-color: #173c42;
+  --static-light-accent-color: #126650;
+  --static-light-secondary-color: #c6ded5;
+  --static-dark-background-start: #34261e;
+  --static-dark-background-end: #201a16;
+  --static-dark-text-color: #f7ead5;
+  --static-dark-accent-color: #efbd77;
+  --static-dark-secondary-color: #5a4635;
+  color: var(--text-color);
+  font-family: var(--font-poppins), sans-serif;
+}
+html.dark .public-theme {
+  color-scheme: dark;
+  --background-start: #34261e;
+  --background-end: #201a16;
+  --text-color: #f7ead5;
+  --text-muted: #c8b69f;
+  --text-muted-light: #c8b69f;
+  --accent-color: #efbd77;
+  --secondary-color: #5a4635;
+  --yellow: #efbd77;
+  --surface: #2d241e;
+  --surface-raised: #392c23;
+  --surface-glass: rgba(45, 36, 30, .95);
+  --surface-soft: #3e3025;
+  --border-color: #6b5340;
+  --highlight: rgba(255, 220, 171, .14);
+  --button-fill: linear-gradient(180deg, #f0ca94 0%, #dfac68 52%, #d29a55 100%);
+  --button-text: #302116;
+  --aero-sky: #4c3224;
+  --aero-hill: #66462c;
+  --aero-hill-front: #463325;
+  --aero-glow: #db9e52;
+  --aero-orb: rgba(235, 188, 118, .12);
+  --shadow-color: rgba(0, 0, 0, .2);
+  --x-background-start: #efbd77;
+  --x-background-end: #dfac68;
+  --x-text-color: #302116;
+  --x-accent-color: #392c23;
+  --x-secondary-color: #6b5340;
+  --skeleton-bg: #503e30;
+  --skeleton-shine: #614b38;
+  --overlay-dark: rgba(24, 17, 12, .16);
+  --overlay-darkest: rgba(24, 17, 12, .94);
+  --prayer-overlay-bg: rgba(32, 26, 22, .97);
+  --phone-reminder-bg: #4b3829;
+  --timeline-active-icon-filter: brightness(0);
+  --timeline-idle-icon-filter: brightness(0) invert(.9) sepia(.3);
+}
+.public-theme :where(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--accent-color); outline-offset: 4px; }
+.public-theme :where(button, a) { -webkit-tap-highlight-color: transparent; }
+.public-theme button { cursor: pointer; }
+.public-theme button:disabled { cursor: not-allowed; }
+.public-theme ::selection { background: var(--accent-color); color: var(--background-end); }
+.public-theme .arabic { font-family: var(--font-zain), serif; }
+.public-theme .aero-panel { background: var(--surface); border: 1px solid var(--border-color); border-radius: 24px; box-shadow: var(--surface-shadow); }
+.public-theme .aero-button {
+  display: inline-flex; min-height: 48px; align-items: center; justify-content: center; gap: 10px; padding: 12px 20px;
+  border: 1px solid color-mix(in srgb, var(--accent-color) 70%, transparent); border-radius: 14px;
+  background: var(--button-fill); color: var(--button-text);
+  box-shadow: inset 0 1px 0 var(--highlight), 0 4px 12px var(--shadow-color);
+  font-weight: 700; font-size: .875rem; transition: box-shadow 160ms, transform 160ms;
+}
+.public-theme .aero-button:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 var(--highlight), 0 6px 18px var(--shadow-color); }
+.public-theme .aero-button-secondary { background: var(--surface-glass); color: var(--accent-color); border-color: var(--border-color); }
+.public-theme .eyebrow { color: var(--text-muted); font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+@media (prefers-contrast: more) { .public-theme { --border-color: var(--text-muted); --surface-glass: var(--surface); } }
+@media (prefers-reduced-transparency: reduce) {
+  .public-theme { --surface-glass: var(--surface); }
+  .public-theme * { backdrop-filter: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-theme *, .public-theme *::before, .public-theme *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

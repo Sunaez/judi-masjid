@@ -24,7 +24,6 @@ const DISPLAY_BASE_WIDTH = 1920;
 const DISPLAY_BASE_HEIGHT = 1080;
 const ROTATOR_SECTION_HEIGHT_PERCENT = 65;
 const TIMELINE_SECTION_HEIGHT_PERCENT = 35;
-const ROTATOR_BOUNDARY_FADE_HEIGHT_PX = 160;
 
 function DisplayContent() {
   const { isLoading, isDowntime: contextDowntime } = usePrayerTimesContext();
@@ -247,13 +246,6 @@ function DisplayContent() {
                 }}
               >
                 <Rotator />
-                <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0"
-                  style={{
-                    height: `${ROTATOR_BOUNDARY_FADE_HEIGHT_PX}px`,
-                    background: 'linear-gradient(180deg, transparent 0%, var(--display-timeline-surface) 100%)',
-                  }}
-                />
               </div>
 
               <div

@@ -31,14 +31,12 @@ export default function DisplayLayout({
   return (
     <PrayerTimesProvider>
       <DebugProvider>
-        <ThemeProvider>
-          <AutoReloadOnNewVersion currentVersion={deploymentVersion} />
-          <main
-            className={`display-root ${poppins.variable}`}
-          >
+        <main className={`public-theme display-root ${poppins.variable}`}>
+          <ThemeProvider>
+            <AutoReloadOnNewVersion currentVersion={deploymentVersion} />
             {children}
-          </main>
-        </ThemeProvider>
+          </ThemeProvider>
+        </main>
       </DebugProvider>
     </PrayerTimesProvider>
   );

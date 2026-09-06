@@ -1,4 +1,3 @@
-/* 1) Declare the Quranic font-face */
 @font-face {
   font-family: 'Quranic';
   src: url('/fonts/Quranic.ttf') format('truetype');
@@ -6,241 +5,97 @@
   font-style: normal;
   font-display: swap;
 }
-
-/* 2) Define your CSS variable for Arabic text */
-:root {
-  --arabic-font: 'Quranic', sans-serif;
-}
-
-html,
-body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-body {
-  margin: 0;
-}
-
+/* Limit kiosk sizing to its route, including after client-side navigation. */
+html:has(.display-root), body:has(.display-root) { width: 100%; height: 100%; overflow: hidden; }
 .display-root {
+  --arabic-font: 'Quranic', sans-serif;
+  --display-rotator-surface: transparent;
+  --display-timeline-surface: var(--surface);
+  --display-timeline-panel: transparent;
   position: relative;
   width: 100vw;
   height: 100dvh;
   overflow: hidden;
-  font-family: var(--font-poppins), sans-serif;
-  --background-start: #4e4837;
-  --background-end: #f7ede0;
-  --text-color: #2d1d17;
-  --accent-color: #9f1f26;
-  --secondary-color: #d7bea1;
-  --yellow: #c79d55;
-  --static-light-background-start: #ead8c1;
-  --static-light-background-end: #fbf3e8;
-  --static-light-text-color: #2d1d17;
-  --static-light-accent-color: #9f1f26;
-  --static-light-secondary-color: #d7bea1;
-  --static-dark-background-start: #12324a;
-  --static-dark-background-end: #071b2b;
-  --static-dark-text-color: #eaf6ff;
-  --static-dark-accent-color: #8fc7ee;
-  --static-dark-secondary-color: #355f78;
-  --overlay-dark: rgba(45, 29, 23, 0.08);
-  --overlay-darkest: rgba(24, 12, 10, 0.88);
-  --shadow-color: rgba(66, 34, 24, 0.2);
-  --prayer-overlay-bg: rgba(251, 243, 232, 0.9);
-  --phone-reminder-bg: rgba(215, 190, 161, 0.78);
-  --display-ornament-color: #9f1f26;
-  --display-pattern-color: rgba(159, 31, 38, 0.26);
-  --display-star-opacity: 0.17;
-  --display-arch-fill-opacity: 0.06;
-  --display-arch-line-opacity: 0.38;
-  --display-small-arch-opacity: 0.31;
-  --display-rotator-surface: linear-gradient(
-    180deg,
-    rgba(251, 243, 232, 0.9) 0%,
-    rgba(250, 238, 222, 0.82) 46%,
-    rgba(238, 218, 195, 0.88) 100%
-  );
-  --display-timeline-surface: linear-gradient(
-    180deg,
-    rgba(246, 231, 213, 0.92) 0%,
-    rgba(251, 243, 232, 0.96) 100%
-  );
-  --display-timeline-panel: transparent;
-  --display-timeuntil-surface: rgba(251, 243, 232, 0.86);
-  background:
-    radial-gradient(circle at 18% 12%, rgba(159, 31, 37, 0.74) 0, transparent 24%),
-    radial-gradient(circle at 86% 18%, rgba(199, 157, 85, 0.19) 0, transparent 24%),
-    linear-gradient(180deg, var(--background-start) 0%, var(--background-end) 100%);
+  background: linear-gradient(180deg, var(--background-start), var(--background-end));
+  font-variant-numeric: tabular-nums;
 }
+.display-screen-normal, .display-downtime-screen { isolation: isolate; }
+.display-screen-normal { background: radial-gradient(ellipse at 70% 0%, var(--aero-orb), transparent 55%), linear-gradient(155deg, var(--background-start), var(--background-end) 80%); }
+.display-rotator-section, .display-timeline-section { border-top: 1px solid var(--border-color); box-shadow: 0 -8px 32px var(--shadow-color); }
+.display-timeline-panel { padding-inline: 40px; }
+.display-time-until { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.display-root .display-timeline-track { background: var(--surface-soft); box-shadow: inset 0 2px 7px var(--shadow-color); border: 1px solid var(--border-color); }
+.display-root .display-timeline-fill { background: var(--button-fill); box-shadow: inset 0 2px 0 var(--highlight); }
+.display-root .display-prayer-icon { background: transparent; border: 0; box-shadow: none; }
+.display-root .bg-accent { background-color: var(--accent-color); }
+.display-root .rtl { font-family: var(--arabic-font); }
+.islamic-backdrop { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.display-screen-normal > .islamic-backdrop { height: 65%; }
+.display-sky-day, .display-sky-night { position: absolute; inset: 0; transition: opacity 900ms ease; }
+.display-sky-night { opacity: 0; }
+html.dark .display-sky-day { opacity: 0; }
+html.dark .display-sky-night { opacity: 1; }
+.display-sky-sun, .display-sky-moon { position: absolute; right: 125px; top: 56px; width: 125px; height: 125px; }
+.display-sky-sun { border-radius: 50%; background: #fff5c5; opacity: .7; box-shadow: 0 0 70px 35px rgba(255,245,197,.25); }
+.display-sky-moon { fill: #f6dfb3; color: #ffedca; opacity: .55; filter: drop-shadow(0 0 24px rgba(246,223,179,.18)); }
+.display-sky-bubble { position: absolute; border-radius: 50%; border: 1px solid rgba(255,255,255,.7); background: radial-gradient(circle at 30% 22%, rgba(255,255,255,.45), transparent 65%); box-shadow: inset 0 -5px 12px rgba(255,255,255,.3); }
+.display-sky-bubble-large { width: 58px; height: 58px; left: 48px; top: 80px; }
+.display-sky-bubble-small { width: 26px; height: 26px; left: 125px; top: 42px; }
+.display-sky-stars { width: 100%; height: 100%; }
+.display-mosque-landscape { position: absolute; bottom: 0; left: 0; width: 100%; height: 320px; }
+.display-mosque-near { opacity: .5; }
+.display-mosque-far { opacity: .24; }
+.display-scenery-veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--background-end) 82%, transparent), transparent 72%); }
+.display-downtime-screen { background: radial-gradient(ellipse at 15% 15%, color-mix(in srgb, var(--aero-glow) 9%, transparent), transparent 60%), var(--background-end); }
+.display-downtime-screen .downtime-prayer-row { background: var(--surface-raised); border: 1px solid var(--border-color); box-shadow: var(--surface-shadow); }
+.islamic-backdrop-downtime { opacity: .7; }
 
-html.dark .display-root {
-  --background-start: #12324a;
-  --background-end: #071b2b;
-  --text-color: #eaf6ff;
-  --accent-color: #67b4e6;
-  --secondary-color: #355f78;
-  --yellow: #d6ad67;
-  --static-light-background-start: #ead8c1;
-  --static-light-background-end: #fbf3e8;
-  --static-light-text-color: #2d1d17;
-  --static-light-accent-color: #9f1f26;
-  --static-light-secondary-color: #d7bea1;
-  --static-dark-background-start: #12324a;
-  --static-dark-background-end: #071b2b;
-  --static-dark-text-color: #eaf6ff;
-  --static-dark-accent-color: #8fc7ee;
-  --static-dark-secondary-color: #355f78;
-  --overlay-dark: rgba(5, 18, 31, 0.3);
-  --overlay-darkest: rgba(5, 18, 31, 0.9);
-  --shadow-color: rgba(0, 0, 0, 0.35);
-  --prayer-overlay-bg: rgba(7, 27, 43, 0.9);
-  --phone-reminder-bg: rgba(53, 95, 120, 0.58);
-  --display-ornament-color: #a7d8f3;
-  --display-pattern-color: rgba(167, 216, 243, 0.24);
-  --display-star-opacity: 0.2;
-  --display-arch-fill-opacity: 0.055;
-  --display-arch-line-opacity: 0.34;
-  --display-small-arch-opacity: 0.28;
-  --display-rotator-surface: linear-gradient(
-    180deg,
-    rgba(18, 50, 74, 0.88) 0%,
-    rgba(11, 37, 59, 0.86) 48%,
-    rgba(7, 27, 43, 0.9) 100%
-  );
-  --display-timeline-surface: linear-gradient(
-    180deg,
-    rgba(11, 37, 59, 0.92) 0%,
-    rgba(7, 27, 43, 0.96) 100%
-  );
-  --display-timeuntil-surface: rgba(7, 27, 43, 0.86);
-}
-
-.display-screen-normal,
-.display-downtime-screen {
+/* Prayer overlay uses the same fixed stage as the rest of the kiosk. */
+.prayer-overlay-root {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
   isolation: isolate;
-}
-
-.display-screen-normal {
-  background:
-    radial-gradient(ellipse at 50% -16%, rgba(255, 248, 239, 0.5) 0, transparent 42%),
-    linear-gradient(180deg, var(--background-start), var(--background-end));
-}
-
-html.dark .display-screen-normal {
-  background:
-    radial-gradient(ellipse at 50% -14%, rgba(103, 180, 230, 0.16) 0, transparent 42%),
-    linear-gradient(180deg, var(--background-start), var(--background-end));
-}
-
-.display-rotator-section,
-.display-timeline-section {
-  z-index: 1;
-}
-
-.display-timeline-section {
-  box-shadow: inset 0 1px 0 rgba(159, 31, 38, 0.18);
-}
-
-html.dark .display-timeline-section {
-  box-shadow: inset 0 1px 0 rgba(37, 109, 154, 0.18);
-}
-
-.display-timeline-panel {
-  backdrop-filter: blur(1px);
-}
-
-.display-time-until {
-  box-shadow: inset 0 1px 0 rgba(159, 31, 38, 0.12);
-}
-
-html.dark .display-time-until {
-  box-shadow: inset 0 1px 0 rgba(37, 109, 154, 0.12);
-}
-
-.display-root .bg-accent {
-  background-color: var(--accent-color);
-}
-
-.islamic-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: 28px;
+  padding: 64px 96px 56px;
   overflow: hidden;
-  pointer-events: none;
-  color: var(--display-ornament-color);
+  color: var(--text-color);
+  background: radial-gradient(ellipse at 50% 0%, var(--background-start), transparent 72%), var(--background-end);
+  text-align: center;
 }
-
-.islamic-backdrop::before,
-.islamic-backdrop::after {
-  content: '';
+.prayer-overlay-arch {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
+  z-index: -1;
+  bottom: 0;
+  width: 1040px;
+  height: 936px;
+  stroke: var(--border-color);
+  stroke-width: 1.5;
+  opacity: .65;
 }
-
-.islamic-backdrop::before {
-  background-image:
-    linear-gradient(30deg, transparent calc(50% - 1.5px), var(--display-pattern-color) 50%, transparent calc(50% + 1.5px)),
-    linear-gradient(150deg, transparent calc(50% - 1.5px), var(--display-pattern-color) 50%, transparent calc(50% + 1.5px)),
-    radial-gradient(circle, var(--display-pattern-color) 1.8px, transparent 2px);
-  background-position: center;
-  background-size: 128px 128px, 128px 128px, 64px 64px;
-  opacity: 0.68;
-}
-
-.islamic-backdrop::after {
-  background:
-    radial-gradient(ellipse at 50% 10%, transparent 0, rgba(251, 243, 232, 0.2) 42%, rgba(251, 243, 232, 0.72) 100%),
-    linear-gradient(90deg, rgba(251, 243, 232, 0.78) 0%, transparent 20%, transparent 80%, rgba(251, 243, 232, 0.78) 100%);
-}
-
-html.dark .islamic-backdrop::after {
-  background:
-    radial-gradient(ellipse at 50% 10%, transparent 0, rgba(7, 27, 43, 0.18) 42%, rgba(7, 27, 43, 0.78) 100%),
-    linear-gradient(90deg, rgba(7, 27, 43, 0.76) 0%, transparent 20%, transparent 80%, rgba(7, 27, 43, 0.76) 100%);
-}
-
-.islamic-backdrop-svg {
-  position: absolute;
-  inset: -1% 0 0;
-  width: 100%;
-  height: 102%;
-}
-
-.islamic-star-field polygon {
-  fill: currentColor;
-  opacity: var(--display-star-opacity);
-}
-
-.islamic-arch-fill path {
-  fill: currentColor;
-  opacity: var(--display-arch-fill-opacity);
-}
-
-.islamic-arch-lines path,
-.islamic-small-arches path {
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.islamic-arch-lines path {
-  opacity: var(--display-arch-line-opacity);
-  stroke-width: 5;
-}
-
-.islamic-small-arches path {
-  opacity: var(--display-small-arch-opacity);
-  stroke-width: 4;
-}
-
-.islamic-backdrop-downtime {
-  opacity: 0.8;
-}
+.prayer-overlay-arch-fill { fill: var(--surface-glass); stroke: none; opacity: .55; }
+.prayer-overlay-brand { display: flex; align-items: center; gap: 24px; color: var(--text-muted); font-size: 26px; font-weight: 500; letter-spacing: .06em; }
+.prayer-overlay-brand::before, .prayer-overlay-brand::after { content: ''; width: 64px; height: 1px; background: var(--border-color); }
+.prayer-overlay-content { align-self: center; width: 100%; max-width: 1400px; }
+.prayer-overlay-eyebrow { margin: 0 0 12px; color: var(--text-muted); font-size: 30px; line-height: 1.4; }
+.prayer-overlay-name { margin: 0; font-size: 112px; line-height: 1.2; font-weight: 600; letter-spacing: -.035em; }
+.prayer-overlay-phase { display: grid; place-items: center; height: 376px; margin-top: 24px; }
+.prayer-overlay-countdown { position: relative; display: grid; place-items: center; width: 340px; height: 340px; }
+.prayer-overlay-ring { position: absolute; inset: 0; width: 100%; height: 100%; stroke-width: 4; }
+.prayer-overlay-ring-track { stroke: var(--border-color); opacity: .65; }
+.prayer-overlay-ring-progress { stroke: var(--accent-color); stroke-linecap: round; transition: stroke-dashoffset 900ms linear; }
+.prayer-overlay-timer { display: flex; flex-direction: column; align-items: center; padding-bottom: 12px; }
+.prayer-overlay-number { color: var(--accent-color); font-size: 176px; line-height: 1.1; font-weight: 500; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+.prayer-overlay-seconds { font-size: 25px; color: var(--text-muted); line-height: 1.5; }
+.prayer-overlay-in-progress { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+.prayer-overlay-in-progress::before { content: ''; width: 80px; height: 3px; border-radius: 2px; background: var(--accent-color); margin-bottom: 16px; }
+.prayer-overlay-status { color: var(--accent-color); font-size: 64px; line-height: 1.25; font-weight: 500; letter-spacing: -.02em; }
+.prayer-overlay-in-progress p { margin: 0; font-size: 30px; line-height: 1.5; color: var(--text-muted); }
+.prayer-overlay-reminder { position: relative; display: flex; align-items: center; justify-content: center; gap: 22px; padding: 22px 36px; border: 1px solid var(--border-color); border-radius: 24px; background: var(--surface); box-shadow: inset 0 1px 0 var(--highlight); font-size: 30px; line-height: 1.4; }
+.prayer-overlay-phone-icon { width: 42px; height: 42px; flex-shrink: 0; color: var(--accent-color); }
 
 /* (1) Centered container for the GSAP loader */
 .loader-container {

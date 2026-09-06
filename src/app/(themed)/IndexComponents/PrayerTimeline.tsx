@@ -63,7 +63,7 @@ export default function PrayerTimeline() {
       { name: 'Dhuhr', type: 'prayer', timeString: times.dhuhrJamaat, time: toDate(times.dhuhrJamaat) },
       { name: 'Asr', type: 'prayer', timeString: times.asrJamaat, time: toDate(times.asrJamaat) },
       { name: 'Maghrib', type: 'prayer', timeString: times.maghrib, time: toDate(times.maghrib) },
-      { name: 'Isha', type: 'prayer', timeString: times.ishaStart, time: toDate(times.ishaStart) },
+      { name: 'Isha', type: 'prayer', timeString: times.ishaJamaat, time: toDate(times.ishaJamaat) },
     ]
 
     const start = new Date(nextEvents[0].time.getTime() - PRE_EVENT_HOURS * 3_600_000)
@@ -126,7 +126,7 @@ export default function PrayerTimeline() {
 
   return (
     <>
-      <div ref={scrollRef} className="overflow-x-auto touch-pan-x overflow-y-hidden py-12">
+      <div ref={scrollRef} tabIndex={0} role="region" aria-label="Prayer timeline; scroll horizontally to see all prayers" className="overflow-x-auto touch-pan-x overflow-y-hidden py-12">
         <div ref={innerRef} className="relative w-full min-w-[600px] py-6">
           <div
             style={{
@@ -165,7 +165,7 @@ export default function PrayerTimeline() {
                 : passed
                 ? 'var(--accent-color)'
                 : 'var(--secondary-color)'
-            const filter = passed ? 'brightness(0) invert(1)' : 'brightness(0) invert(0.2)'
+            const filter = passed ? 'var(--timeline-active-icon-filter)' : 'var(--timeline-idle-icon-filter)'
 
             return (
               <div
@@ -178,7 +178,7 @@ export default function PrayerTimeline() {
               >
                 {isAbove && (
                   <div style={{ marginBottom: LABEL_ABOVE_GAP, textAlign: 'center' }}>
-                    <div className="text-[10px] font-bold sm:text-xs">{event.timeString}</div>
+                    <div className="text-xs font-bold">{event.timeString}</div>
                     <div className="text-xs">{event.name}</div>
                   </div>
                 )}
@@ -206,7 +206,7 @@ export default function PrayerTimeline() {
                 {!isAbove && (
                   <div style={{ marginTop: LABEL_BELOW_GAP, textAlign: 'center' }}>
                     <div className="text-xs font-semibold">{event.name}</div>
-                    <div className="text-[10px] font-bold sm:text-xs">{event.timeString}</div>
+                    <div className="text-xs font-bold">{event.timeString}</div>
                   </div>
                 )}
               </div>
@@ -216,7 +216,7 @@ export default function PrayerTimeline() {
       </div>
 
       <p className="mt-4 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-        <span aria-hidden="true">&bull;</span> Maghrib and Isha are prayed at the Athaan
+        Maghrib is prayed at the Athaan. Use the Jama&apos;at column for congregational times.
       </p>
 
       <div className="mt-6 flex flex-col items-center space-y-2">
