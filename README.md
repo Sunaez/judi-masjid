@@ -16,6 +16,21 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Public appearance
+
+The home page and desktop display share the scoped palette in
+`src/app/public-theme.css`: sky blue and meadow green during the day, and
+espresso, amber and cream at night. The `.public-theme` scope keeps the admin
+palette unchanged. Home layout styles are in `src/app/(themed)/home.css`;
+kiosk styles are in `src/app/display/display.css`.
+
+The home page follows the device appearance by default and remembers the theme
+chosen with its sun/moon button. The display changes automatically at sunrise
+and Maghrib, and scales a 1920 × 1080 layout to the desktop screen. Its existing
+`4` shortcut previews the other palette, `1` previews off-peak mode, and `H`
+shows the display shortcuts. The home page supports mobile bottom navigation,
+keyboard navigation, reduced motion and reduced transparency.
+
 ## Admin Access
 
 Admin access is controlled by Firebase Authentication. Any user account you

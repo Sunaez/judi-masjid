@@ -1,5 +1,6 @@
 // src/app/layout.tsx
 import './globals.css'
+import './public-theme.css'
 import type { Metadata } from 'next'
 import { Poppins, Zain } from 'next/font/google'
 

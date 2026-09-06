@@ -160,6 +160,7 @@ export default function DonationOptions({
                   <button
                     key={option.id}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() => {
                       setFrequency(option.id)
                       resetCheckoutMessages()

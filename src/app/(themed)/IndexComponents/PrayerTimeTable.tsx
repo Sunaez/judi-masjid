@@ -1,11 +1,11 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import Image from 'next/image'
-import { Download } from 'lucide-react'
+import { CalendarDays, Download, Moon, Sun, Sunrise, Sunset, CloudSun } from 'lucide-react'
 import { RawPrayerTimes } from '../../FetchPrayerTimes'
 import { usePrayerTimesContext } from '../../display/context/PrayerTimesContext'
 import { getActiveTimetable, type TimetableFile } from '@/lib/firebase/timetableStorage'
+import TimetableDownload from './TimetableDownload'
 
 type TableTimes = Omit<RawPrayerTimes, 'sunrise'>
 
@@ -91,18 +91,18 @@ export default function PrayerTimesTable({
     if (!times) return []
 
     return [
-      { name: 'Fajr', start: times.fajrStart, jamaat: times.fajrJamaat, icon: 'icon-fajr.svg' },
-      { name: 'Dhuhr', start: times.dhuhrStart, jamaat: times.dhuhrJamaat, icon: 'icon-dhuhr.svg' },
-      { name: 'Asr', start: times.asrStart, jamaat: times.asrJamaat, icon: 'icon-asr.svg' },
-      { name: 'Maghrib', start: times.maghrib, jamaat: times.maghrib, icon: 'icon-maghrib.svg' },
-      { name: 'Isha', start: times.ishaStart, jamaat: times.ishaJamaat, icon: 'icon-isha.svg' },
+      { name: 'Fajr', start: times.fajrStart, jamaat: times.fajrJamaat, Icon: Sunrise },
+      { name: 'Dhuhr', start: times.dhuhrStart, jamaat: times.dhuhrJamaat, Icon: Sun },
+      { name: 'Asr', start: times.asrStart, jamaat: times.asrJamaat, Icon: CloudSun },
+      { name: 'Maghrib', start: times.maghrib, jamaat: times.maghrib, Icon: Sunset },
+      { name: 'Isha', start: times.ishaStart, jamaat: times.ishaJamaat, Icon: Moon },
     ]
   }, [times])
 
   if (isError) {
     return (
-      <section className={`${variant === 'card' ? 'min-h-full rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6' : 'p-0'} flex items-center justify-center`}>
-        <div className="text-center text-red-500">
+      <section className={`${variant === 'card' ? 'aero-panel prayer-card min-h-full' : 'p-0'} flex items-center justify-center`}>
+        <div className="text-center text-[var(--text-color)]">
           <p className="text-xl mb-2">Failed to load prayer times</p>
           <p className="text-sm">Please try refreshing the page</p>
         </div>
@@ -112,7 +112,7 @@ export default function PrayerTimesTable({
 
   if (isLoading || !times) {
     return (
-      <section className={variant === 'card' ? 'min-h-full rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6' : 'p-0'}>
+      <section className={variant === 'card' ? 'aero-panel prayer-card min-h-full' : 'p-0'}>
         <TableSkeleton />
       </section>
     )
@@ -120,64 +120,38 @@ export default function PrayerTimesTable({
 
   return (
     <section
-      className={variant === 'card' ? 'min-h-full rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] p-5 shadow-xl sm:p-6' : 'p-0'}
+      className={variant === 'card' ? 'aero-panel prayer-card min-h-full' : 'p-0'}
     >
-      <h2 className="mb-4 text-center text-2xl font-bold text-[var(--text-color)]">
-        Prayer Times
-      </h2>
-
-      <div className="overflow-hidden rounded-lg border border-[var(--secondary-color)] shadow-lg shadow-[0_8px_16px_rgba(173,184,187,0.24)]">
-        <table className="w-full table-auto border-collapse bg-[var(--secondary-color)]/20 text-sm sm:text-base">
-          <thead>
-            <tr>
-              <th className="border-b border-r border-[var(--secondary-color)] bg-[var(--secondary-color)] px-2 py-3 text-center font-bold">
-                Prayer
-              </th>
-              <th className="border-b border-r border-[var(--secondary-color)] px-2 py-3 text-center font-bold">
-                Start
-              </th>
-              <th className="border-b border-[var(--secondary-color)] bg-[var(--accent-color)] px-2 py-3 text-center font-bold text-[var(--background-end)]">
-                Jama&apos;at
-              </th>
+      <div className="prayer-card-heading">
+        <h2>Prayer times</h2>
+        <CalendarDays aria-hidden="true" />
+      </div>
+      <table className="home-prayer-table">
+        <caption className="sr-only">Today&apos;s prayer start and congregational prayer times</caption>
+        <thead><tr><th scope="col">Prayer</th><th scope="col">Begins</th><th scope="col">Jama&apos;at</th></tr></thead>
+        <tbody>
+          {prayers.map(({ name, start, jamaat, Icon }) => (
+            <tr key={name}>
+              <th scope="row"><span className="prayer-name"><Icon aria-hidden="true" />{name}</span></th>
+              <td>{start}</td><td>{jamaat}</td>
             </tr>
-          </thead>
-          <tbody>
-            {prayers.map(({ name, start, jamaat, icon }) => (
-              <tr key={name}>
-                <td className="flex items-center justify-center space-x-2 border-r border-t border-[var(--secondary-color)] bg-[var(--secondary-color)] px-2 py-3">
-                  <Image
-                    src={`/Icons/${icon}`}
-                    alt={`${name} icon`}
-                    width={24}
-                    height={24}
-                    className="h-6 w-6"
-                  />
-                  <span className="font-medium">{name}</span>
-                </td>
-                <td className="border-r border-t border-[var(--secondary-color)] px-2 py-3 text-center font-semibold">
-                  {start}
-                </td>
-                <td className="border-t border-[var(--secondary-color)] bg-[var(--accent-color)] px-2 py-3 text-center font-semibold text-[var(--background-end)]">
-                  {jamaat}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex justify-center mt-4">
-        <a
-          href={activeTimetable ? activeTimetable.imageData : filePath}
-          download={activeTimetable ? (activeTimetable.originalName || 'timetable.jpg') : fileName}
-          className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--x-background-start)] px-4 py-2 font-semibold text-[var(--x-text-color)] transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-        >
-          <Download className="h-5 w-5 mr-2" />
-          <span>
-            Download {activeTimetable ? activeTimetable.label : `${isRamadan ? 'Ramadan' : monthName} ${year} Timetable`}
-          </span>
-        </a>
-      </div>
+          ))}
+        </tbody>
+      </table>
+      <p className="prayer-table-note">Jama&apos;at is the congregational prayer. All times are local to the masjid.</p>
+      <TimetableDownload
+        imageSrc={activeTimetable ? activeTimetable.imageData : filePath}
+        label={activeTimetable ? activeTimetable.label : `${isRamadan ? 'Ramadan' : monthName} ${year} Timetable`}
+        fileName={activeTimetable ? (activeTimetable.originalName || 'timetable.jpg') : fileName}
+      />
+      <a
+        href={activeTimetable ? activeTimetable.imageData : filePath}
+        download={activeTimetable ? (activeTimetable.originalName || 'timetable.jpg') : fileName}
+        className="aero-button aero-button-secondary prayer-table-download"
+      >
+        <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>Download {activeTimetable ? activeTimetable.label : `${isRamadan ? 'Ramadan' : monthName} ${year} Timetable`}</span>
+      </a>
 
       {isRamadan && (
         <div className="mt-6">

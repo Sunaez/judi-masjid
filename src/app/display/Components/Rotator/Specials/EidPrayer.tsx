@@ -94,7 +94,7 @@ export default function EidPrayer({ displayDuration }: EidPrayerProps) {
         </p>
       </div>
 
-      <div className="eid-detail h-[72vh] overflow-hidden rounded-2xl border-4 border-white/20 shadow-2xl">
+      <div className="eid-detail h-full min-h-0 overflow-hidden rounded-2xl border-4 border-[var(--border-color)] shadow-2xl">
         <iframe
           src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d4017.7106427106723!2d-1.9409240605776887!3d52.48623845872842!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4870bd2d20add84f%3A0x2d6e8cd7a26221a4!2sSummerfield%20Park!5e1!3m2!1sen!2suk!4v1779802694730!5m2!1sen!2suk"
           width="600"

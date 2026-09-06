@@ -1,167 +1,45 @@
-// src/app/(themed)/IndexComponents/TimetableDownload.tsx
-'use client';
+﻿'use client'
 
-import React, { useState, useEffect } from 'react';
-import { getActiveTimetable, type TimetableFile } from '@/lib/firebase/timetableStorage';
+import { useState } from 'react'
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
+import { Download, Expand, X } from 'lucide-react'
 
-const TimetableDownload: React.FC = () => {
-  const [timetable, setTimetable] = useState<TimetableFile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showPreview, setShowPreview] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getActiveTimetable()
-      .then((t) => {
-        if (!cancelled) setTimetable(t);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Don't render anything if there's no active timetable
-  if (loading || !timetable) return null;
+export default function TimetableDownload({ imageSrc, label, fileName }: {
+  imageSrc: string
+  label: string
+  fileName: string
+}) {
+  const [showPreview, setShowPreview] = useState(false)
+  const [failedImage, setFailedImage] = useState<string | null>(null)
+  const previewFailed = failedImage === imageSrc
 
   return (
     <>
-      <section className="px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl overflow-hidden rounded-lg border border-[var(--secondary-color)] bg-[var(--background-end)] shadow-md dark:bg-[var(--x-background-start)]">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-[var(--secondary-color)] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <svg
-                className="w-6 h-6 text-[var(--accent-color)] dark:text-[var(--x-accent-color)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
-                />
-              </svg>
-              <h3 className="text-lg font-semibold text-[var(--text-color)] dark:text-[var(--x-text-color)]">
-                Prayer Timetable
-              </h3>
+      <button type="button" onClick={() => { setFailedImage(null); setShowPreview(true) }} className="aero-button aero-button-secondary prayer-table-preview"><Expand size={17} aria-hidden="true" /> View timetable</button>
+      <Dialog open={showPreview} onClose={setShowPreview} className="public-theme relative z-50">
+        <div className="fixed inset-0 bg-[var(--overlay-darkest)]" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="aero-panel flex max-h-[90dvh] w-full max-w-4xl flex-col overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] p-4">
+              <DialogTitle className="font-bold">{label}</DialogTitle>
+              <button type="button" onClick={() => setShowPreview(false)} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface-soft)]" aria-label="Close timetable preview"><X size={22} aria-hidden="true" /></button>
             </div>
-          </div>
-
-          {/* Preview thumbnail */}
-          <button
-            type="button"
-            onClick={() => setShowPreview(true)}
-            className="w-full cursor-pointer"
-          >
-            <div className="max-h-60 overflow-hidden flex items-center justify-center bg-[var(--background-start)] dark:bg-[var(--x-background-end)]">
-              <img
-                src={timetable.imageData}
-                alt={timetable.label}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-auto object-contain"
-              />
+            <div className="overflow-auto p-2">
+              {previewFailed ? (
+                <div className="p-6 text-center">
+                  <p role="alert" className="mb-4">The timetable could not be loaded. Please try again.</p>
+                  <button type="button" onClick={() => setFailedImage(null)} className="aero-button aero-button-secondary">Try again</button>
+                </div>
+              ) : (
+                // Timetables can be uploaded data URLs or bundled monthly images.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageSrc} alt={label} onError={() => setFailedImage(imageSrc)} className="h-auto w-full" />
+              )}
             </div>
-          </button>
-
-          {/* Footer */}
-          <div className="px-6 py-4 flex items-center justify-between">
-            <span className="text-sm text-[var(--text-muted)]">{timetable.label}</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowPreview(true)}
-                className="py-2 px-4 text-sm font-semibold rounded-lg border border-[var(--secondary-color)] text-[var(--text-color)] dark:text-[var(--x-text-color)] hover:opacity-80 transition"
-              >
-                View
-              </button>
-              <a
-                href={timetable.imageData}
-                download={timetable.originalName || 'timetable.jpg'}
-                className="py-2 px-4 text-sm font-semibold rounded-lg bg-[var(--accent-color)] dark:bg-[var(--x-accent-color)] text-[var(--background-end)] dark:text-[var(--x-background-end)] hover:opacity-90 transition flex items-center gap-1"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                Download
-              </a>
-            </div>
-          </div>
+            {!previewFailed && <div className="border-t border-[var(--border-color)] p-3"><a href={imageSrc} download={fileName} className="aero-button"><Download size={17} aria-hidden="true" /> Download timetable</a></div>}
+          </DialogPanel>
         </div>
-      </section>
-
-      {/* Full-screen preview */}
-      {showPreview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          onClick={() => setShowPreview(false)}
-        >
-          <div
-            className="relative max-w-4xl max-h-[90vh] w-full mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowPreview(false)}
-              className="absolute -top-10 right-0 text-white hover:opacity-70 text-2xl font-bold"
-            >
-              &times;
-            </button>
-
-            <div className="bg-[var(--background-end)] rounded-t-xl px-4 py-3 flex items-center justify-between">
-              <h3 className="font-semibold text-[var(--text-color)] truncate">
-                {timetable.label}
-              </h3>
-              <a
-                href={timetable.imageData}
-                download={timetable.originalName || 'timetable.jpg'}
-                className="flex items-center gap-1 text-sm font-semibold text-[var(--accent-color)] hover:opacity-70 transition"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                Download
-              </a>
-            </div>
-
-            <div className="bg-[var(--background-start)] rounded-b-xl overflow-auto max-h-[75vh]">
-              <img
-                src={timetable.imageData}
-                alt={timetable.label}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-auto"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      </Dialog>
     </>
-  );
-};
-
-export default TimetableDownload;
+  )
+}

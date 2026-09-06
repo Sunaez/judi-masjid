@@ -72,8 +72,7 @@ const TimeUntil = memo(function TimeUntil({ eventName, eventTime }: TimeUntilPro
 
   return (
     <div
-      className="display-time-until w-full text-[var(--text-color)] py-8"
-      style={{ background: 'var(--display-timeuntil-surface)' }}
+      className="display-time-until w-full text-[var(--text-color)] py-4"
     >
       <div className="flex items-center justify-center space-x-6">
         {/* Label */}
@@ -85,7 +84,8 @@ const TimeUntil = memo(function TimeUntil({ eventName, eventTime }: TimeUntilPro
         </div>
 
         {/* Clock */}
-        <div className="inline-flex font-mono text-4xl md:text-6xl lg:text-7xl overflow-hidden">
+        <span className="sr-only">{ht}{ho} hours, {mt}{mo} minutes, {st}{so} seconds</span>
+        <div aria-hidden="true" className="inline-flex font-mono text-4xl md:text-6xl lg:text-7xl overflow-hidden">
           {refs.map((ref, idx) => {
             const pool = poolMap[idx]
 

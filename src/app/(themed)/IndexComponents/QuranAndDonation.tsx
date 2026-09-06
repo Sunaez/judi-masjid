@@ -34,7 +34,7 @@ function getQuranOfTheDay(messages: QuranHomepageMessage[]) {
 }
 
 function formatVerseReference(surah: string, startAyah: number, endAyah: number) {
-  if (startAyah === endAyah) {
+  if (!endAyah || startAyah === endAyah) {
     return `${surah}:${startAyah}`
   }
 
@@ -105,7 +105,7 @@ export default function QuranAndDonation() {
 
   return (
     <section className="px-4 pb-8 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6">
+      <div className="home-reflection-grid mx-auto grid max-w-7xl grid-cols-1 gap-6 lg:grid-cols-2">
         <article
           className="relative overflow-hidden rounded-lg border border-[var(--secondary-color)] p-6 shadow-xl"
           style={{

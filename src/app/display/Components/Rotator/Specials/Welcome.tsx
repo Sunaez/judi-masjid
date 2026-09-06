@@ -162,7 +162,7 @@ export default function Welcome({ displayDuration, greetingText }: WelcomeProps)
           href="https://www.aljudi-masjid.co.uk"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: 'var(--secondary-color)' }}
+          style={{ color: 'var(--text-muted)' }}
         >
           aljudi-masjid.co.uk
         </a>

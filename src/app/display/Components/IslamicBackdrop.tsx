@@ -1,237 +1,46 @@
-'use client';
+import { Moon } from 'lucide-react'
 
-import React from 'react';
+const STARS = [[120, 100], [360, 60], [570, 135], [790, 75], [1090, 110], [1330, 50], [1510, 145], [1810, 90], [90, 290], [1840, 315], [1600, 380], [330, 405]]
 
-type IslamicBackdropProps = {
-  className?: string;
-};
-
-const LARGE_ARCHES = [
-  { cx: 280, halfWidth: 260, baseY: 1110, springY: 430, apexY: 84 },
-  { cx: 960, halfWidth: 390, baseY: 1110, springY: 390, apexY: 58 },
-  { cx: 1640, halfWidth: 260, baseY: 1110, springY: 430, apexY: 84 },
-];
-
-const RECESSED_ARCHES = [
-  { cx: 82, halfWidth: 172, baseY: 1100, springY: 558, apexY: 300 },
-  { cx: 420, halfWidth: 218, baseY: 1100, springY: 510, apexY: 214 },
-  { cx: 960, halfWidth: 300, baseY: 1100, springY: 475, apexY: 168 },
-  { cx: 1500, halfWidth: 218, baseY: 1100, springY: 510, apexY: 214 },
-  { cx: 1838, halfWidth: 172, baseY: 1100, springY: 558, apexY: 300 },
-];
-
-const SMALL_ARCHES = [150, 390, 630, 870, 1110, 1350, 1590];
-
-const STAR_POINTS =
-  '0,-24 7,-7 24,0 7,7 0,24 -7,7 -24,0 -7,-7';
-
-function pointedArchPath(
-  cx: number,
-  halfWidth: number,
-  baseY: number,
-  springY: number,
-  apexY: number
-) {
-  const left = cx - halfWidth;
-  const right = cx + halfWidth;
-  const innerCurve = halfWidth * 0.36;
-
-  return [
-    `M ${left} ${baseY}`,
-    `V ${springY}`,
-    `C ${left} ${springY - 150} ${cx - innerCurve} ${apexY + 145} ${cx} ${apexY}`,
-    `C ${cx + innerCurve} ${apexY + 145} ${right} ${springY - 150} ${right} ${springY}`,
-    `V ${baseY}`,
-  ].join(' ');
-}
-
-function closedPointedArchPath(
-  cx: number,
-  halfWidth: number,
-  baseY: number,
-  springY: number,
-  apexY: number
-) {
-  return `${pointedArchPath(cx, halfWidth, baseY, springY, apexY)} Z`;
-}
-
-function smallHorseshoeArchPath(x: number) {
-  const top = 716;
-  const base = 1094;
-  const left = x;
-  const right = x + 180;
-  const cx = x + 90;
-
-  return [
-    `M ${left} ${base}`,
-    'V 858',
-    `C ${left} 760 ${cx - 74} ${top + 38} ${cx} ${top}`,
-    `C ${cx + 74} ${top + 38} ${right} 760 ${right} 858`,
-    `V ${base}`,
-  ].join(' ');
-}
-
-export default function IslamicBackdrop({ className = '' }: IslamicBackdropProps) {
+function Mosque({ transform, className }: { transform: string; className: string }) {
   return (
-    <div className={`islamic-backdrop ${className}`} aria-hidden="true">
-      <svg
-        className="islamic-backdrop-svg"
-        viewBox="0 0 1920 1080"
-        preserveAspectRatio="none"
-        focusable="false"
-      >
-        <defs>
-          <radialGradient id="islamic-backdrop-light" cx="50%" cy="16%" r="72%">
-            <stop offset="0%" stopColor="#fff7ec" stopOpacity="0.34" />
-            <stop offset="44%" stopColor="#fff7ec" stopOpacity="0.08" />
-            <stop offset="100%" stopColor="#5a2b24" stopOpacity="0.08" />
-          </radialGradient>
-          <linearGradient id="islamic-backdrop-floor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="100%" stopColor="#6f3a2e" stopOpacity="0.12" />
-          </linearGradient>
-        </defs>
+    <g transform={transform} className={className}>
+      <g transform="translate(-320 -55)" fill="var(--surface)" stroke="var(--accent-color)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round">
+        <path d="M370 222V160H492V222ZM382 160C382 132 413 126 431 100C450 126 481 132 481 160Z" />
+        <path d="M431 100V87M431 88C421 88 421 76 427 73C424 82 432 86 438 80C437 85 434 88 431 88Z" />
+        <path d="M345 222V120H341L349 108V76L354 67L359 76V108L367 120H363V222Z" />
+        <path d="M341 120H367M340 144H368M346 151H362" fill="none" />
+        <path d="M409 222V195C409 183 422 180 431 169C440 180 453 183 453 195V222Z" fill="var(--aero-hill-front)" />
+        <path d="M383 201V185Q389 173 395 185V201ZM465 201V185Q471 173 477 185V201Z" fill="var(--aero-glow)" />
+        <path d="M329 222H508" fill="none" />
+      </g>
+    </g>
+  )
+}
 
-        <rect width="1920" height="1080" fill="url(#islamic-backdrop-light)" />
-        <rect y="700" width="1920" height="380" fill="url(#islamic-backdrop-floor)" />
-
-        <g opacity="0.08">
-          {RECESSED_ARCHES.map(arch => (
-            <path
-              key={`recessed-${arch.cx}`}
-              d={closedPointedArchPath(
-                arch.cx,
-                arch.halfWidth,
-                arch.baseY,
-                arch.springY,
-                arch.apexY
-              )}
-              fill="currentColor"
-            />
-          ))}
-        </g>
-
-        <g opacity="0.11">
-          {LARGE_ARCHES.map(arch => (
-            <path
-              key={`shadow-${arch.cx}`}
-              d={pointedArchPath(
-                arch.cx + 14,
-                arch.halfWidth,
-                arch.baseY + 6,
-                arch.springY + 6,
-                arch.apexY + 6
-              )}
-              fill="none"
-              stroke="#5a2b24"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="10"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </g>
-
-        <g className="islamic-star-field">
-          {[
-            [165, 126, 0.75],
-            [415, 286, 0.55],
-            [690, 132, 0.45],
-            [1180, 174, 0.55],
-            [1435, 326, 0.44],
-            [1728, 142, 0.7],
-            [1515, 622, 0.38],
-            [406, 626, 0.38],
-          ].map(([x, y, scale]) => (
-            <polygon
-              key={`${x}-${y}`}
-              points={STAR_POINTS}
-              transform={`translate(${x} ${y}) scale(${scale})`}
-            />
-          ))}
-        </g>
-
-        <g className="islamic-arch-fill">
-          {LARGE_ARCHES.map(arch => (
-            <path
-              key={`fill-${arch.cx}`}
-              d={closedPointedArchPath(
-                arch.cx,
-                arch.halfWidth,
-                arch.baseY,
-                arch.springY,
-                arch.apexY
-              )}
-            />
-          ))}
-        </g>
-
-        <g className="islamic-arch-lines">
-          {LARGE_ARCHES.map(arch => (
-            <g key={arch.cx}>
-              <path
-                d={pointedArchPath(
-                  arch.cx,
-                  arch.halfWidth,
-                  arch.baseY,
-                  arch.springY,
-                  arch.apexY
-                )}
-              />
-              <path
-                d={pointedArchPath(
-                  arch.cx,
-                  arch.halfWidth - 44,
-                  arch.baseY,
-                  arch.springY + 42,
-                  arch.apexY + 112
-                )}
-              />
-              <path
-                d={pointedArchPath(
-                  arch.cx,
-                  arch.halfWidth - 88,
-                  arch.baseY,
-                  arch.springY + 82,
-                  arch.apexY + 208
-                )}
-              />
-            </g>
-          ))}
-        </g>
-
-        <g opacity="0.18">
-          {LARGE_ARCHES.map(arch => (
-            <path
-              key={`highlight-${arch.cx}`}
-              d={pointedArchPath(
-                arch.cx - 9,
-                arch.halfWidth - 22,
-                arch.baseY,
-                arch.springY + 20,
-                arch.apexY + 50
-              )}
-              fill="none"
-              stroke="#fff8ef"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="3"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </g>
-
-        <g className="islamic-small-arches">
-          {SMALL_ARCHES.map(x => (
-            <path key={x} d={smallHorseshoeArchPath(x)} />
-          ))}
-        </g>
-
-        <g opacity="0.07">
-          <path d="M 0 1080 V 610 C 0 535 66 470 130 425 V 1080 Z" fill="#5a2b24" />
-          <path d="M 1920 1080 V 610 C 1920 535 1854 470 1790 425 V 1080 Z" fill="#5a2b24" />
-        </g>
+/** A quiet mosque landscape leaves the centre clear for display messages. */
+export default function IslamicBackdrop({ className = '' }: { className?: string }) {
+  return (
+    <div className={'islamic-backdrop ' + className} aria-hidden="true">
+      <div className="display-sky-day">
+        <div className="display-sky-sun" />
+        <div className="display-sky-bubble display-sky-bubble-large" />
+        <div className="display-sky-bubble display-sky-bubble-small" />
+      </div>
+      <div className="display-sky-night">
+        <Moon className="display-sky-moon" strokeWidth={0.5} />
+        <svg className="display-sky-stars" viewBox="0 0 1920 702" preserveAspectRatio="none" focusable="false">
+          {STARS.map(([x, y], index) => <circle key={index} cx={x} cy={y} r={index % 3 === 0 ? 2.5 : 1.5} fill="#f6dfb3" opacity={index % 3 === 0 ? 0.7 : 0.4} />)}
+        </svg>
+      </div>
+      <svg className="display-mosque-landscape" viewBox="0 0 1920 320" fill="none" preserveAspectRatio="xMidYMax meet" focusable="false">
+        <path d="M0 164C238 116 423 256 720 211C1079 155 1356 229 1581 171C1736 131 1835 144 1920 119V320H0Z" fill="var(--aero-hill)" opacity=".22" />
+        <path d="M0 239C251 187 508 299 835 261C1112 229 1420 270 1663 235C1781 218 1860 222 1920 205V320H0Z" fill="var(--aero-hill-front)" opacity=".18" />
+        <path d="M0 283C350 227 492 324 865 288S1489 305 1920 253" stroke="var(--highlight)" strokeWidth="2" opacity=".7" />
+        <Mosque transform="translate(125 141) scale(.78)" className="display-mosque-far" />
+        <Mosque transform="translate(1510 51) scale(1.32)" className="display-mosque-near" />
       </svg>
+      <div className="display-scenery-veil" />
     </div>
-  );
+  )
 }
