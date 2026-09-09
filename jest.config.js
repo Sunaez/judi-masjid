@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const nextJest = require('next/jest')
+// Calendar fixtures describe the mosque's local time, regardless of the test host.
+process.env.TZ = 'Europe/London'
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment

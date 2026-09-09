@@ -33,6 +33,13 @@ const mockedSubscribe = subscribeDonationSettings as jest.MockedFunction<
 >;
 
 describe('Donation rotator slide', () => {
+  it('does not present placeholder amounts before the first valid snapshot', () => {
+    mockedSubscribe.mockImplementation(() => jest.fn());
+    render(<Donation displayDuration={20_000} />);
+    expect(screen.queryByText('£200,000')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Donation total temporarily unavailable');
+  });
+
   it('updates the displayed amounts when Firestore settings change', () => {
     let emitSettings: ((settings: DonationSettings) => void) | undefined;
 
@@ -62,5 +69,18 @@ describe('Donation rotator slide', () => {
         name: '£300,000 raised of £750,000',
       })
     ).toHaveAttribute('aria-valuemax', '750000');
+  });
+
+  it('keeps the last verified totals when the next rotation cannot load settings', () => {
+    mockedSubscribe.mockImplementation(onChange => {
+      onChange({ currentAmount: 321_000, totalAmount: 750_000 });
+      return jest.fn();
+    });
+    const { unmount } = render(<Donation displayDuration={20_000} />);
+    unmount();
+    mockedSubscribe.mockImplementation(() => jest.fn());
+    render(<Donation displayDuration={20_000} />);
+    expect(screen.getAllByText('£321,000').length).toBeGreaterThan(0);
+    expect(screen.queryByText('£200,000')).not.toBeInTheDocument();
   });
 });

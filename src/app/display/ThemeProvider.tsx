@@ -4,8 +4,8 @@
 import { useCallback, useEffect, useRef, useState, ReactNode, useMemo } from 'react'
 import gsap from 'gsap'
 import { usePrayerTimesContext } from './context/PrayerTimesContext'
+import { mosqueMinutes, mosqueTimeOnDate } from '@/lib/mosqueClock'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 const MINUTE_MS = 60 * 1000
 const BOUNDARY_BUFFER_MS = 1000
 
@@ -31,16 +31,7 @@ export function timeStringToMinutes(hhmm: string): number | null {
 }
 
 function getMinutesSinceMidnight(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes()
-}
-
-function getMsSinceMidnight(date: Date): number {
-  return (
-    date.getHours() * 60 * 60 * 1000 +
-    date.getMinutes() * 60 * 1000 +
-    date.getSeconds() * 1000 +
-    date.getMilliseconds()
-  )
+  return mosqueMinutes(date)
 }
 
 export function shouldUseLightThemeAt(
@@ -63,18 +54,10 @@ export function getMsUntilNextThemeBoundary(
   sunriseMinutes: number,
   maghribMinutes: number
 ): number {
-  const currentMs = getMsSinceMidnight(now)
-  const sunriseMs = sunriseMinutes * MINUTE_MS
-  const maghribMs = maghribMinutes * MINUTE_MS
-
-  const boundaries =
-    sunriseMinutes <= maghribMinutes
-      ? [sunriseMs, maghribMs, sunriseMs + DAY_MS]
-      : [maghribMs, sunriseMs, maghribMs + DAY_MS]
-
-  const nextBoundary = boundaries.find(boundary => boundary > currentMs) ?? boundaries[0] + DAY_MS
-
-  return Math.max(BOUNDARY_BUFFER_MS, nextBoundary - currentMs + BOUNDARY_BUFFER_MS)
+  const boundaries = [0, 1].flatMap(day => [sunriseMinutes, maghribMinutes].map(minutes =>
+    mosqueTimeOnDate(Math.floor(minutes / 60), minutes % 60, now, day).getTime()
+  )).filter(at => at > now.getTime())
+  return Math.max(BOUNDARY_BUFFER_MS, Math.min(...boundaries) - now.getTime() + BOUNDARY_BUFFER_MS)
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -196,7 +179,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [times, ready])
 
   // Show error state
-  if (error && !isLoading) {
+  if (error && !isLoading && !times) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)]">
         <div className="text-center p-8 bg-[var(--background-end)] rounded-2xl shadow-xl max-w-md border border-[var(--secondary-color)]">
@@ -208,7 +191,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             {error}
           </p>
           <p className="text-sm text-[var(--secondary-color)]">
-            Please contact the administrator or try refreshing the page.
+            Retrying automatically. Please contact the administrator if this continues.
           </p>
           <button
             onClick={() => window.location.reload()}
@@ -221,7 +204,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  if (!ready || isLoading) {
+  if (!ready || (isLoading && !times)) {
     return (
       <div ref={loaderRef} className="loader-container">
         <div className="dot" />
@@ -232,5 +215,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  return <>{children}</>
+  return <>{children}{error && times && (
+    <div role="status" className="fixed bottom-2 right-2 z-[70] rounded bg-black/70 px-3 py-1 text-sm text-white">
+      Timetable refresh delayed. Retrying…
+    </div>
+  )}</>
 }

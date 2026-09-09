@@ -1,3 +1,4 @@
+import { MOSQUE_TIME_ZONE, mosqueTimeOnDate } from './mosqueClock'
 const ISLAMIC_CALENDAR_LOCALE = 'en-u-ca-islamic'
 const RAMADAN_MONTH = 9
 const SHAWWAL_MONTH = 10
@@ -18,6 +19,7 @@ function toPartNumber(value: string): number | null {
 
 export function getIslamicDateParts(date: Date = new Date()): IslamicDateParts | null {
   const formatter = new Intl.DateTimeFormat(ISLAMIC_CALENDAR_LOCALE, {
+    timeZone: MOSQUE_TIME_ZONE,
     day: 'numeric',
     month: 'numeric',
     year: 'numeric',
@@ -43,11 +45,8 @@ export function isRamadanDate(date: Date = new Date()): boolean {
 export function isRamadanPeriod(date: Date = new Date()): boolean {
   if (isRamadanDate(date)) return true
 
-  const dayBefore = new Date(date)
-  dayBefore.setDate(dayBefore.getDate() - 1)
-
-  const dayAfter = new Date(date)
-  dayAfter.setDate(dayAfter.getDate() + 1)
+  const dayBefore = mosqueTimeOnDate(12, 0, date, -1)
+  const dayAfter = mosqueTimeOnDate(12, 0, date, 1)
 
   return isRamadanDate(dayBefore) || isRamadanDate(dayAfter)
 }

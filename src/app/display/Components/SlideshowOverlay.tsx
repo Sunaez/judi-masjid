@@ -2,27 +2,53 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { saveSlideIndex, subscribeSlideIndex } from '@/lib/firebase/slideshowSettings';
+import { recoveringSubscription } from '@/lib/recoveringSubscription';
 
 const AUTO_ADVANCE_MS = 40_000;
 const DEACTIVATE_HOLD_MS = 5_000;
 const DEACTIVATE_DISPLAY_DELAY_MS = 1_000;
 const DEACTIVATE_TICK_MS = 1_000;
+const IMAGE_REQUEST_TIMEOUT_MS = 15_000;
+const IMAGE_RETRY_INITIAL_MS = 5_000;
+const IMAGE_RETRY_MAX_MS = 60_000;
+const IMAGE_REFRESH_MS = 5 * 60_000;
 
 interface SlideshowImagesResponse {
   images?: unknown;
 }
 
-function normalizeImages(data: SlideshowImagesResponse): string[] {
-  if (!Array.isArray(data.images)) return [];
-  return data.images.filter((image): image is string => typeof image === 'string');
+function normalizeImages(data: unknown): string[] {
+  const images = (data as SlideshowImagesResponse | null)?.images;
+  if (!Array.isArray(images) || !images.every(image => typeof image === 'string' && image.trim().length > 0)) {
+    throw new Error('Invalid slideshow image list');
+  }
+  return images;
 }
 
 export default function SlideshowOverlay() {
   const [images, setImages] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [isManual, setIsManual] = useState(false);
   const [holdCountdown, setHoldCountdown] = useState<number | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<string, number>>({});
+  const failedImagesRef = useRef(failedImages);
+  failedImagesRef.current = failedImages;
+
+  const markImageFailed = useCallback((src: string) => {
+    setFailedImages(previous => ({ ...previous, [src]: Date.now() }));
+  }, []);
+
+  // Revisit failed resources after five minutes, including when every image failed.
+  useEffect(() => {
+    const failures = Object.values(failedImages);
+    if (!failures.length) return;
+    const timer = setTimeout(() => setFailedImages(previous => Object.fromEntries(
+      Object.entries(previous).filter(([, at]) => at + IMAGE_REFRESH_MS > Date.now())
+    )), Math.max(1, Math.min(...failures) + IMAGE_REFRESH_MS - Date.now()));
+    return () => clearTimeout(timer);
+  }, [failedImages]);
 
   const imagesRef = useRef<string[]>([]);
   const indexRef = useRef(0);
@@ -38,31 +64,67 @@ export default function SlideshowOverlay() {
   useEffect(() => { indexRef.current = index; }, [index]);
   useEffect(() => { isManualRef.current = isManual; }, [isManual]);
 
-  // Load images
+  // Keep the last successful image list while refreshing or retrying an outage.
   useEffect(() => {
-    const controller = new AbortController();
+    let disposed = false;
+    let controller: AbortController | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+    let retryDelay = IMAGE_RETRY_INITIAL_MS;
+
+    try {
+      const cached = JSON.parse(localStorage.getItem('judi.display.slides') ?? 'null');
+      if (cached && Date.now() - cached.savedAt < 7 * 86_400_000) {
+        setImages(normalizeImages(cached));
+        setLoaded(true);
+      }
+    } catch { /* Ignore invalid or unavailable storage. */ }
 
     async function loadImages() {
+      if (disposed || controller) return;
+      const request = new AbortController();
+      controller = request;
+      let nextDelay = IMAGE_REFRESH_MS;
+      timeoutTimer = setTimeout(() => request.abort(), IMAGE_REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch('/api/slideshow-images', {
           cache: 'no-store',
-          signal: controller.signal,
+          signal: request.signal,
         });
         if (!response.ok) throw new Error(`Failed to load slideshow images (${response.status})`);
-        const data = (await response.json()) as SlideshowImagesResponse;
-        setImages(normalizeImages(data));
+        const data: unknown = await response.json();
+        if (disposed) return;
+        if (request.signal.aborted) throw new Error('Slideshow image request timed out');
+        const nextImages = normalizeImages(data);
+        setImages(nextImages);
+        try {
+          localStorage.setItem('judi.display.slides', JSON.stringify({ images: nextImages, savedAt: Date.now() }));
+        } catch { /* Cached in memory if browser storage is unavailable. */ }
+        setLoadError(false);
+        retryDelay = IMAGE_RETRY_INITIAL_MS;
       } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          console.error('[SlideshowOverlay] Failed to load images:', error);
-          setImages([]);
-        }
+        if (disposed) return;
+        console.error('[SlideshowOverlay] Failed to load images:', error);
+        setLoadError(true);
+        nextDelay = retryDelay;
+        retryDelay = Math.min(retryDelay * 2, IMAGE_RETRY_MAX_MS);
       } finally {
-        if (!controller.signal.aborted) setLoaded(true);
+        clearTimeout(timeoutTimer);
+        controller = null;
+        if (!disposed) {
+          setLoaded(true);
+          retryTimer = setTimeout(loadImages, nextDelay);
+        }
       }
     }
 
-    loadImages();
-    return () => controller.abort();
+    void loadImages();
+    return () => {
+      disposed = true;
+      clearTimeout(retryTimer);
+      clearTimeout(timeoutTimer);
+      controller?.abort();
+    };
   }, []);
 
   const goToSlide = useCallback((newIndex: number) => {
@@ -76,13 +138,19 @@ export default function SlideshowOverlay() {
   const advanceSlide = useCallback(() => {
     const imgs = imagesRef.current;
     if (imgs.length <= 1) return;
-    goToSlide((indexRef.current + 1) % imgs.length);
+    for (let step = 1; step <= imgs.length; step++) {
+      const next = (indexRef.current + step) % imgs.length;
+      if (failedImagesRef.current[imgs[next]] === undefined) { goToSlide(next); return; }
+    }
   }, [goToSlide]);
 
   const goBackSlide = useCallback(() => {
     const imgs = imagesRef.current;
     if (imgs.length <= 1) return;
-    goToSlide((indexRef.current - 1 + imgs.length) % imgs.length);
+    for (let step = 1; step <= imgs.length; step++) {
+      const next = (indexRef.current - step + imgs.length) % imgs.length;
+      if (failedImagesRef.current[imgs[next]] === undefined) { goToSlide(next); return; }
+    }
   }, [goToSlide]);
 
   // Auto-advance timer
@@ -107,17 +175,19 @@ export default function SlideshowOverlay() {
 
   // Firebase slide index subscription — apply remote changes when they differ from local
   useEffect(() => {
-    const unsub = subscribeSlideIndex(
+    const unsub = recoveringSubscription<number>(subscribeSlideIndex,
       (remoteIndex) => {
+        if (!Number.isSafeInteger(remoteIndex) || remoteIndex < 0) return;
         if (remoteIndex !== indexRef.current) {
           setIndex(remoteIndex);
           indexRef.current = remoteIndex;
+          startAutoTimer();
         }
       },
       (err) => console.error('[SlideshowOverlay] Firebase slide index error:', err)
     );
     return unsub;
-  }, []);
+  }, [startAutoTimer]);
 
   // Hold-countdown cleanup on unmount
   useEffect(() => {
@@ -220,12 +290,21 @@ export default function SlideshowOverlay() {
   }, [cancelHold]);
 
   const safeIndex = images.length > 0 ? index % images.length : 0;
-  const currentImage = images[safeIndex] ?? null;
-  const nextImage = images.length > 1 ? (images[(safeIndex + 1) % images.length] ?? null) : null;
+  const usableIndices = images.map((_, offset) => (safeIndex + offset) % images.length)
+    .filter(candidate => failedImages[images[candidate]] === undefined);
+  const currentImage = images[usableIndices[0]] ?? null;
+  const nextImage = images[usableIndices[1]] ?? null;
+
+  useEffect(() => {
+    if (!currentImage) return;
+    // Align local advancement with the image actually shown after a failure.
+    indexRef.current = images.indexOf(currentImage);
+  }, [currentImage, images, markImageFailed]);
 
   return (
     <div
       className="fixed inset-0 z-[2147483647] h-screen w-screen cursor-pointer overflow-hidden bg-black"
+      data-display-busy="slideshow"
       role="presentation"
       aria-live="off"
       onMouseDown={handleMouseDown}
@@ -240,6 +319,7 @@ export default function SlideshowOverlay() {
             <img
               key={currentImage}
               src={currentImage}
+              onError={() => markImageFailed(currentImage)}
               alt=""
               aria-hidden="true"
               draggable={false}
@@ -253,6 +333,7 @@ export default function SlideshowOverlay() {
               <div className="overflow-hidden rounded-lg opacity-50 shadow-2xl">
                 <img
                   src={nextImage}
+                  onError={() => markImageFailed(nextImage)}
                   alt=""
                   aria-hidden="true"
                   draggable={false}
@@ -281,7 +362,7 @@ export default function SlideshowOverlay() {
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center text-2xl text-white/70">
-          {loaded ? 'No SlideShow images found' : 'Loading SlideShow...'}
+          {loadError || images.length > 0 ? 'Unable to load slides. Retrying...' : loaded ? 'No SlideShow images found' : 'Loading SlideShow...'}
         </div>
       )}
     </div>

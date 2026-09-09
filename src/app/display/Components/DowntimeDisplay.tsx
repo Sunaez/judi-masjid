@@ -13,6 +13,12 @@ import type { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import IslamicBackdrop from './IslamicBackdrop';
 
 import { useWeather } from '@/app/hooks/useWeather';
+import { withTimeout } from '@/lib/withTimeout';
+import { readTimetable, cacheTimetable, isValidTimetable } from '@/lib/timetableCache';
+import { mosqueParts, mosqueTimeOnDate, MOSQUE_TIME_ZONE } from '@/lib/mosqueClock';
+
+const TIMETABLE_REFRESH_MS = 5 * 60_000;
+const TIMETABLE_TIMEOUT_MS = 20_000;
 
 // Prayer display order for the table
 const PRAYER_ORDER = [
@@ -33,7 +39,9 @@ export default function DowntimeDisplay() {
   const { prayerTimes, isRamadan } = usePrayerTimesContext();
   const [now, setNow] = useState(() => new Date());
   const { weather } = useWeather();
-  const [displayPrayerTimes, setDisplayPrayerTimes] = useState<RawPrayerTimes | null>(null);
+  const [timetable, setTimetable] = useState<{
+    date: string; times: RawPrayerTimes | null; failed: boolean;
+  } | null>(null);
 
   // Refs for GSAP animations
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,17 +56,17 @@ export default function DowntimeDisplay() {
 
   // Determine if we're past midnight (showing "today's" times instead of "tomorrow's")
   // After midnight, the "next day" times are actually today's times
-  const isAfterMidnight = now.getHours() < 12; // Before noon means we crossed midnight
+  const isAfterMidnight = mosqueParts(now).hour < 12; // Before noon means we crossed midnight
   const prayerTimesDateString = isAfterMidnight
     ? getTodayDateString(now)
     : getTomorrowDateString(now);
-  const prayerTimesDate = new Date(now);
+  // The provider's current-day data is authoritative after midnight. Never use
+  // today's Fajr as a fallback for tomorrow's timetable.
+  const displayPrayerTimes = (isAfterMidnight ? prayerTimes : null) ??
+    (timetable?.date === prayerTimesDateString ? timetable.times : null) ?? readTimetable(prayerTimesDateString);
+  const prayerTimesDate = mosqueTimeOnDate(12, 0, now, isAfterMidnight ? 0 : 1);
 
-  if (!isAfterMidnight) {
-    prayerTimesDate.setDate(prayerTimesDate.getDate() + 1);
-  }
-
-  const prayerTimesDateLabel = prayerTimesDate.toLocaleDateString('en-GB', {
+  const prayerTimesDateLabel = prayerTimesDate.toLocaleDateString('en-GB', { timeZone: MOSQUE_TIME_ZONE,
     weekday: 'long',
     day: 'numeric',
     month: 'short',
@@ -104,20 +112,39 @@ export default function DowntimeDisplay() {
     return () => ctx.revert();
   }, []);
 
-  // Fetch the prayer table date shown on screen.
+  // Refresh independently of date changes so an outage or later upload recovers.
   useEffect(() => {
     let isCancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
 
     async function fetchDisplayPrayerTimes() {
+      if (isCancelled) return;
       try {
-        const times = await getPrayerTimesByDate(prayerTimesDateString);
+        const times = await withTimeout(
+          getPrayerTimesByDate(prayerTimesDateString), TIMETABLE_TIMEOUT_MS, controller.signal
+        );
         if (!isCancelled) {
-          setDisplayPrayerTimes(times);
+          if (times && !isValidTimetable(times)) throw new Error('Invalid timetable');
+          if (times) cacheTimetable(prayerTimesDateString, times);
+          setTimetable(previous => ({
+            date: prayerTimesDateString,
+            times: times ?? (previous?.date === prayerTimesDateString ? previous.times : null),
+            failed: !times,
+          }));
         }
       } catch (error) {
-        console.error('[DowntimeDisplay] Failed to fetch display prayer times:', error);
         if (!isCancelled) {
-          setDisplayPrayerTimes(null);
+          console.error('[DowntimeDisplay] Failed to fetch display prayer times:', error);
+          setTimetable(previous => ({
+            date: prayerTimesDateString,
+            times: previous?.date === prayerTimesDateString ? previous.times : null,
+            failed: true,
+          }));
+        }
+      } finally {
+        if (!isCancelled) {
+          timer = setTimeout(fetchDisplayPrayerTimes, TIMETABLE_REFRESH_MS);
         }
       }
     }
@@ -126,24 +153,26 @@ export default function DowntimeDisplay() {
 
     return () => {
       isCancelled = true;
+      clearTimeout(timer);
+      controller.abort();
     };
   }, [prayerTimesDateString]);
 
   // Format time - larger display
-  const time = now.toLocaleTimeString('en-GB', {
+  const time = now.toLocaleTimeString('en-GB', { timeZone: MOSQUE_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
   });
-  const seconds = now.toLocaleTimeString('en-GB', { second: '2-digit' }).slice(-2);
+  const seconds = now.toLocaleTimeString('en-GB', { timeZone: MOSQUE_TIME_ZONE, second: '2-digit' }).slice(-2);
 
   // Format dates
-  const gregorianDate = now.toLocaleDateString(undefined, {
+  const gregorianDate = now.toLocaleDateString(undefined, { timeZone: MOSQUE_TIME_ZONE,
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
-  const hijriDate = new Intl.DateTimeFormat('en-u-ca-islamic', {
+  const hijriDate = new Intl.DateTimeFormat('en-u-ca-islamic', { timeZone: MOSQUE_TIME_ZONE,
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -254,15 +283,13 @@ export default function DowntimeDisplay() {
                 </div>
               ))}
             </div>
-          ) : prayerTimes ? (
-            // Fallback to current day's Fajr if next day times not available
-            <div className="text-center">
-              <div className="text-3xl font-semibold uppercase tracking-wider opacity-60 mb-4">
-                Next Fajr
-              </div>
-              <div className="text-7xl font-bold">{prayerTimes.fajrJamaat}</div>
+          ) : (
+            <div className="text-center text-3xl opacity-70" role="status">
+              {timetable?.date === prayerTimesDateString && timetable.failed
+                ? 'Prayer times unavailable. Retrying...'
+                : 'Loading prayer times...'}
             </div>
-          ) : null}
+          )}
         </div>
       </div>
 

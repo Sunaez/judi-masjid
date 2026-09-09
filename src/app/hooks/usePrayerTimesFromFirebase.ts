@@ -1,161 +1,139 @@
-// src/app/hooks/usePrayerTimesFromFirebase.ts
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { mosqueTimeOnDate } from '@/lib/mosqueClock';
+import { useEffect, useState } from 'react';
 import type { RawPrayerTimes } from '../FetchPrayerTimes';
 import { getPrayerTimesByDate, getTodayDateString } from '@/lib/firebase/prayerTimes';
+import { withTimeout } from '@/lib/withTimeout';
+import { readTimetable, cacheTimetable } from '@/lib/timetableCache';
 
-// turn an "HH:MM" string into a Date for today
-function timeToDate(hhmm: string): Date {
-  const [h, m] = hhmm.split(':').map(Number);
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m);
+const POLL_MS = 5 * 60_000;
+const MIN_DELAY_MS = 1_000;
+const REQUEST_TIMEOUT_MS = 20_000;
+const TIME_PATTERN = /^(?:[01]?\d|2[0-3]):[0-5]\d$/;
+const PRAYER_KEYS: (keyof RawPrayerTimes)[] = [
+  'fajrStart', 'fajrJamaat', 'sunrise', 'dhuhrStart', 'dhuhrJamaat',
+  'asrStart', 'asrJamaat', 'maghrib', 'ishaStart', 'ishaJamaat',
+];
+
+function nextMidnight(now: Date): number {
+  return mosqueTimeOnDate(0, 0, now, 1).getTime();
 }
 
-// Get milliseconds until next midnight
-function getMsUntilMidnight(): number {
-  const now = new Date();
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0); // Next midnight
-  return midnight.getTime() - now.getTime();
+// Moving the candidate through sorted windows also handles overlapping windows.
+function nextAllowedFetch(candidate: number, times: RawPrayerTimes | null, now: Date): number {
+  if (!times) return candidate;
+  const windows = PRAYER_KEYS.map(key => {
+    const [hours, minutes] = times[key].split(':').map(Number);
+    const prayer = mosqueTimeOnDate(hours, minutes, now);
+    return [prayer.getTime() - 3 * 60_000, prayer.getTime() + 5 * 60_000];
+  }).sort((a, b) => a[0] - b[0]);
+
+  for (const [start, end] of windows) {
+    if (candidate >= start && candidate <= end) candidate = end + MIN_DELAY_MS;
+  }
+  return candidate;
 }
 
-// build the 3min-before → 5min-after windows for each prayer
-function getBlockedWindows(times: RawPrayerTimes): [Date, Date][] {
-  const keys: (keyof RawPrayerTimes)[] = [
-    'fajrStart',
-    'fajrJamaat',
-    'sunrise',
-    'dhuhrStart',
-    'dhuhrJamaat',
-    'asrStart',
-    'asrJamaat',
-    'maghrib',
-    'ishaStart',
-    'ishaJamaat',
-  ];
-  return keys.map(key => {
-    const t = times[key]!;
-    const base = timeToDate(t);
-    return [
-      new Date(base.getTime() - 3 * 60_000),
-      new Date(base.getTime() + 5 * 60_000),
-    ];
-  });
+interface PrayerState {
+  date: string;
+  times: RawPrayerTimes | null;
+  error: string | null;
+  isLoading: boolean;
 }
 
-// Efficient shallow comparison for prayer times
-function prayerTimesEqual(a: RawPrayerTimes | null, b: RawPrayerTimes | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return (
-    a.fajrStart === b.fajrStart &&
-    a.fajrJamaat === b.fajrJamaat &&
-    a.sunrise === b.sunrise &&
-    a.dhuhrStart === b.dhuhrStart &&
-    a.dhuhrJamaat === b.dhuhrJamaat &&
-    a.asrStart === b.asrStart &&
-    a.asrJamaat === b.asrJamaat &&
-    a.maghrib === b.maghrib &&
-    a.ishaStart === b.ishaStart &&
-    a.ishaJamaat === b.ishaJamaat
-  );
-}
-
-/**
- * Hook that fetches prayer times from Firebase Firestore
- * - Fetches prayer times immediately for today's date
- * - Re-fetches every 5min except within 3m before → 5m after any prayer
- * - Updates React state only when the data actually changes
- * - Optimized with refs to avoid stale closures and efficient comparisons
- * - Falls back to null if no data found (admin needs to sync)
- */
+/** One scheduler owns polling and daily rollover; cached times belong to one date. */
 export function usePrayerTimesFromFirebase() {
-  const [times, setTimes] = useState<RawPrayerTimes | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const timesRef = useRef<RawPrayerTimes | null>(null);
-  const timer = useRef<number | null>(null);
-  const currentDateRef = useRef<string>(getTodayDateString());
+  const [state, setState] = useState<PrayerState>(() => ({
+    date: getTodayDateString(), times: null, error: null, isLoading: true,
+  }));
 
-  // Use callback ref pattern to always have current times
-  const scheduleFetch = useCallback(async () => {
-    try {
-      const todayDate = getTodayDateString();
+  useEffect(() => {
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let date = getTodayDateString();
+    let cachedTimes: RawPrayerTimes | null = readTimetable(date);
+    if (cachedTimes) setState({ date, times: cachedTimes, error: null, isLoading: false });
+    let generation = 0;
+    let requestController: AbortController | undefined;
 
-      // Check if date has changed (new day started)
-      if (todayDate !== currentDateRef.current) {
-        currentDateRef.current = todayDate;
-        setIsLoading(true);
+    function schedule(at: number) {
+      if (disposed) return;
+      clearTimeout(timer);
+      const now = new Date();
+      // Midnight takes priority even when a request is still pending.
+      const wakeAt = Math.min(at, nextMidnight(now));
+      timer = setTimeout(run, Math.max(MIN_DELAY_MS, wakeAt - now.getTime()));
+    }
+
+    async function run() {
+      if (disposed) return;
+      const today = getTodayDateString();
+      if (today !== date) {
+        date = today;
+        cachedTimes = readTimetable(date);
+        setState({ date, times: cachedTimes, error: null, isLoading: !cachedTimes });
       }
 
-      const newTimes = await getPrayerTimesByDate(todayDate);
-
-      if (!newTimes) {
-        setError(`No prayer times found for ${todayDate}. Please sync from Google Sheets.`);
-        setIsLoading(false);
+      const now = new Date();
+      const allowedAt = nextAllowedFetch(now.getTime(), cachedTimes, now);
+      if (allowedAt > now.getTime()) {
+        schedule(allowedAt);
         return;
       }
 
-      // Only update if different - using efficient comparison
-      if (!prayerTimesEqual(newTimes, timesRef.current)) {
-        timesRef.current = newTimes;
-        setTimes(newTimes);
-        setError(null);
-      }
+      const requestDate = date;
+      const requestGeneration = ++generation;
+      requestController?.abort();
+      const request = new AbortController();
+      requestController = request;
+      const isCurrent = () => !disposed && requestGeneration === generation &&
+        requestDate === getTodayDateString();
+      // Midnight supersedes an old day's request; the deadline also bounds
+      // Firestore reads that remain pending during a connection failure.
+      schedule(nextMidnight(now));
 
-      setIsLoading(false);
-    } catch (err) {
-      console.error('Failed to fetch prayer times from Firebase:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch prayer times');
-      setIsLoading(false);
-    }
-
-    // Compute next run: default +5m
-    const now = new Date();
-    let next = new Date(now.getTime() + 5 * 60_000);
-
-    const currentTimes = timesRef.current;
-    if (currentTimes) {
-      // future/present blocks
-      const blocks = getBlockedWindows(currentTimes)
-        .filter(([, end]) => end > now)
-        .sort((a, b) => a[0].getTime() - b[0].getTime());
-
-      // if currently in a blocked window, schedule just after it ends
-      const current = blocks.find(([start, end]) => now >= start && now <= end);
-      if (current) {
-        next = current[1];
-      } else if (blocks.length) {
-        // or if next prayer is sooner than +5m, schedule 1s before it
-        const [nextStart] = blocks[0];
-        if (nextStart.getTime() < next.getTime()) {
-          next = new Date(nextStart.getTime() - 1_000);
+      try {
+        const newTimes = await withTimeout(getPrayerTimesByDate(requestDate), REQUEST_TIMEOUT_MS, request.signal);
+        if (!isCurrent()) return;
+        if (!newTimes) {
+          setState({ date, times: cachedTimes, isLoading: false,
+            error: `No prayer times found for ${date}. Please sync from Google Sheets.` });
+        } else {
+          if (!PRAYER_KEYS.every(key => typeof newTimes[key] === 'string' && TIME_PATTERN.test(newTimes[key]))) {
+            throw new Error(`Invalid prayer times for ${date}`);
+          }
+          if (!cachedTimes || !PRAYER_KEYS.every(key => cachedTimes![key] === newTimes[key])) {
+            cachedTimes = newTimes;
+          }
+          setState({ date, times: cachedTimes, error: null, isLoading: false });
+          cacheTimetable(date, cachedTimes);
+        }
+      } catch (error) {
+        if (!isCurrent()) return;
+        console.error('Failed to fetch prayer times from Firebase:', error);
+        setState({ date, times: cachedTimes, isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch prayer times' });
+      } finally {
+        if (isCurrent()) {
+          const finishedAt = new Date();
+          schedule(nextAllowedFetch(finishedAt.getTime() + POLL_MS, cachedTimes, finishedAt));
         }
       }
     }
 
-    const delay = Math.max(0, next.getTime() - now.getTime());
-    timer.current = window.setTimeout(scheduleFetch, delay);
+    void run();
+    return () => {
+      disposed = true;
+      clearTimeout(timer);
+      requestController?.abort();
+    };
   }, []);
 
-  useEffect(() => {
-    scheduleFetch();
-
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [scheduleFetch]);
-
-  // Schedule a guaranteed refetch at midnight to get the new day's prayer times
-  useEffect(() => {
-    const msUntilMidnight = getMsUntilMidnight();
-    // Add 1 second buffer to ensure we're in the new day
-    const midnightTimer = window.setTimeout(() => {
-      currentDateRef.current = ''; // Force date change detection
-      scheduleFetch();
-    }, msUntilMidnight + 1000);
-
-    return () => clearTimeout(midnightTimer);
-  }, [scheduleFetch]);
-
-  return { times, error, isLoading };
+  // Also hide expired data if another render occurs before the midnight timer runs.
+  const isToday = state.date === getTodayDateString();
+  return {
+    times: isToday ? state.times : null,
+    timesDate: isToday && state.times ? state.date : null,
+    error: isToday ? state.error : null,
+    isLoading: !isToday || state.isLoading,
+  };
 }

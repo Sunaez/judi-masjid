@@ -305,7 +305,7 @@ describe('useValidMessages', () => {
       expect(result.current).toHaveLength(1);
     });
 
-    it('should include message when weather is null (fallback)', () => {
+    it('excludes weather-dependent messages when weather is unavailable', () => {
       mockTime(10, 0);
       const messages = [
         createMessage('1', [{
@@ -318,8 +318,8 @@ describe('useValidMessages', () => {
         useValidMessages(messages, mockPrayerTimes, null)
       );
 
-      // Weather condition passes when weather data is unavailable
-      expect(result.current).toHaveLength(1);
+      // Unknown weather must not be treated as a matching observation.
+      expect(result.current).toHaveLength(0);
     });
   });
 

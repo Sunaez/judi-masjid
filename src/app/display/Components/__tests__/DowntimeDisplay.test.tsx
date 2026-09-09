@@ -102,11 +102,11 @@ describe('DowntimeDisplay', () => {
     expect(screen.getByText(/2024/i)).toBeInTheDocument();
   });
 
-  it('should display next Fajr time as fallback', () => {
+  it('should show loading instead of using today’s Fajr for tomorrow', () => {
     render(<DowntimeDisplay />);
-    // When next day times are not available, show Next Fajr fallback
-    expect(screen.getByText('Next Fajr')).toBeInTheDocument();
-    expect(screen.getByText('05:30')).toBeInTheDocument();
+    expect(screen.getByText('Loading prayer times...')).toBeInTheDocument();
+    expect(screen.queryByText('Next Fajr')).not.toBeInTheDocument();
+    expect(screen.queryByText('05:30')).not.toBeInTheDocument();
   });
 
   it('should show Tomorrow\'s Prayer Times before midnight', () => {
@@ -177,24 +177,16 @@ describe('DowntimeDisplay - Time Updates', () => {
     jest.useRealTimers();
   });
 
-  it('should update time every second', () => {
+  it('should update the clock across a minute boundary', async () => {
     const mockDate = new Date(2024, 0, 15, 23, 30, 0);
     jest.setSystemTime(mockDate);
 
-    render(<DowntimeDisplay />);
+    mockGetPrayerTimesByDate.mockResolvedValue(mockPrayerTimes);
+    await act(async () => { render(<DowntimeDisplay />); });
     expect(screen.getByText('23:30')).toBeInTheDocument();
-
-    // Advance time by 30 seconds
-    act(() => {
-      jest.advanceTimersByTime(30000);
+    await act(async () => {
+      jest.advanceTimersByTime(60_000);
     });
-
-    const newDate = new Date(2024, 0, 15, 23, 30, 30);
-    jest.setSystemTime(newDate);
-
-    // Force a re-render by advancing timers
-    act(() => {
-      jest.advanceTimersByTime(1000);
-    });
+    expect(screen.getByText('23:31')).toBeInTheDocument();
   });
 });

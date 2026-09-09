@@ -33,7 +33,7 @@ function getQuranOfTheDay(messages: QuranHomepageMessage[]) {
   return messages[londonDayKey % messages.length]
 }
 
-function formatVerseReference(surah: string, startAyah: number, endAyah: number) {
+function formatVerseReference(surah: string, startAyah: number | '', endAyah: number | '') {
   if (!endAyah || startAyah === endAyah) {
     return `${surah}:${startAyah}`
   }

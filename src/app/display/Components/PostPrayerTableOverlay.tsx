@@ -1,4 +1,5 @@
 'use client';
+import { MOSQUE_TIME_ZONE } from '@/lib/mosqueClock';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
@@ -14,6 +15,7 @@ export default function PostPrayerTableOverlay() {
   const { postPrayerTableTestSignal, ramadanPreviewActive } = useDebugContext();
   const [now, setNow] = useState(() => new Date());
   const [testMode, setTestMode] = useState(false);
+  const lastTestSignal = useRef(postPrayerTableTestSignal);
   const rootRef = useRef<HTMLDivElement>(null);
   const effectiveRamadan = isRamadan || ramadanPreviewActive;
 
@@ -23,7 +25,8 @@ export default function PostPrayerTableOverlay() {
   }, []);
 
   useEffect(() => {
-    if (postPrayerTableTestSignal <= 0) return;
+    if (postPrayerTableTestSignal <= 0 || postPrayerTableTestSignal === lastTestSignal.current) return;
+    lastTestSignal.current = postPrayerTableTestSignal;
 
     setTestMode(true);
     const timer = setTimeout(() => setTestMode(false), TEST_PREVIEW_MS);
@@ -34,7 +37,7 @@ export default function PostPrayerTableOverlay() {
     () =>
       testMode
         ? { name: 'Test Prayer', time: '--:--', minutesSinceStart: 0 }
-        : findActivePostPrayerEvent(prayerTimes, now, effectiveRamadan, WINDOW_MINUTES),
+        : findActivePostPrayerEvent(prayerTimes, now, effectiveRamadan, WINDOW_MINUTES, 3),
     [prayerTimes, now, effectiveRamadan, testMode]
   );
 
@@ -62,13 +65,13 @@ export default function PostPrayerTableOverlay() {
   }
 
   const minutesRemaining = WINDOW_MINUTES - activePostPrayer.minutesSinceStart;
-  const gregorianDate = now.toLocaleDateString('en-GB', {
+  const gregorianDate = now.toLocaleDateString('en-GB', { timeZone: MOSQUE_TIME_ZONE,
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
-  const hijriDate = new Intl.DateTimeFormat('en-u-ca-islamic', {
+  const hijriDate = new Intl.DateTimeFormat('en-u-ca-islamic', { timeZone: MOSQUE_TIME_ZONE,
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -78,6 +81,7 @@ export default function PostPrayerTableOverlay() {
     <div
       ref={rootRef}
       data-testid="post-prayer-table-overlay"
+      data-display-busy="post-prayer"
       className="fixed inset-0 z-[55] flex items-center justify-center p-10"
       style={{
         background: 'var(--overlay-darkest)',

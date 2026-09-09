@@ -1,3 +1,4 @@
+import { mosqueMinutes } from '@/lib/mosqueClock';
 import {
   doc,
   onSnapshot,
@@ -34,10 +35,12 @@ export function subscribeSlideIndex(
     (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        if (typeof data.slideIndex === 'number' && data.slideIndex >= 0) {
+        if (Number.isSafeInteger(data.slideIndex) && data.slideIndex >= 0) {
           onChange(data.slideIndex);
+        } else {
+          onChange(0);
         }
-      }
+      } else onChange(0);
     },
     onError
   );
@@ -175,7 +178,7 @@ export function isSlideshowWindowActive(
     return false;
   }
 
-  const current = now.getHours() * 60 + now.getMinutes();
+  const current = mosqueMinutes(now);
 
   if (start < end) {
     return current >= start && current < end;

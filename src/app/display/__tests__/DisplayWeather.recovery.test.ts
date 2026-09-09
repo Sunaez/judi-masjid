@@ -1,0 +1,44 @@
+const NOW = Date.UTC(2026, 8, 9, 12)
+const staleWeather = {
+  temp: 18, condition: 'Rain', iconCode: '10d', forecastTemp: 19,
+  forecastCondition: 'Clear', timestamp: NOW - 7 * 24 * 60 * 60_000,
+}
+
+let stop: (() => void) | undefined
+beforeEach(() => {
+  jest.resetModules()
+  jest.useFakeTimers()
+  jest.setSystemTime(NOW)
+  localStorage.clear()
+  localStorage.setItem('judi.weather.interval', '300000')
+  jest.spyOn(globalThis, 'fetch').mockReset().mockRejectedValue(new Error('Offline'))
+  jest.spyOn(console, 'warn').mockImplementation(() => {})
+  jest.spyOn(console, 'error').mockImplementation(() => {})
+})
+afterEach(() => {
+  stop?.()
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined })
+  jest.clearAllTimers()
+  jest.useRealTimers()
+  jest.restoreAllMocks()
+})
+
+it('does not expose week-old weather as current during a failed refresh', async () => {
+  localStorage.setItem('judi.weather.current', JSON.stringify(staleWeather))
+  const subscribe = require('@/lib/weatherClient').subscribeWeather
+  const listener = jest.fn()
+  stop = subscribe(listener)
+  await jest.advanceTimersByTimeAsync(0)
+  expect(listener).toHaveBeenLastCalledWith({ weather: null, loading: false })
+})
+
+it('recovers if another tab never releases the weather refresh lock', async () => {
+  Object.defineProperty(navigator, 'locks', { configurable: true,
+    value: { request: jest.fn(() => new Promise(() => {})) },
+  })
+  const subscribe = require('@/lib/weatherClient').subscribeWeather
+  const listener = jest.fn()
+  stop = subscribe(listener)
+  await jest.advanceTimersByTimeAsync(10 * 60_000)
+  expect(listener).toHaveBeenLastCalledWith({ weather: null, loading: false })
+})

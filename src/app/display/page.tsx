@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { recoveringSubscription } from '@/lib/recoveringSubscription';
 import { gsap } from 'gsap';
 import Rotator from './Components/Rotator';
 import PrayerTimeline from './Components/PrayerTimeline';
@@ -10,6 +11,7 @@ import PostPrayerTableOverlay from './Components/PostPrayerTableOverlay';
 import DowntimeDisplay from './Components/DowntimeDisplay';
 import SlideshowOverlay from './Components/SlideshowOverlay';
 import IslamicBackdrop from './Components/IslamicBackdrop';
+import DisplayBoundary from './Components/DisplayBoundary';
 import { usePrayerTimesContext } from './context/PrayerTimesContext';
 import { useDebugContext } from './context/DebugContext';
 import {
@@ -46,7 +48,6 @@ function DisplayContent() {
 
   // Track which mode is currently displayed (allows for smooth transition)
   const [displayMode, setDisplayMode] = useState<'normal' | 'downtime' | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Refs for transition animations
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,14 +55,13 @@ function DisplayContent() {
   const downtimeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const unsubscribe = subscribeSlideshowSettings(
+    const unsubscribe = recoveringSubscription<SlideshowSettings>(subscribeSlideshowSettings,
       (settings) => {
         setSlideshowSettings(settings);
         setSlideshowSettingsLoaded(true);
       },
       (error) => {
         console.error('[Display] Failed to load slideshow settings:', error);
-        setSlideshowSettings(null);
         setSlideshowSettingsLoaded(true);
       }
     );
@@ -100,21 +100,26 @@ function DisplayContent() {
 
   // Handle transitions between modes
   useEffect(() => {
-    if (isLoading || displayMode === null) return;
+    if (isLoading || !slideshowSettingsLoaded || displayMode === null) return;
 
     const targetMode = isDowntime ? 'downtime' : 'normal';
 
     // If already in the target mode, no transition needed
     if (targetMode === displayMode) return;
 
-    // Start transition
-    setIsTransitioning(true);
+    // The target is rendered in this commit, so both refs exist before animation.
+    if (isSlideshowActive) {
+      setDisplayMode(targetMode);
+      return;
+    }
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         onComplete: () => {
+          // Restore GSAP's temporary styles before React commits final visibility.
+          // Reverting during the subsequent effect cleanup would hide the new screen.
+          ctx.revert();
           setDisplayMode(targetMode);
-          setIsTransitioning(false);
         },
       });
 
@@ -177,7 +182,7 @@ function DisplayContent() {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [isDowntime, isLoading, displayMode]);
+  }, [isDowntime, isLoading, displayMode, slideshowSettingsLoaded, isSlideshowActive]);
 
   if (isSlideshowActive) {
     return <SlideshowOverlay />;
@@ -205,8 +210,8 @@ function DisplayContent() {
   const stageHeight = DISPLAY_BASE_HEIGHT * scale;
 
   // Determine what to render based on current display mode and transition state
-  const showNormal = displayMode === 'normal' || (isTransitioning && !isDowntime);
-  const showDowntime = displayMode === 'downtime' || (isTransitioning && isDowntime);
+  const showNormal = displayMode === 'normal' || !isDowntime;
+  const showDowntime = displayMode === 'downtime' || isDowntime;
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -245,7 +250,7 @@ function DisplayContent() {
                   background: 'var(--display-rotator-surface)',
                 }}
               >
-                <Rotator />
+                <DisplayBoundary><Rotator /></DisplayBoundary>
               </div>
 
               <div

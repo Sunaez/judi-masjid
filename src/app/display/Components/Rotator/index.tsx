@@ -1,6 +1,8 @@
 // src/app/display/Components/Rotator/index.tsx
 'use client';
 
+import { mosqueTimeOnDate, mosqueMinutes } from '@/lib/mosqueClock';
+
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';
 import useMessages, { MessageWithConditions } from './Messages';
@@ -22,8 +24,6 @@ import { addMinutesToTime } from '@/lib/prayerTimeUtils';
 import { useWeather } from '@/app/hooks/useWeather';
 import EidLanternBackdrop from '@/components/EidLanternBackdrop';
 import {
-  EID_AL_ADHA_NOTICE_END_MS,
-  EID_AL_ADHA_NOTICE_START_MS,
   isEidAlAdhaPrayerNoticeActive,
 } from '@/lib/eidPrayerNotice';
 
@@ -91,7 +91,7 @@ export default function Rotator() {
   // Filter messages by validity (e.g. time-based conditions)
   const valid = useValidMessages(all, prayerTimes, weatherData?.condition || null);
   // Filter messages that have weather conditions matching current weather
-  const weatherMessages = useWeatherMessages(all, weatherData?.condition || null);
+  const weatherMessages = useWeatherMessages(valid, weatherData?.condition || null, prayerTimes);
   // Build slot order dynamically (Taraweh slot only during Ramadan)
   const slots = useMemo(
     () => buildSlots(effectiveRamadan, showEidAlAdhaPrayer),
@@ -104,6 +104,8 @@ export default function Rotator() {
   const [currentMessage, setCurrentMessage] = useState<MessageWithConditions | null>(null);
   // The weather-conditional message to show when in a weather-message slot
   const [currentWeatherMessage, setCurrentWeatherMessage] = useState<MessageWithConditions | null>(null);
+  const lastAdvanceSignal = useRef(rotatorAdvanceSignal);
+  const lastDonationSignal = useRef(donationGoalPreviewSignal);
 
   // Refs for container (for animation + blur) and progress bar
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,31 +120,15 @@ export default function Rotator() {
   }, [slots.length]);
 
   useEffect(() => {
-    const nowMs = Date.now();
-    const timeoutIds: number[] = [];
-
-    setShowEidAlAdhaPrayer(isEidAlAdhaPrayerNoticeActive(nowMs));
-
-    if (nowMs < EID_AL_ADHA_NOTICE_START_MS) {
-      timeoutIds.push(
-        window.setTimeout(
-          () => setShowEidAlAdhaPrayer(true),
-          EID_AL_ADHA_NOTICE_START_MS - nowMs
-        )
-      );
-    }
-
-    if (nowMs < EID_AL_ADHA_NOTICE_END_MS) {
-      timeoutIds.push(
-        window.setTimeout(
-          () => setShowEidAlAdhaPrayer(false),
-          EID_AL_ADHA_NOTICE_END_MS - nowMs
-        )
-      );
-    }
-
+    const update = () => setShowEidAlAdhaPrayer(isEidAlAdhaPrayerNoticeActive());
+    update();
+    const timer = setInterval(update, 60_000);
+    window.addEventListener('focus', update);
+    document.addEventListener('visibilitychange', update);
     return () => {
-      timeoutIds.forEach(timeoutId => window.clearTimeout(timeoutId));
+      clearInterval(timer);
+      window.removeEventListener('focus', update);
+      document.removeEventListener('visibilitychange', update);
     };
   }, []);
 
@@ -168,8 +154,7 @@ export default function Rotator() {
     triggerKeys.forEach(key => {
       const timeStr = prayerTimes[key];      // e.g. "18:45"
       const [h, m] = timeStr.split(':').map(Number);
-      const fire = new Date();
-      fire.setHours(h, m + 1, 0, 0);         // schedule at HH:(MM+1):00
+      const fire = mosqueTimeOnDate(h, m + 1);         // schedule at HH:(MM+1):00
       const delay = fire.getTime() - now;
       if (delay > 0) {
         const id = window.setTimeout(() => {
@@ -244,7 +229,7 @@ export default function Rotator() {
         return h * 60 + m;
       };
       const now = new Date();
-      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const currentMin = mosqueMinutes(now);
 
       // Check if all relevant prayers have passed (Taraweh is last during Ramadan)
       const allTimes = [
@@ -279,14 +264,16 @@ export default function Rotator() {
   // ─── Debug: Advance on Key 2 Press ─────────────────────────────────────────────
   // When rotatorAdvanceSignal changes (triggered by pressing "2"), advance to next slot
   useEffect(() => {
-    if (rotatorAdvanceSignal > 0) {
+    if (rotatorAdvanceSignal > 0 && rotatorAdvanceSignal !== lastAdvanceSignal.current) {
+      lastAdvanceSignal.current = rotatorAdvanceSignal;
       setIndex(i => (i + 1) % slots.length);
     }
   }, [rotatorAdvanceSignal, slots.length]);
 
   // Debug: jump directly to the donation goal slide on "I".
   useEffect(() => {
-    if (!donationGoalPreviewSignal) return;
+    if (!donationGoalPreviewSignal || donationGoalPreviewSignal === lastDonationSignal.current) return;
+    lastDonationSignal.current = donationGoalPreviewSignal;
 
     const donationIndex = slots.findIndex(
       slot => slot.type === 'special' && slot.key === 'donation'
@@ -316,9 +303,9 @@ export default function Rotator() {
 
     const { animation, duration } = effectiveConfig;
     // Convert ms to seconds for GSAP
-    const durationSec = duration / 1000;
+    const durationSec = Math.min(duration, DISPLAY_MS - 2_000) / 1000;
 
-    if (animation === 'word-appear') {
+    if (animation === 'word-appear' && content.length <= 1000) {
       // Word-appear: split into spans and animate each
       element.textContent = '';
 
@@ -425,7 +412,8 @@ export default function Rotator() {
     if (!msg) return;
 
     // Wait a small delay to ensure DOM elements are rendered
-    const timeout = setTimeout(() => {
+    const animationContext = gsap.context(() => {}, containerRef);
+    const timeout = setTimeout(() => animationContext.add(() => {
       // Get the animation keys based on source type
       const arabicKey = msg.sourceType === 'quran' ? 'quranArabic'
         : msg.sourceType === 'hadith' ? 'hadithArabic'
@@ -449,9 +437,9 @@ export default function Rotator() {
       if (englishContent) {
         applyAnimation(englishTextRef.current, msg.animations?.[englishKey], englishContent, false, 0.5);
       }
-    }, 100);
+    }), 100);
 
-    return () => clearTimeout(timeout);
+    return () => { clearTimeout(timeout); animationContext.revert(); };
   }, [index, currentMessage, currentWeatherMessage, applyAnimation, slots]);
 
   // ─── GSAP Entry/Exit Animation ───────────────────────────────────────────────
@@ -542,9 +530,9 @@ export default function Rotator() {
     const specialProps: Record<string, any> =
       slot.key === 'date-time-weather'
         ? {
-            temperature: weatherData?.temp ?? 0,
-            condition: weatherData?.condition ?? 'Unknown',
-            iconCode: weatherData?.iconCode ?? '01d',
+            temperature: weatherData?.temp ?? null,
+            condition: weatherData?.condition ?? 'Weather unavailable',
+            iconCode: weatherData?.iconCode ?? '',
             displayDuration: DISPLAY_MS,
           }
         : slot.key === 'prayer-table'

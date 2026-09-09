@@ -81,11 +81,20 @@ export function normalizeDonationSettings(data: unknown): DonationSettings {
 
 export function subscribeDonationSettings(
   onChange: (settings: DonationSettings) => void,
-  onError?: (error: FirestoreError) => void
+  onError?: (error: FirestoreError) => void,
+  options?: { requireValid?: boolean }
 ): Unsubscribe {
   return onSnapshot(
     DONATION_SETTINGS_REF,
     (snapshot) => {
+      if (options?.requireValid) {
+        const data = snapshot.exists() ? snapshot.data() : null;
+        if (!data || typeof data.currentAmount !== 'number' || typeof data.totalAmount !== 'number' ||
+            validateDonationSettings(data.currentAmount, data.totalAmount)) {
+          onError?.(Object.assign(new Error('Donation settings are unavailable'), { code: 'invalid-argument' }) as FirestoreError);
+          return;
+        }
+      }
       onChange(
         snapshot.exists()
           ? normalizeDonationSettings(snapshot.data())

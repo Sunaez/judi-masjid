@@ -1,5 +1,7 @@
 'use client';
 
+import { mosqueMinutes, MOSQUE_TIME_ZONE } from '@/lib/mosqueClock';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { usePrayerTimesContext } from '@/app/display/context/PrayerTimesContext';
@@ -72,7 +74,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
     );
   }
 
-  const currentMin = now.getHours() * 60 + now.getMinutes();
+  const currentMin = mosqueMinutes(now);
   const toMin = (t: string) => {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
@@ -120,7 +122,7 @@ export default function PrayerTable({ displayDuration }: PrayerTableProps) {
     color: 'var(--text-color)', // <-- Added this line
   }}
 >
-  {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+  {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: MOSQUE_TIME_ZONE })}
 </div>
 
 

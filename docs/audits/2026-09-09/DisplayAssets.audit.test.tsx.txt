@@ -1,0 +1,68 @@
+import React from 'react'
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react'
+import SlideshowOverlay from '../Components/SlideshowOverlay'
+import { DebugProvider, useDebugContext } from '../context/DebugContext'
+import useValidMessages, { useWeatherMessages } from '../Components/Rotator/Conditions'
+import type { MessageWithConditions } from '../Components/Rotator/Messages'
+import { subscribeSlideIndex, saveSlideIndex } from '@/lib/firebase/slideshowSettings'
+
+jest.mock('@/lib/firebase/slideshowSettings', () => ({
+  subscribeSlideIndex: jest.fn(() => jest.fn()), saveSlideIndex: jest.fn(async () => {}),
+}))
+const flush = async () => { await act(async () => {}) }
+beforeEach(() => {
+  jest.useFakeTimers()
+  jest.setSystemTime(new Date('2026-09-09T10:00:00'))
+  jest.spyOn(globalThis, 'fetch').mockReset().mockResolvedValue({ ok: true,
+    json: async () => ({ images: ['/broken.jpg', '/two.jpg', '/three.jpg'] }),
+  } as Response)
+  jest.mocked(subscribeSlideIndex).mockClear()
+  jest.mocked(saveSlideIndex).mockClear()
+})
+afterEach(() => { cleanup(); jest.clearAllTimers(); jest.useRealTimers(); jest.restoreAllMocks() })
+
+it('honours time and day restrictions in the weather-message slot', () => {
+  const messages: MessageWithConditions[] = [{ id: 'notice', sourceType: 'other', conditions: [
+    { type: 'weather', entries: [{ weather: 'Rain' }] },
+    { type: 'time', entries: [{ from: '18:00', to: '19:00' }] },
+    { type: 'day', entries: ['Friday'] },
+  ] }]
+  const { result } = renderHook(() => useWeatherMessages(messages, 'Rain'))
+  expect(result.current).toHaveLength(0)
+})
+
+it('isolates malformed message conditions instead of throwing during render', () => {
+  const messages = [{ id: 'bad', sourceType: 'other', conditions: [
+    { type: 'time', entries: null },
+  ] }] as unknown as MessageWithConditions[]
+  expect(() => renderHook(() => useValidMessages(messages, null, null))).not.toThrow()
+})
+
+it('does not return to a failed slide without recovery on the next cycle', async () => {
+  const { container } = render(<SlideshowOverlay />)
+  await flush()
+  const slide = container.querySelector('img')!
+  fireEvent.error(slide)
+  await act(async () => { jest.advanceTimersByTime(120_000) })
+  expect(container.querySelector('img')).not.toHaveAttribute('src', '/broken.jpg')
+})
+
+it('gives a remotely selected slide a full display interval', async () => {
+  const { container } = render(<SlideshowOverlay />)
+  await flush()
+  act(() => { jest.advanceTimersByTime(39_000) })
+  const onChange = jest.mocked(subscribeSlideIndex).mock.calls[0][0]
+  act(() => { onChange(1) })
+  expect(container.querySelector('img')).toHaveAttribute('src', '/two.jpg')
+  act(() => { jest.advanceTimersByTime(1_000) })
+  expect(container.querySelector('img')).toHaveAttribute('src', '/two.jpg')
+})
+
+it('demonstrates manual downtime override remains active after toggling twice and a day passes', () => {
+  const { result } = renderHook(useDebugContext, { wrapper: DebugProvider })
+  act(() => { result.current.toggleDowntimeOverride() })
+  act(() => { result.current.toggleDowntimeOverride() })
+  act(() => { jest.advanceTimersByTime(24 * 60 * 60_000) })
+  expect(result.current.downtimeOverride).toBe(false)
+  expect(result.current.downtimeOverrideActive).toBe(true)
+})

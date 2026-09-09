@@ -34,14 +34,14 @@ export interface MessageData {
   sourceType: SourceType;
   quran?: {
     surah: string;
-    startAyah: number;
-    endAyah: number;
+    startAyah: number | '';
+    endAyah: number | '';
     arabicText: string;
     englishText: string;
   };
   hadith?: {
     author: string;
-    number: number;
+    number: number | '';
     authenticity: string;
     arabicText: string;
     englishText: string;

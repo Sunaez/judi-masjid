@@ -1,3 +1,4 @@
+import { mosqueMinutes } from '@/lib/mosqueClock';
 import type { RawPrayerTimes } from '@/app/FetchPrayerTimes'
 
 const MINUTES_PER_DAY = 24 * 60
@@ -106,18 +107,21 @@ export function findActivePostPrayerEvent(
   prayerTimes: RawPrayerTimes | null,
   now: Date,
   includeTaraweh: boolean,
-  windowMinutes: number = 5
+  windowMinutes: number = 5,
+  delayMinutes: number = 0
 ): ActivePostPrayerEvent | null {
   if (!prayerTimes) return null
 
-  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const nowMinutes = mosqueMinutes(now)
   const events = getPostPrayerEvents(prayerTimes, includeTaraweh)
 
   let activeEvent: ActivePostPrayerEvent | null = null
 
   events.forEach(event => {
     const eventMinutes = timeToMinutes(event.time)
-    const diff = normalizeMinutes(nowMinutes - eventMinutes)
+    // Taraweh has no preceding in-progress overlay.
+    const delay = event.name === 'Taraweh' ? 0 : delayMinutes
+    const diff = normalizeMinutes(nowMinutes - eventMinutes - delay)
     const isActive = diff >= 0 && diff < windowMinutes
 
     if (!isActive) return

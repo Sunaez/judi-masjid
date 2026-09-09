@@ -5,9 +5,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { HeartHandshake } from 'lucide-react';
 import {
-  DEFAULT_DONATION_SETTINGS,
   subscribeDonationSettings,
+  type DonationSettings,
 } from '@/lib/firebase/donationSettings';
+import { recoveringSubscription } from '@/lib/recoveringSubscription';
+
+let lastSettings: DonationSettings | null = null;
 
 interface DonationProps {
   displayDuration: number;
@@ -24,11 +27,12 @@ const formatPounds = (amount: number) =>
 export default function Donation({ displayDuration }: DonationProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const meterRef = useRef<HTMLDivElement>(null);
-  const [settings, setSettings] = useState(DEFAULT_DONATION_SETTINGS);
+  const [settings, setSettings] = useState<DonationSettings | null>(lastSettings);
 
   useEffect(() => {
-    const unsubscribe = subscribeDonationSettings(
-      setSettings,
+    const unsubscribe = recoveringSubscription<DonationSettings>(
+      (next, fail) => subscribeDonationSettings(next, fail, { requireValid: true }),
+      value => { lastSettings = value; setSettings(value); },
       (error) => {
         console.error('[Donation] Failed to load donation settings:', error);
       }
@@ -37,10 +41,12 @@ export default function Donation({ displayDuration }: DonationProps) {
     return () => unsubscribe();
   }, []);
 
-  const { currentAmount, totalAmount } = settings;
+  const { currentAmount, totalAmount } = settings ?? { currentAmount: 0, totalAmount: 1 };
   const progressPercent = (currentAmount / totalAmount) * 100;
+  const hasSettings = settings !== null;
 
   useEffect(() => {
+    if (!hasSettings) return;
     const entryDur = 0.8;
     const exitDur = 0.6;
     const totalSec = displayDuration / 1000;
@@ -107,7 +113,11 @@ export default function Donation({ displayDuration }: DonationProps) {
     }, rootRef);
 
     return () => ctx.revert();
-  }, [displayDuration]);
+  }, [displayDuration, hasSettings]);
+
+  if (!settings) return <div role="status" className="flex h-full items-center justify-center text-3xl">
+    Donation total temporarily unavailable
+  </div>;
 
   return (
     <div

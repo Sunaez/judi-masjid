@@ -78,6 +78,26 @@ describe('PostPrayerTableOverlay', () => {
     expect(screen.queryByText('Taraweh')).not.toBeInTheDocument()
   })
 
+  it('waits for the in-progress overlay and remains visible for five full minutes', () => {
+    jest.setSystemTime(new Date('2026-02-18T13:02:59'))
+    const { rerender } = render(<PostPrayerTableOverlay />)
+    expect(screen.queryByTestId('post-prayer-table-overlay')).not.toBeInTheDocument()
+    jest.setSystemTime(new Date('2026-02-18T13:07:59'))
+    // Remount to sample the specified instant without running unrelated animations.
+    rerender(<PostPrayerTableOverlay key="later" />)
+    expect(screen.getByTestId('post-prayer-table-overlay')).toBeInTheDocument()
+    jest.setSystemTime(new Date('2026-02-18T13:08:00'))
+    rerender(<PostPrayerTableOverlay key="ended" />)
+    expect(screen.queryByTestId('post-prayer-table-overlay')).not.toBeInTheDocument()
+  })
+
+  it('does not replay an old preview signal when the normal display remounts', () => {
+    jest.setSystemTime(new Date('2026-02-18T14:00:00'))
+    mockPostPrayerTableTestSignal = 1
+    render(<PostPrayerTableOverlay />)
+    expect(screen.queryByTestId('post-prayer-table-overlay')).not.toBeInTheDocument()
+  })
+
   it('includes taraweh row during Ramadan', () => {
     mockIsRamadan = true
     jest.setSystemTime(new Date('2026-02-18T21:33:00'))
@@ -93,8 +113,9 @@ describe('PostPrayerTableOverlay', () => {
 
   it('shows short preview mode when keybind test signal is triggered', () => {
     jest.setSystemTime(new Date('2026-02-18T14:00:00'))
+    const { rerender } = render(<PostPrayerTableOverlay />)
     mockPostPrayerTableTestSignal = 1
-    render(<PostPrayerTableOverlay />)
+    rerender(<PostPrayerTableOverlay />)
 
     expect(screen.getByTestId('post-prayer-table-overlay')).toBeInTheDocument()
     expect(screen.getByText('Post-Prayer Table Preview')).toBeInTheDocument()

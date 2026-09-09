@@ -1,6 +1,8 @@
 // src/app/display/context/PrayerTimesContext.tsx
 'use client';
 
+import { mosqueMinutes } from '@/lib/mosqueClock';
+
 import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, useRef } from 'react';
 import { RawPrayerTimes } from '@/app/FetchPrayerTimes';
 import { usePrayerTimesFromFirebase } from '@/app/hooks/usePrayerTimesFromFirebase';
@@ -49,7 +51,7 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
   // Track current time (updates every minute for efficiency)
   const [currentMinutes, setCurrentMinutes] = useState(() => {
     const now = new Date();
-    return now.getHours() * 60 + now.getMinutes();
+    return mosqueMinutes(now);
   });
 
   const now = new Date();
@@ -68,7 +70,7 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setCurrentMinutes(now.getHours() * 60 + now.getMinutes());
+      setCurrentMinutes(mosqueMinutes(now));
     };
 
     // Calculate ms until next minute
@@ -125,4 +127,9 @@ export function usePrayerTimesContext() {
     throw new Error('usePrayerTimesContext must be used within a PrayerTimesProvider');
   }
   return context;
+}
+
+/** Debug controls may also be rendered in isolation on test/demo pages. */
+export function useAutomaticDowntime() {
+  return useContext(PrayerTimesContext)?.isDowntime ?? false;
 }

@@ -1,3 +1,4 @@
+import { mosqueDateKey } from '@/lib/mosqueClock';
 // src/lib/firebase/prayerTimes.ts
 import {
   doc,
@@ -45,23 +46,14 @@ function getDocumentPath(dateStr: string): string {
  * Get today's date in DD/MM/YYYY format
  */
 export function getTodayDateString(date: Date = new Date()): string {
-  const d = new Date(date);
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
+  return mosqueDateKey(date);
 }
 
 /**
  * Get tomorrow's date in DD/MM/YYYY format
  */
 export function getTomorrowDateString(date: Date = new Date()): string {
-  const d = new Date(date);
-  d.setDate(d.getDate() + 1);
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
+  return mosqueDateKey(date, 1);
 }
 
 /**

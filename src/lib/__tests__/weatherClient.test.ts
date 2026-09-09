@@ -87,7 +87,7 @@ describe('shared weather scheduler', () => {
 
   it('shares a refresh between separate tabs using a lock and persistent cache', async () => {
     let queue = Promise.resolve();
-    const request = jest.fn((_name: string, work: () => Promise<void>) => {
+    const request = jest.fn((_name: string, _options: unknown, work: () => Promise<void>) => {
       queue = queue.then(work);
       return queue;
     });

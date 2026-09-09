@@ -1,5 +1,7 @@
 'use client'
 
+import { mosqueTimeOnDate } from '@/lib/mosqueClock';
+
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import TimeUntil from './TimeUntil'
@@ -42,9 +44,7 @@ type Event = {
 
 function toDate(timeString: string): Date {
   const [hours, minutes] = timeString.split(':').map(Number)
-  const date = new Date()
-  date.setHours(hours, minutes, 0, 0)
-  return date
+  return mosqueTimeOnDate(hours, minutes)
 }
 
 function formatEventTime(event: Event): string {

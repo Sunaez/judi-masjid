@@ -1,7 +1,8 @@
-export const EID_AL_ADHA_NOTICE_START_MS = Date.parse('2026-05-26T00:00:00+01:00')
-export const EID_AL_ADHA_NOTICE_END_MS = Date.parse('2026-05-27T09:00:00+01:00')
-export const EID_AL_ADHA_GREETING_START_MS = Date.parse('2026-05-26T18:00:00+01:00')
-export const EID_AL_ADHA_GREETING_END_MS = Date.parse('2026-05-30T00:00:00+01:00')
+// Configure confirmed mosque event dates at deployment time; never guess lunar dates.
+export const EID_AL_ADHA_NOTICE_START_MS = Date.parse(process.env.NEXT_PUBLIC_EID_NOTICE_START ?? '2026-05-26T00:00:00+01:00')
+export const EID_AL_ADHA_NOTICE_END_MS = Date.parse(process.env.NEXT_PUBLIC_EID_NOTICE_END ?? '2026-05-27T09:00:00+01:00')
+export const EID_AL_ADHA_GREETING_START_MS = Date.parse(process.env.NEXT_PUBLIC_EID_GREETING_START ?? '2026-05-26T18:00:00+01:00')
+export const EID_AL_ADHA_GREETING_END_MS = Date.parse(process.env.NEXT_PUBLIC_EID_GREETING_END ?? '2026-05-30T00:00:00+01:00')
 
 export function isEidAlAdhaPrayerNoticeActive(nowMs = Date.now()) {
   return (

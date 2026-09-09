@@ -1,0 +1,15 @@
+{
+  "browser": "Edge",
+  "timezone": "UTC",
+  "resolution": "1920x1080",
+  "passed": [
+    "cached startup during outage",
+    "London clock on UTC device",
+    "both mode transitions",
+    "manual return to automatic",
+    "preview does not replay",
+    "simulated midnight and next-day opening",
+    "offline production reload"
+  ],
+  "pageErrors": []
+}

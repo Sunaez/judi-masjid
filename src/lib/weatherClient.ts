@@ -1,11 +1,17 @@
 'use client';
 
 import { normalizeWeatherData, type WeatherData } from './weather';
+import { withTimeout } from './withTimeout';
 
 const CACHE_KEY = 'judi.weather.current';
 const INTERVAL_KEY = 'judi.weather.interval';
 export const MIN_WEATHER_INTERVAL = 4 * 60_000;
 export const MAX_WEATHER_INTERVAL = 6 * 60_000;
+export const MAX_WEATHER_AGE = 30 * 60_000;
+
+function usable(weather: WeatherData | null) {
+  return weather && Date.now() - weather.timestamp <= MAX_WEATHER_AGE ? weather : null;
+}
 
 type WeatherState = { weather: WeatherData | null; loading: boolean };
 let state: WeatherState = { weather: null, loading: true };
@@ -39,9 +45,10 @@ function publish(next: WeatherState) {
 }
 
 function restoreCache() {
+  if (state.weather && !usable(state.weather)) publish({ weather: null, loading: false });
   try {
     const cached = normalizeWeatherData(JSON.parse(readStorage(CACHE_KEY) ?? 'null'));
-    if (cached && cached.timestamp <= Date.now() &&
+    if (cached && usable(cached) && cached.timestamp <= Date.now() &&
         (!state.weather || cached.timestamp > state.weather.timestamp)) {
       publish({ weather: cached, loading: false });
     }
@@ -80,14 +87,14 @@ async function refresh() {
       throw new Error('Invalid weather response.');
     }
     writeStorage(CACHE_KEY, JSON.stringify(weather));
-    publish({ weather, loading: false });
+    publish({ weather: usable(weather), loading: false });
     // A stale fallback must not cause an immediate retry loop.
     retryAt = Date.now() >= weather.timestamp + getInterval() ? Date.now() + getInterval() : 0;
   } catch (error) {
     // Availability failures retain the last weather and retry; they are not UI crashes.
     console.warn('[weather] Failed to refresh:', error instanceof Error ? error.message : 'Request failed');
     retryAt = Date.now() + getInterval();
-    publish({ weather: state.weather, loading: false });
+    publish({ weather: usable(state.weather), loading: false });
   } finally {
     clearTimeout(timeout);
   }
@@ -98,16 +105,19 @@ async function checkWeather() {
   restoreCache();
   if (Date.now() < nextCheckAt()) { schedule(); return; }
   // Share one request across components; Web Locks also coordinate browser tabs.
+  const lockController = new AbortController();
   pending = Promise.resolve().then(() => navigator.locks
-    ? navigator.locks.request('judi.weather.refresh', refresh)
+    ? withTimeout(navigator.locks.request('judi.weather.refresh', { signal: lockController.signal },
+      () => lockController.signal.aborted ? Promise.resolve() : refresh()), 40_000)
     : refresh());
   try {
     await pending;
   } catch (error) {
     console.error('[weather] Failed to coordinate refresh:', error);
     retryAt = Date.now() + getInterval();
-    publish({ weather: state.weather, loading: false });
+    publish({ weather: usable(state.weather), loading: false });
   } finally {
+    lockController.abort();
     pending = null;
     schedule();
   }

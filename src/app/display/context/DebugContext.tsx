@@ -2,6 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
+import { useAutomaticDowntime } from './PrayerTimesContext';
 
 interface DebugContextValue {
   // Override for downtime mode (true = downtime, false = normal)
@@ -9,6 +10,7 @@ interface DebugContextValue {
   // Whether the override has been manually activated (vs using automatic detection)
   downtimeOverrideActive: boolean;
   toggleDowntimeOverride: () => void;
+  restoreAutomaticMode: () => void;
 
   // Signal to advance rotator to next slot
   rotatorAdvanceSignal: number;
@@ -38,12 +40,13 @@ const DebugContext = createContext<DebugContextValue | undefined>(undefined);
 
 // Keybind definitions for the help modal
 const KEYBINDS = [
-  { key: '1', description: 'Toggle between Normal and Off-Peak display mode' },
+  { key: '0', description: 'Restore automatic display mode and stop previews' },
+  { key: '1', description: 'Toggle Normal / Off-Peak (30-minute override)' },
   { key: '2', description: 'Skip to the next rotator section' },
   { key: '3', description: 'Test the prayer overlay (10s countdown + 5s in progress)' },
   { key: '4', description: 'Toggle between Light and Dark mode' },
   { key: '5', description: 'Preview post-prayer table overlay (short test)' },
-  { key: '6', description: 'Toggle Ramadan preview visuals (short test mode)' },
+  { key: '6', description: 'Toggle Ramadan preview visuals (5-minute preview)' },
   { key: 'I', description: 'Jump to the donation goal slide' },
   { key: 'H', description: 'Show/hide this help menu' },
 ];
@@ -62,6 +65,7 @@ const KEYBINDS = [
  * - H: Show/hide keybinds help
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
+  const automaticDowntime = useAutomaticDowntime();
   const [downtimeOverride, setDowntimeOverride] = useState<boolean>(false);
   const [downtimeOverrideActive, setDowntimeOverrideActive] = useState<boolean>(false);
   const [rotatorAdvanceSignal, setRotatorAdvanceSignal] = useState(0);
@@ -72,6 +76,24 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   const [notification, setNotification] = useState('');
   const [showHint, setShowHint] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+
+  const restoreAutomaticMode = useCallback(() => {
+    setDowntimeOverrideActive(false);
+    setDowntimeOverride(false);
+    setRamadanPreviewActive(false);
+  }, []);
+
+  useEffect(() => {
+    if (!downtimeOverrideActive) return;
+    const timer = setTimeout(restoreAutomaticMode, 30 * 60_000);
+    return () => clearTimeout(timer);
+  }, [downtimeOverrideActive, downtimeOverride, restoreAutomaticMode]);
+
+  useEffect(() => {
+    if (!ramadanPreviewActive) return;
+    const timer = setTimeout(() => setRamadanPreviewActive(false), 5 * 60_000);
+    return () => clearTimeout(timer);
+  }, [ramadanPreviewActive]);
 
   // Ref to track notification timeout for cleanup
   const notificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -107,11 +129,11 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   const toggleDowntimeOverride = useCallback(() => {
     setDowntimeOverrideActive(true); // Mark override as manually activated
     setDowntimeOverride(prev => {
-      const newValue = !prev;
+      const newValue = !(downtimeOverrideActive ? prev : automaticDowntime);
       showNotification(newValue ? 'Off-Peak Mode (Manual)' : 'Normal Mode (Manual)');
       return newValue;
     });
-  }, [showNotification]);
+  }, [showNotification, downtimeOverrideActive, automaticDowntime]);
 
   const advanceRotator = useCallback(() => {
     setRotatorAdvanceSignal(s => s + 1);
@@ -200,13 +222,16 @@ export function DebugProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (e.repeat || (e.target instanceof HTMLElement && e.target.isContentEditable) || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
       const handlers = handlersRef.current;
 
       switch (e.key.toLowerCase()) {
+        case '0':
+          restoreAutomaticMode();
+          break;
         case '1':
           if (!handlers.showHelp) handlers.toggleDowntimeOverride();
           break;
@@ -236,13 +261,14 @@ export function DebugProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []); // Empty deps - listener attached once
+  }, [restoreAutomaticMode]); // Stable callback; listener attached once
 
   const value: DebugContextValue = {
     downtimeOverride,
     downtimeOverrideActive,
     toggleDowntimeOverride,
     rotatorAdvanceSignal,
+    restoreAutomaticMode,
     advanceRotator,
     prayerOverlayTestSignal,
     testPrayerOverlay,

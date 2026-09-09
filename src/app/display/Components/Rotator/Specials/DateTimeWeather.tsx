@@ -1,10 +1,11 @@
 'use client';
+import { MOSQUE_TIME_ZONE } from '@/lib/mosqueClock';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
 
 interface DateTimeWeatherProps {
-  temperature: number;
+  temperature: number | null;
   condition: string;
   iconCode: string;           // e.g. "10d"
   displayDuration: number;
@@ -30,7 +31,6 @@ export default function DateTimeWeather({
   useEffect(() => {
     const entry = 0.6;
     const exit = 0.6;
-    const idle = Math.max(0, displayDuration / 1000 - entry - exit);
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline();
@@ -42,7 +42,7 @@ export default function DateTimeWeather({
         ease: 'power2.out',
       });
       // Icon fade + scale
-      tl.from(
+      if (iconRef.current) tl.from(
         iconRef.current,
         { autoAlpha: 0, scale: 0.8, duration: entry, ease: 'power2.out' },
         `-=${entry / 2}`
@@ -54,19 +54,19 @@ export default function DateTimeWeather({
         `-=${entry / 2}`
       );
       // Idle: gentle icon float
-      tl.to(
+      if (iconRef.current) tl.to(
         iconRef.current,
-        { y: -20, repeat: -1, yoyo: true, duration: 2.5, ease: 'sine.inOut' },
+        { y: -20, repeat: Math.max(0, Math.floor(displayDuration / 2500) - 2), yoyo: true, duration: 2.5, ease: 'sine.inOut' },
         `+=0.2`
       );
       // Exit: text slide out
       tl.to(
         '.dtw-text',
         { x: 30, autoAlpha: 0, stagger: 0.2, duration: exit, ease: 'power1.in' },
-        `+=${idle}`
+        Math.max(entry, displayDuration / 1000 - exit)
       );
       // Exit: icon shrink + fade
-      tl.to(
+      if (iconRef.current) tl.to(
         iconRef.current,
         { scale: 0.5, autoAlpha: 0, duration: exit, ease: 'power1.in' },
         `<`
@@ -86,13 +86,13 @@ export default function DateTimeWeather({
   const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@4x.png`;
 
   // Format dates
-  const longDate = now.toLocaleDateString(undefined, {
+  const longDate = now.toLocaleDateString(undefined, { timeZone: MOSQUE_TIME_ZONE,
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
-  const time = now.toLocaleTimeString(undefined, {
+  const time = now.toLocaleTimeString(undefined, { timeZone: MOSQUE_TIME_ZONE,
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
-  const hijri = new Intl.DateTimeFormat('en-u-ca-islamic', {
+  const hijri = new Intl.DateTimeFormat('en-u-ca-islamic', { timeZone: MOSQUE_TIME_ZONE,
     day: 'numeric', month: 'long', year: 'numeric',
   }).format(now);
 
@@ -112,15 +112,17 @@ export default function DateTimeWeather({
       {/* Right: Weather */}
       <div className="flex flex-col justify-center items-center space-y-8">
         <div className="p-6 rounded-2xl" style={{ backgroundColor: 'var(--secondary-color)' }}>
-          <img
+          {iconCode && <img
+            key={iconCode}
             ref={iconRef}
             src={iconUrl}
             alt={condition}
             className="w-72 h-72"
-          />
+            onError={event => { event.currentTarget.style.visibility = 'hidden'; }}
+          />}
         </div>
         <div className="dtw-text flex items-baseline space-x-6">
-          <span className="text-9xl font-extrabold">{temperature}°C</span>
+          <span className="text-9xl font-extrabold">{temperature === null ? '—' : `${temperature}°C`}</span>
           <span className="text-5xl uppercase opacity-90">{condition}</span>
         </div>
       </div>

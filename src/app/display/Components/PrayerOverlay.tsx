@@ -1,12 +1,14 @@
 // src/app/display/Components/PrayerOverlay.tsx
 'use client'
 
+import { mosqueTimeOnDate } from '@/lib/mosqueClock';
+
 import {
   AnimatePresence,
   motion,
   useReducedMotion,
 } from 'motion/react'
-import { useEffect, useState, useMemo, memo } from 'react'
+import { useEffect, useState, useMemo, useRef, memo } from 'react'
 import { usePrayerTimesContext } from '../context/PrayerTimesContext'
 import { useDebugContext } from '../context/DebugContext'
 
@@ -18,9 +20,7 @@ interface PrayerTime {
 // Helper to convert HH:MM to Date
 const toDate = (ts: string): Date => {
   const [h, m] = ts.split(':').map(Number)
-  const d = new Date()
-  d.setHours(h, m, 0, 0)
-  return d
+  return mosqueTimeOnDate(h, m)
 }
 
 const WINDOW_MS = 180 * 1000 // 3 minutes active window
@@ -49,10 +49,12 @@ const PrayerOverlay = memo(function PrayerOverlay() {
   // ─── Debug: Test mode state (Key 3 triggers) ───────────────────────────────
   const [testMode, setTestMode] = useState<'off' | 'countdown' | 'prayer'>('off')
   const [testCountdown, setTestCountdown] = useState(10)
+  const lastTestSignal = useRef(prayerOverlayTestSignal)
 
   // When prayerOverlayTestSignal changes (Key 3 pressed), start test mode
   useEffect(() => {
-    if (prayerOverlayTestSignal > 0) {
+    if (prayerOverlayTestSignal > 0 && prayerOverlayTestSignal !== lastTestSignal.current) {
+      lastTestSignal.current = prayerOverlayTestSignal
       // Start with countdown phase
       setTestMode('countdown')
       setTestCountdown(10)
@@ -142,6 +144,7 @@ const PrayerOverlay = memo(function PrayerOverlay() {
         <motion.div
           key={testMode !== 'off' ? 'test' : 'real'}
           className="prayer-overlay-root"
+          data-display-busy="prayer"
           data-phase={effectivePhase}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

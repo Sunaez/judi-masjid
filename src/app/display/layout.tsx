@@ -3,6 +3,9 @@ import { ThemeProvider } from './ThemeProvider';
 import { PrayerTimesProvider } from './context/PrayerTimesContext';
 import { DebugProvider } from './context/DebugContext';
 import AutoReloadOnNewVersion from './Components/AutoReloadOnNewVersion';
+import DisplayBoundary from './Components/DisplayBoundary';
+import TimetablePrefetch from './Components/TimetablePrefetch';
+import KioskLifecycle from './Components/KioskLifecycle';
 import { Poppins } from 'next/font/google';
 import type { Metadata } from 'next';
 
@@ -32,10 +35,10 @@ export default function DisplayLayout({
     <PrayerTimesProvider>
       <DebugProvider>
         <main className={`public-theme display-root ${poppins.variable}`}>
-          <ThemeProvider>
-            <AutoReloadOnNewVersion currentVersion={deploymentVersion} />
-            {children}
-          </ThemeProvider>
+          <AutoReloadOnNewVersion currentVersion={deploymentVersion} />
+          <TimetablePrefetch />
+          <KioskLifecycle />
+          <DisplayBoundary><ThemeProvider>{children}</ThemeProvider></DisplayBoundary>
         </main>
       </DebugProvider>
     </PrayerTimesProvider>
