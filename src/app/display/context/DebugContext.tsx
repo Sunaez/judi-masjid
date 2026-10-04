@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
-import { useAutomaticDowntime } from './PrayerTimesContext';
+import { useAutomaticDowntime, useClearSimulatedConnectionError, useIsSimulatingConnectionError, useSimulateConnectionError } from './PrayerTimesContext';
 
 interface DebugContextValue {
   // Override for downtime mode (true = downtime, false = normal)
@@ -47,6 +47,7 @@ const KEYBINDS = [
   { key: '4', description: 'Toggle between Light and Dark mode' },
   { key: '5', description: 'Preview post-prayer table overlay (short test)' },
   { key: '6', description: 'Toggle Ramadan preview visuals (5-minute preview)' },
+  { key: '7', description: 'Toggle simulated connection error' },
   { key: 'I', description: 'Jump to the donation goal slide' },
   { key: 'H', description: 'Show/hide this help menu' },
 ];
@@ -66,6 +67,15 @@ const KEYBINDS = [
  */
 export function DebugProvider({ children }: { children: ReactNode }) {
   const automaticDowntime = useAutomaticDowntime();
+  // The simulate-connection-error trigger only exists when PrayerTimesProvider wraps
+  // us (production layout). Guarded internally by useSimulateConnectionError so isolated
+  // <DebugProvider> tests (rendered without a PrayerTimes wrapper) still work — noop fallback.
+  const simulateConnectionError = useSimulateConnectionError();
+  // Live connection-error flag from PrayerTimesContext (false when no provider is present).
+  // Drives the toggle behavior for key "7": clear a simulated outage if active, otherwise trigger one.
+  const isSimulatingConnectionError = useIsSimulatingConnectionError();
+  // Safe trigger to clear a simulated connection outage (noop fallback when no PrayerTimesProvider).
+  const clearSimulatedConnectionError = useClearSimulatedConnectionError();
   const [downtimeOverride, setDowntimeOverride] = useState<boolean>(false);
   const [downtimeOverrideActive, setDowntimeOverrideActive] = useState<boolean>(false);
   const [rotatorAdvanceSignal, setRotatorAdvanceSignal] = useState(0);
@@ -191,6 +201,9 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     toggleTheme,
     toggleHelp,
     showHelp,
+    simulateConnectionError,
+    clearSimulatedConnectionError,
+    isSimulatingConnectionError,
   });
 
   // Update handlers ref when callbacks change (but don't re-attach listener)
@@ -205,6 +218,9 @@ export function DebugProvider({ children }: { children: ReactNode }) {
       toggleTheme,
       toggleHelp,
       showHelp,
+      simulateConnectionError,
+      clearSimulatedConnectionError,
+      isSimulatingConnectionError,
     };
   }, [
     toggleDowntimeOverride,
@@ -216,6 +232,9 @@ export function DebugProvider({ children }: { children: ReactNode }) {
     toggleTheme,
     toggleHelp,
     showHelp,
+    simulateConnectionError,
+    clearSimulatedConnectionError,
+    isSimulatingConnectionError,
   ]);
 
   // Keyboard event handler - attached once, reads from ref
@@ -249,6 +268,16 @@ export function DebugProvider({ children }: { children: ReactNode }) {
           break;
         case '6':
           if (!handlers.showHelp) handlers.toggleRamadanPreview();
+          break;
+        case '7':
+          if (!handlers.showHelp) {
+            if (handlers.isSimulatingConnectionError) {
+              handlers.clearSimulatedConnectionError();
+              showNotification('Connection Restored');
+            } else {
+              handlers.simulateConnectionError();
+            }
+          }
           break;
         case 'i':
           if (!handlers.showHelp) handlers.previewDonationGoal();
@@ -422,6 +451,7 @@ export function DebugProvider({ children }: { children: ReactNode }) {
                 </div>
               ))}
             </div>
+
             <div style={helpFooterStyle}>
               Press <strong>H</strong> to close
             </div>

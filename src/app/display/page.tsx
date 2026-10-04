@@ -28,7 +28,7 @@ const ROTATOR_SECTION_HEIGHT_PERCENT = 65;
 const TIMELINE_SECTION_HEIGHT_PERCENT = 35;
 
 function DisplayContent() {
-  const { isLoading, isDowntime: contextDowntime } = usePrayerTimesContext();
+  const { isLoading, isConnectionFailed, isDowntime: contextDowntime } = usePrayerTimesContext();
   const { downtimeOverride, downtimeOverrideActive } = useDebugContext();
   const [slideshowSettings, setSlideshowSettings] =
     useState<SlideshowSettings | null>(null);
@@ -260,7 +260,7 @@ function DisplayContent() {
                   background: 'var(--display-timeline-surface)',
                 }}
               >
-                <PrayerTimeline />
+                <PrayerTimeline connectionFailed={isConnectionFailed} />
               </div>
 
               <div className="pointer-events-none absolute inset-0 z-20 h-full w-full">

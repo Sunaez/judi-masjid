@@ -134,3 +134,29 @@ html.dark {
   --prayer-overlay-bg:    rgba(21, 49, 71, 0.9); /* Dark: Navy with opacity */
   --phone-reminder-bg:    rgba(173, 184, 187, 0.2); /* Mist with transparency */
 }
+
+/*────────────────────────── Connection Indicator Light ──────────────────────
+   Small orange dot fixed top-right that flashes ~1s per failed connection
+   attempt while an outage is active. Driven by <IndicatorLight attempts={n} />
+   in ThemeProvider: each increment remounts the element via its `attempts` key,
+   triggering a fresh flash animation. Uses --status-warning so it stays clearly
+   visible on both light and dark backgrounds.
+──────────────────────────────────────────────────────────────────────────────*/
+.indicator-light {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 80;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background-color: var(--status-warning);
+  box-shadow: 0 0 8px 1px var(--status-warning);
+  animation: indicatorFlash 1s ease-in-out;
+}
+
+@keyframes indicatorFlash {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0.15; transform: scale(1); }
+}

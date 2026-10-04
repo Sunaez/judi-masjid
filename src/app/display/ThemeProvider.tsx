@@ -60,6 +60,41 @@ export function getMsUntilNextThemeBoundary(
   return Math.max(BOUNDARY_BUFFER_MS, Math.min(...boundaries) - now.getTime() + BOUNDARY_BUFFER_MS)
 }
 
+// Persistent error box. Kept as a separate component with `key={error}` so that
+// re-renders driven by connection-attempt changes (see <IndicatorLight>) do NOT
+// cause this node to remount/flicker while the error text stays identical.
+export function ErrorBox({ error, isLoading }: { error: string | null; isLoading: boolean }) {
+  if (!error && !isLoading) return null;
+
+  return (
+    <div className="prayer-times-error flex items-center justify-center min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)]">
+      <div className="text-center p-8 bg-[var(--background-end)] rounded-2xl shadow-xl max-w-md border border-[var(--secondary-color)]">
+        <div className="text-6xl mb-4">⚠️</div>
+        <h3 className="text-2xl font-bold text-[var(--accent-color)] mb-3">Prayer Times Unavailable</h3>
+        <p className="text-[var(--text-color)] mb-4">{error}</p>
+        <p className="text-sm text-[var(--secondary-color)]">Retrying automatically. Please contact the administrator if this continues.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-6 py-2 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition"
+        >
+          Refresh Page
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Connection indicator light. Renders nothing until there is at least one failed
+// attempt, then flashes ~1s per attempt via a CSS animation keyed on `attempts`
+// (each increment remounts the element and triggers a fresh flash).
+export function IndicatorLight({ attempts }: { attempts: number }) {
+  if (!attempts) return null;
+
+  return (
+    <span key={attempts} className="indicator-light" title={`Connection attempt ${attempts}`} aria-hidden="true" />
+  );
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { prayerTimes: times, isLoading, error } = usePrayerTimesContext()
   const [ready, setReady] = useState(false)
@@ -178,30 +213,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [times, ready])
 
-  // Show error state
+  // Show error state. ErrorBox is keyed on `error` so it stays stable across
+  // re-renders driven by connection-attempt changes (IndicatorLight flashes).
   if (error && !isLoading && !times) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-[var(--background-start)] to-[var(--background-end)]">
-        <div className="text-center p-8 bg-[var(--background-end)] rounded-2xl shadow-xl max-w-md border border-[var(--secondary-color)]">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-[var(--accent-color)] mb-3">
-            Prayer Times Unavailable
-          </h2>
-          <p className="text-[var(--text-color)] mb-4">
-            {error}
-          </p>
-          <p className="text-sm text-[var(--secondary-color)]">
-            Retrying automatically. Please contact the administrator if this continues.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 py-2 px-6 bg-[var(--accent-color)] text-[var(--background-end)] font-semibold rounded-md hover:opacity-90 transition"
-          >
-            Refresh Page
-          </button>
-        </div>
-      </div>
-    )
+    return <ErrorBox key={error} error={error} isLoading={isLoading} />;
   }
 
   if (!ready || (isLoading && !times)) {
@@ -215,9 +230,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  return <>{children}{error && times && (
-    <div role="status" className="fixed bottom-2 right-2 z-[70] rounded bg-black/70 px-3 py-1 text-sm text-white">
-      Timetable refresh delayed. Retrying…
-    </div>
-  )}</>
+  return (
+    <>
+      {children}
+      {error && times && (
+        <div role="status" className="fixed bottom-2 right-2 z-[70] rounded bg-black/70 px-3 py-1 text-sm text-white">
+          Timetable refresh delayed. Retrying…
+        </div>
+      )}
+    </>
+  );
 }

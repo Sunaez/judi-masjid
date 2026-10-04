@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { RawPrayerTimes } from '@/app/FetchPrayerTimes';
+import { isSimulatedConnectionError } from '@/app/display/context/displayFlags';
 
 /**
  * Firestore prayer time document structure
@@ -83,6 +84,14 @@ function getDayOfWeek(dateStr: string): string {
 export async function getPrayerTimesByDate(
   dateStr: string = getTodayDateString()
 ): Promise<RawPrayerTimes | null> {
+  // Short-circuit BEFORE any Firestore access when the display "simulate
+  // connection error" flag is set (press 7). Returns null so the hook surfaces a
+  // realistic "no data available yet" state instead of hitting Firebase.
+  if (isSimulatedConnectionError()) {
+    console.warn('[prayerTimes] Simulated connection error — skipping Firestore read');
+    return null;
+  }
+
   try {
     const { year, month, day } = parseDateString(dateStr);
     const docRef = doc(db, 'prayerTimes', year, month, day);

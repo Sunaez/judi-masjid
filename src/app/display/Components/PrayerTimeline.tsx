@@ -8,6 +8,8 @@ import TimeUntil from './TimeUntil'
 import { usePrayerTimesContext } from '../context/PrayerTimesContext'
 import { useDebugContext } from '../context/DebugContext'
 import { addMinutesToTime } from '@/lib/prayerTimeUtils'
+import { IndicatorLight } from '../ThemeProvider'
+import { SIMULATED_ERROR_INTERVAL_MS } from '../context/constants'
 
 const ICON_MAP: Record<string, string> = {
   Fajr: '/Icons/white-fajr.webp',
@@ -76,10 +78,25 @@ function buildEvents(prayerTimes: NonNullable<ReturnType<typeof usePrayerTimesCo
   return events
 }
 
-const PrayerTimeline = memo(function PrayerTimeline() {
+interface PrayerTimelineProps {
+  connectionFailed?: boolean
+}
+
+const PrayerTimeline = memo(function PrayerTimeline({ connectionFailed }: PrayerTimelineProps) {
   const { prayerTimes, isLoading, isRamadan } = usePrayerTimesContext()
   const { ramadanPreviewActive } = useDebugContext()
   const includeTaraweh = isRamadan || ramadanPreviewActive
+
+  // Local amber-light flash counter for the failed-state panel. Driven by its own
+  // timer (not context `attempts`, which stays 0 during the press-7 no-data
+  // short-circuit) so PrayerTimeline visibly pulses "reconnecting" while ANY
+  // connection failure persists — including when no polling attempts are recorded.
+  const [flashCount, setFlashCount] = useState(0)
+  useEffect(() => {
+    if (!connectionFailed) return
+    const id = window.setInterval(() => setFlashCount(c => c + 1), SIMULATED_ERROR_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [connectionFailed])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
@@ -182,6 +199,25 @@ const PrayerTimeline = memo(function PrayerTimeline() {
     const totalMs = range.end.getTime() - range.start.getTime() || 1
     return Math.max(0, Math.min(100, ((now.getTime() - range.start.getTime()) / totalMs) * 100))
   }, [now, range])
+
+  // Connection-failed gate: show the error panel + amber light instead of the
+  // live timeline. Checked before loading so a press-7 outage surfaces instantly,
+  // even if prayerTimes happen to be cached from an earlier successful fetch.
+  if (connectionFailed) {
+    return (
+      <div className="flex h-full w-full items-center justify-center overflow-hidden">
+        <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
+          <IndicatorLight attempts={flashCount} />
+          <div className="rounded-xl border border-[var(--secondary-color)] bg-[var(--background-end)] p-4 shadow-lg">
+            <p className="text-sm font-semibold leading-tight text-[var(--accent-color)]">Prayer Times Unavailable</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-color)] opacity-80">
+              Unable to receive prayer times. Retrying automatically...
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading || !range) {
     return (

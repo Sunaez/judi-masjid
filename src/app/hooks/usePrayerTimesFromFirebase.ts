@@ -38,12 +38,16 @@ interface PrayerState {
   times: RawPrayerTimes | null;
   error: string | null;
   isLoading: boolean;
+  // Number of failed connection attempts since the last successful fetch.
+  // Drives the flashing "connection attempt" indicator in ThemeProvider so we
+  // can re-render only to flash the light (not to flicker the error box).
+  attempts: number;
 }
 
 /** One scheduler owns polling and daily rollover; cached times belong to one date. */
 export function usePrayerTimesFromFirebase() {
   const [state, setState] = useState<PrayerState>(() => ({
-    date: getTodayDateString(), times: null, error: null, isLoading: true,
+    date: getTodayDateString(), times: null, error: null, isLoading: true, attempts: 0,
   }));
 
   useEffect(() => {
@@ -51,7 +55,7 @@ export function usePrayerTimesFromFirebase() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let date = getTodayDateString();
     let cachedTimes: RawPrayerTimes | null = readTimetable(date);
-    if (cachedTimes) setState({ date, times: cachedTimes, error: null, isLoading: false });
+    if (cachedTimes) setState({ date, times: cachedTimes, error: null, isLoading: false, attempts: 0 });
     let generation = 0;
     let requestController: AbortController | undefined;
 
@@ -70,7 +74,7 @@ export function usePrayerTimesFromFirebase() {
       if (today !== date) {
         date = today;
         cachedTimes = readTimetable(date);
-        setState({ date, times: cachedTimes, error: null, isLoading: !cachedTimes });
+        setState({ date, times: cachedTimes, error: null, isLoading: !cachedTimes, attempts: 0 });
       }
 
       const now = new Date();
@@ -95,7 +99,7 @@ export function usePrayerTimesFromFirebase() {
         const newTimes = await withTimeout(getPrayerTimesByDate(requestDate), REQUEST_TIMEOUT_MS, request.signal);
         if (!isCurrent()) return;
         if (!newTimes) {
-          setState({ date, times: cachedTimes, isLoading: false,
+          setState({ date, times: cachedTimes, isLoading: false, attempts: 0,
             error: `No prayer times found for ${date}. Please sync from Google Sheets.` });
         } else {
           if (!PRAYER_KEYS.every(key => typeof newTimes[key] === 'string' && TIME_PATTERN.test(newTimes[key]))) {
@@ -104,14 +108,18 @@ export function usePrayerTimesFromFirebase() {
           if (!cachedTimes || !PRAYER_KEYS.every(key => cachedTimes![key] === newTimes[key])) {
             cachedTimes = newTimes;
           }
-          setState({ date, times: cachedTimes, error: null, isLoading: false });
+          setState({ date, times: cachedTimes, error: null, isLoading: false, attempts: 0 });
           cacheTimetable(date, cachedTimes);
         }
       } catch (error) {
         if (!isCurrent()) return;
         console.error('Failed to fetch prayer times from Firebase:', error);
-        setState({ date, times: cachedTimes, isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to fetch prayer times' });
+        // Increment attempts on every failed attempt so ThemeProvider can flash the
+        // connection-indicator light once per attempt, and surface a message for the
+        // error box. The message is intentionally left stable (not bumped here) so the
+        // error box does not flicker while only the indicator needs to re-render.
+        setState(prev => ({ ...prev, isLoading: false, attempts: prev.attempts + 1,
+          error: error instanceof Error ? error.message : 'Connection failed' }));
       } finally {
         if (isCurrent()) {
           const finishedAt = new Date();
@@ -135,5 +143,6 @@ export function usePrayerTimesFromFirebase() {
     timesDate: isToday && state.times ? state.date : null,
     error: isToday ? state.error : null,
     isLoading: !isToday || state.isLoading,
+    attempts: state.attempts,
   };
 }
